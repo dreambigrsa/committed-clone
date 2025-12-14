@@ -25,6 +25,7 @@ import { Post, Advertisement, Sticker } from '@/types';
 import StickerPicker from '@/components/StickerPicker';
 import StatusIndicator from '@/components/StatusIndicator';
 import StatusStoriesBar from '@/components/StatusStoriesBar';
+import FacebookStyleStoriesBar from '@/components/FacebookStyleStoriesBar';
 import * as WebBrowser from 'expo-web-browser';
 import ReportContentModal from '@/components/ReportContentModal';
 import * as ImagePicker from 'expo-image-picker';
@@ -157,18 +158,53 @@ export default function FeedScreen() {
       borderBottomWidth: 1,
       borderBottomColor: colors.border.light,
     },
-    headerTitle: {
-      fontSize: 28,
-      fontWeight: '800' as const,
-      color: colors.text.primary,
+    headerLeft: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
     },
-    createButton: {
-      width: 44,
-      height: 44,
-      borderRadius: 22,
-      backgroundColor: colors.primary + '15',
+    appLogoImage: {
+      width: 32,
+      height: 32,
+      borderRadius: 8,
+    },
+    headerTitle: {
+      fontSize: 32,
+      fontWeight: '700' as const,
+      color: colors.text.primary,
+      letterSpacing: -0.5,
+    },
+    headerIcons: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+    },
+    headerIconButton: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
       alignItems: 'center',
       justifyContent: 'center',
+      position: 'relative',
+    },
+    notificationBadge: {
+      position: 'absolute',
+      top: 4,
+      right: 4,
+      backgroundColor: '#E41E3F',
+      borderRadius: 10,
+      minWidth: 20,
+      height: 20,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingHorizontal: 6,
+      borderWidth: 2,
+      borderColor: colors.background.primary,
+    },
+    notificationBadgeText: {
+      fontSize: 11,
+      fontWeight: '700' as const,
+      color: '#FFFFFF',
     },
     scrollContent: {
       paddingBottom: 100,
@@ -1548,18 +1584,39 @@ export default function FeedScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background.secondary }]}>
+      {/* Facebook-style Header */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Feed</Text>
-        <TouchableOpacity
-          style={styles.createButton}
-          onPress={() => router.push('/post/create' as any)}
-        >
-          <Plus size={24} color={colors.primary} />
-        </TouchableOpacity>
+        <View style={styles.headerLeft}>
+          <Image
+            source={require('@/assets/images/icon.png')}
+            style={styles.appLogoImage}
+            contentFit="contain"
+          />
+          <Text style={styles.headerTitle}>Committed</Text>
+        </View>
+        <View style={styles.headerIcons}>
+          <TouchableOpacity
+            style={styles.headerIconButton}
+            onPress={() => router.push('/post/create' as any)}
+          >
+            <Plus size={24} color={colors.text.primary} />
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={styles.headerIconButton}
+            onPress={() => router.push('/(tabs)/messages' as any)}
+          >
+            <MessageCircle size={24} color={colors.text.primary} />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.headerIconButton}>
+            <View style={styles.notificationBadge}>
+              <Text style={styles.notificationBadgeText}>8</Text>
+            </View>
+          </TouchableOpacity>
+        </View>
       </View>
 
-      {/* Status Stories Bar */}
-      <StatusStoriesBar context="feed" />
+      {/* Facebook-Style Stories Bar with "What's on your mind?" */}
+      <FacebookStyleStoriesBar context="feed" />
 
       <ScrollView
         contentContainerStyle={styles.scrollContent}
