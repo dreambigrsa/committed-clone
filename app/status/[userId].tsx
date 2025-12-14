@@ -15,12 +15,15 @@ import {
   Dimensions,
   Animated,
   StatusBar,
+  ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { Video, ResizeMode } from 'expo-av';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { X } from 'lucide-react-native';
-import { getUserStatuses, markStatusAsViewed, getStatusMediaUrl } from '@/lib/status-queries';
+import { X, Trash2 } from 'lucide-react-native';
+import { getUserStatuses, markStatusAsViewed, getSignedUrlForMedia, deleteStatus } from '@/lib/status-queries';
+import { useApp } from '@/contexts/AppContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import type { Status } from '@/lib/status-queries';
 
@@ -31,14 +34,15 @@ export default function StatusViewerScreen() {
   const { userId } = useLocalSearchParams<{ userId: string }>();
   const router = useRouter();
   const { colors } = useTheme();
+  const { currentUser } = useApp();
   const [statuses, setStatuses] = useState<Status[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [mediaUrl, setMediaUrl] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isDeleting, setIsDeleting] = useState(false);
   const progressAnim = useRef(new Animated.Value(0)).current;
   const progressInterval = useRef<NodeJS.Timeout | null>(null);
 
-  // Define styles at the top to avoid "used before declaration" errors
   const styles = StyleSheet.create({
     container: {
       flex: 1,
@@ -46,58 +50,45 @@ export default function StatusViewerScreen() {
     },
     progressContainer: {
       flexDirection: 'row',
-      paddingHorizontal: 8,
+      paddingHorizontal: 4,
       paddingTop: 8,
       gap: 4,
+      height: PROGRESS_BAR_HEIGHT + 8,
     },
     progressBarWrapper: {
       flex: 1,
       height: PROGRESS_BAR_HEIGHT,
-      backgroundColor: 'rgba(255,255,255,0.3)',
+      backgroundColor: 'rgba(255, 255, 255, 0.3)',
       borderRadius: PROGRESS_BAR_HEIGHT / 2,
       overflow: 'hidden',
     },
     progressBarFill: {
       height: '100%',
       backgroundColor: '#fff',
-      borderRadius: PROGRESS_BAR_HEIGHT / 2,
     },
     header: {
       flexDirection: 'row',
+      justifyContent: 'space-between',
       alignItems: 'center',
       paddingHorizontal: 16,
-      paddingTop: 12,
-      paddingBottom: 8,
+      paddingVertical: 12,
+      paddingTop: 16,
     },
     userInfo: {
-      flexDirection: 'row',
-      alignItems: 'center',
       flex: 1,
-    },
-    userAvatar: {
-      width: 32,
-      height: 32,
-      borderRadius: 16,
-      marginRight: 8,
     },
     userName: {
       color: '#fff',
-      fontSize: 15,
+      fontSize: 16,
       fontWeight: '600' as const,
     },
     timestamp: {
-      color: 'rgba(255,255,255,0.7)',
+      color: 'rgba(255, 255, 255, 0.7)',
       fontSize: 12,
-      marginLeft: 8,
+      marginTop: 2,
     },
     closeButton: {
-      width: 40,
-      height: 40,
-      borderRadius: 20,
-      backgroundColor: 'rgba(0,0,0,0.3)',
-      alignItems: 'center',
-      justifyContent: 'center',
-      marginLeft: 12,
+      padding: 8,
     },
     content: {
       flex: 1,
@@ -107,13 +98,22 @@ export default function StatusViewerScreen() {
     },
     textContent: {
       color: '#fff',
-      fontSize: 28,
-      fontWeight: '600' as const,
+      fontSize: 24,
       textAlign: 'center',
+      fontWeight: '500' as const,
     },
     media: {
       width: width,
       height: height * 0.7,
+    },
+    loadingText: {
+      color: '#fff',
+      fontSize: 16,
+    },
+    loadingContainer: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
     },
     navArea: {
       position: 'absolute',
@@ -127,32 +127,24 @@ export default function StatusViewerScreen() {
     rightArea: {
       right: 0,
     },
-    loadingContainer: {
-      flex: 1,
-      justifyContent: 'center',
-      alignItems: 'center',
-    },
-    loadingText: {
-      color: '#fff',
-      fontSize: 16,
-    },
   });
 
   useEffect(() => {
+    if (!userId || userId === 'undefined') {
+      router.back();
+      return;
+    }
+
     loadStatuses();
-    return () => {
-      if (progressInterval.current) {
-        clearInterval(progressInterval.current);
-      }
-    };
   }, [userId]);
 
   useEffect(() => {
     if (statuses.length > 0 && currentIndex < statuses.length) {
-      loadMediaUrl();
-      markAsViewed();
+      loadMedia();
       startProgress();
+      markAsViewed();
     }
+
     return () => {
       if (progressInterval.current) {
         clearInterval(progressInterval.current);
@@ -161,12 +153,7 @@ export default function StatusViewerScreen() {
   }, [currentIndex, statuses]);
 
   const loadStatuses = async () => {
-    // Validate userId before making the request
-    if (!userId || userId === 'undefined' || userId === 'null' || typeof userId !== 'string') {
-      console.error('Invalid userId in StatusViewer:', userId);
-      setIsLoading(false);
-      return;
-    }
+    if (!userId || userId === 'undefined') return;
 
     setIsLoading(true);
     try {
@@ -175,55 +162,59 @@ export default function StatusViewerScreen() {
       setCurrentIndex(0);
     } catch (error) {
       console.error('Error loading statuses:', error);
-      setStatuses([]);
+      router.back();
     } finally {
       setIsLoading(false);
     }
   };
 
-  const loadMediaUrl = async () => {
+  const loadMedia = async () => {
     const status = statuses[currentIndex];
-    if (status?.media_path) {
-      try {
-        const url = await getStatusMediaUrl(status.media_path);
-        setMediaUrl(url);
-      } catch (error) {
-        console.error('Error loading media URL:', error);
-        setMediaUrl(null);
-      }
-    } else {
+    if (!status || !status.media_path) {
+      setMediaUrl(null);
+      return;
+    }
+
+    try {
+      const url = await getSignedUrlForMedia(status.media_path);
+      setMediaUrl(url);
+    } catch (error) {
+      console.error('Error loading media:', error);
       setMediaUrl(null);
     }
   };
 
   const markAsViewed = async () => {
-    if (statuses[currentIndex]) {
-      try {
-        await markStatusAsViewed(statuses[currentIndex].id);
-      } catch (error) {
-        console.error('Error marking as viewed:', error);
-      }
-    }
+    const status = statuses[currentIndex];
+    if (!status) return;
+
+    await markStatusAsViewed(status.id);
   };
 
   const startProgress = () => {
     if (progressInterval.current) {
       clearInterval(progressInterval.current);
     }
-    
+
     progressAnim.setValue(0);
     const duration = 5000; // 5 seconds per status
-    const startTime = Date.now();
-    
+    const steps = 100;
+    const stepDuration = duration / steps;
+    let currentStep = 0;
+
     progressInterval.current = setInterval(() => {
-      const elapsed = Date.now() - startTime;
-      const progress = Math.min(elapsed / duration, 1);
+      currentStep++;
+      const progress = currentStep / steps;
+
       progressAnim.setValue(progress);
-      
+
       if (progress >= 1) {
+        if (progressInterval.current) {
+          clearInterval(progressInterval.current);
+        }
         handleNext();
       }
-    }, 50);
+    }, stepDuration);
   };
 
   const handleNext = () => {
@@ -251,6 +242,56 @@ export default function StatusViewerScreen() {
       clearInterval(progressInterval.current);
     }
     router.back();
+  };
+
+  const handleDelete = async () => {
+    const status = statuses[currentIndex];
+    if (!status) return;
+
+    const isOwnStatus = currentUser?.id === status.user_id;
+
+    if (!isOwnStatus) {
+      Alert.alert('Error', 'You can only delete your own statuses.');
+      return;
+    }
+
+    Alert.alert(
+      'Delete Status',
+      'Are you sure you want to delete this status?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            setIsDeleting(true);
+            try {
+              const success = await deleteStatus(status.id);
+              if (success) {
+                const newStatuses = statuses.filter((s) => s.id !== status.id);
+                setStatuses(newStatuses);
+
+                if (newStatuses.length === 0) {
+                  router.back();
+                } else {
+                  const newIndex = currentIndex >= newStatuses.length 
+                    ? newStatuses.length - 1 
+                    : currentIndex;
+                  setCurrentIndex(newIndex);
+                }
+              } else {
+                Alert.alert('Error', 'Failed to delete status. Please try again.');
+              }
+            } catch (error) {
+              console.error('Error deleting status:', error);
+              Alert.alert('Error', 'Failed to delete status. Please try again.');
+            } finally {
+              setIsDeleting(false);
+            }
+          },
+        },
+      ]
+    );
   };
 
   if (isLoading || statuses.length === 0) {
@@ -311,9 +352,25 @@ export default function StatusViewerScreen() {
               })}
             </Text>
           </View>
-          <TouchableOpacity style={styles.closeButton} onPress={handleClose}>
-            <X size={24} color="#fff" />
-          </TouchableOpacity>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            {/* Delete button - only show for own statuses */}
+            {currentUser?.id === status.user_id && (
+              <TouchableOpacity 
+                style={styles.closeButton} 
+                onPress={handleDelete}
+                disabled={isDeleting}
+              >
+                {isDeleting ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Trash2 size={20} color="#fff" />
+                )}
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity style={styles.closeButton} onPress={handleClose}>
+              <X size={24} color="#fff" />
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* Content */}
@@ -350,5 +407,4 @@ export default function StatusViewerScreen() {
     </Modal>
   );
 }
-
 
