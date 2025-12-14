@@ -47,10 +47,23 @@ export interface StatusFeedItem {
  * Returns one bubble per user with their latest status
  */
 export async function getStatusFeedForFeed(): Promise<StatusFeedItem[]> {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return [];
+  console.log('🔍 [getStatusFeedForFeed] Starting...');
+  
+  const { data: { user }, error: userError } = await supabase.auth.getUser();
+  if (userError) {
+    console.error('❌ [getStatusFeedForFeed] Auth error:', userError);
+    return [];
+  }
+  
+  if (!user) {
+    console.warn('⚠️ [getStatusFeedForFeed] No user found');
+    return [];
+  }
+
+  console.log('✅ [getStatusFeedForFeed] User authenticated:', user.id);
 
   // Get all visible statuses (RLS filters automatically)
+  // Remove client-side filters to see what RLS returns
   const { data: statuses, error } = await supabase
     .from('statuses')
     .select(`
@@ -65,32 +78,75 @@ export async function getStatusFeedForFeed(): Promise<StatusFeedItem[]> {
       archived,
       archived_at
     `)
-    .eq('archived', false)
-    .gt('expires_at', new Date().toISOString())
     .order('created_at', { ascending: false });
+
+  console.log('📊 [getStatusFeedForFeed] Query result:', {
+    statusesCount: statuses?.length || 0,
+    statuses: statuses ? statuses.map((s: any) => ({
+      id: s.id?.substring(0, 8) + '...',
+      user_id: s.user_id?.substring(0, 8) + '...',
+      archived: s.archived,
+      expires_at: s.expires_at,
+      privacy_level: s.privacy_level,
+    })) : null,
+    error: error ? {
+      message: error.message,
+      code: error.code,
+      details: error.details,
+      hint: error.hint,
+    } : null,
+  });
 
   if (error) {
     if (error.code === 'PGRST200' || error.message?.includes('schema cache')) {
-      console.warn('Status table not found. Please run COMPLETE-STATUS-SETUP-FINAL.sql in Supabase SQL Editor.');
+      console.warn('⚠️ Status table not found. Please run COMPLETE-STATUS-SETUP-FINAL.sql in Supabase SQL Editor.');
       return [];
     }
-    console.error('Error fetching status feed:', error);
+    console.error('❌ [getStatusFeedForFeed] Error fetching status feed:', error);
     return [];
   }
 
-  if (!statuses || statuses.length === 0) return [];
+  if (!statuses || statuses.length === 0) {
+    console.warn('⚠️ [getStatusFeedForFeed] No statuses returned from query');
+    return [];
+  }
+
+  console.log('📋 [getStatusFeedForFeed] Raw statuses:', statuses.map(s => ({
+    id: s.id,
+    user_id: s.user_id,
+    archived: s.archived,
+    expires_at: s.expires_at,
+    privacy_level: s.privacy_level,
+  })));
+
+  // Filter by archived and expires_at on client side
+  const now = new Date().toISOString();
+  const activeStatuses = statuses.filter((s: Status) => {
+    const isNotArchived = s.archived === false;
+    const isNotExpired = s.expires_at > now;
+    return isNotArchived && isNotExpired;
+  });
+
+  console.log('✅ [getStatusFeedForFeed] Active statuses after filtering:', activeStatuses.length);
+
+  if (activeStatuses.length === 0) {
+    console.warn('⚠️ [getStatusFeedForFeed] No active statuses after filtering');
+    return [];
+  }
 
   // Fetch user data for all status owners
   const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-  const userIds = Array.from<string>(new Set<string>(statuses.map((s: Status) => s.user_id).filter((id: string) => {
+  const userIds = Array.from<string>(new Set<string>(activeStatuses.map((s: Status) => s.user_id).filter((id: string) => {
     if (!id || id === 'undefined' || id === 'null' || typeof id !== 'string') {
       return false;
     }
     return uuidRegex.test(id);
   })));
 
+  console.log('👥 [getStatusFeedForFeed] User IDs to fetch:', userIds.length);
+
   if (userIds.length === 0) {
-    console.warn('No valid user IDs found in statuses');
+    console.warn('⚠️ [getStatusFeedForFeed] No valid user IDs found in statuses');
     return [];
   }
 
@@ -105,32 +161,48 @@ export async function getStatusFeedForFeed(): Promise<StatusFeedItem[]> {
 
   const usersMap = new Map<string, { id: string; full_name: string; profile_picture: string | null }>();
   if (usersData) {
+    console.log('✅ [getStatusFeedForFeed] Fetched user data:', usersData.length, 'users');
     usersData.forEach((u: { id: string; full_name: string; profile_picture: string | null }) => {
       usersMap.set(u.id, u);
     });
+  } else {
+    console.warn('⚠️ [getStatusFeedForFeed] No user data returned');
   }
 
   // Group by user, keeping only latest status per user
   const statusMap = new Map<string, Status>();
 
-  for (const status of statuses) {
+  console.log('🔄 [getStatusFeedForFeed] Processing statuses:', activeStatuses.length);
+  
+  for (const status of activeStatuses) {
     const userId = status.user_id;
     if (!statusMap.has(userId)) {
       // Check if user has viewed this status
-      const { data: view } = await supabase
+      const { data: view, error: viewError } = await supabase
         .from('status_views')
         .select('id')
         .eq('status_id', status.id)
         .eq('viewer_id', user.id)
-        .single();
+        .maybeSingle();
+
+      if (viewError && viewError.code !== 'PGRST116') { // PGRST116 = no rows returned
+        console.warn('⚠️ [getStatusFeedForFeed] Error checking view status:', viewError);
+      }
 
       statusMap.set(userId, {
         ...status,
         user: usersMap.get(userId) || undefined,
         has_unviewed: !view,
       });
+      
+      console.log(`✅ [getStatusFeedForFeed] Added status for user ${userId}:`, {
+        hasUnviewed: !view,
+        hasUserData: !!usersMap.get(userId),
+      });
     }
   }
+  
+  console.log(`📦 [getStatusFeedForFeed] Status map size:`, statusMap.size);
 
   // Build feed items
   const feedItems: StatusFeedItem[] = [];
@@ -168,6 +240,13 @@ export async function getStatusFeedForFeed(): Promise<StatusFeedItem[]> {
     return new Date(b.latest_status.created_at).getTime() - 
            new Date(a.latest_status.created_at).getTime();
   });
+
+  console.log('🎉 [getStatusFeedForFeed] Final feed items:', feedItems.length);
+  console.log('📝 [getStatusFeedForFeed] Feed items:', feedItems.map(item => ({
+    user_id: item.user_id,
+    user_name: item.user_name,
+    has_unviewed: item.has_unviewed,
+  })));
 
   return feedItems;
 }
