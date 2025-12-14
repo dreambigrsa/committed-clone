@@ -18,7 +18,7 @@ import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { useApp } from '@/contexts/AppContext';
 import { useTheme } from '@/contexts/ThemeContext';
-import { getStatusFeedForFeed, getStatusFeedForMessenger } from '@/lib/status-queries';
+import { getStatusFeedForFeed, getStatusFeedForMessenger, getSignedUrlForMedia } from '@/lib/status-queries';
 import type { StatusFeedItem } from '@/lib/status-queries';
 
 interface StatusStoriesBarProps {
@@ -37,6 +37,134 @@ interface StatusStoriesBarProps {
 const { width } = Dimensions.get('window');
 const BUBBLE_SIZE = 64;
 const BUBBLE_MARGIN = 8;
+
+/**
+ * Story Preview Bubble Component
+ * Shows a preview of the story content (like Facebook)
+ */
+function StoryPreviewBubble({
+  mediaPath,
+  contentType,
+  profilePicture,
+  userName,
+}: {
+  mediaPath: string;
+  contentType: 'image' | 'video';
+  profilePicture: string | null;
+  userName: string;
+}) {
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const { colors } = useTheme();
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadPreview = async () => {
+      try {
+        const url = await getSignedUrlForMedia(mediaPath);
+        if (isMounted) {
+          setPreviewUrl(url);
+        }
+      } catch (error) {
+        console.error('Error loading story preview:', error);
+      }
+    };
+
+    loadPreview();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [mediaPath]);
+
+  const styles = StyleSheet.create({
+    previewContainer: {
+      width: '100%',
+      height: '100%',
+      borderRadius: (BUBBLE_SIZE - 4) / 2,
+      overflow: 'hidden',
+      position: 'relative',
+    },
+    previewImage: {
+      width: '100%',
+      height: '100%',
+    },
+    profileOverlay: {
+      position: 'absolute',
+      bottom: 2,
+      left: 2,
+      width: 24,
+      height: 24,
+      borderRadius: 12,
+      borderWidth: 2,
+      borderColor: colors.background.primary,
+      overflow: 'hidden',
+    },
+    profileImage: {
+      width: '100%',
+      height: '100%',
+    },
+    profilePlaceholder: {
+      width: '100%',
+      height: '100%',
+      backgroundColor: colors.primary,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    profilePlaceholderText: {
+      fontSize: 10,
+      fontWeight: '700' as const,
+      color: colors.text.white,
+    },
+  });
+
+  return (
+    <View style={styles.previewContainer}>
+      {previewUrl ? (
+        <>
+          <Image
+            source={{ uri: previewUrl }}
+            style={styles.previewImage}
+            contentFit="cover"
+          />
+          {/* Small profile picture overlay in bottom-left corner */}
+          <View style={styles.profileOverlay}>
+            {profilePicture ? (
+              <Image
+                source={{ uri: profilePicture }}
+                style={styles.profileImage}
+                contentFit="cover"
+              />
+            ) : (
+              <View style={styles.profilePlaceholder}>
+                <Text style={styles.profilePlaceholderText}>
+                  {userName?.charAt(0)?.toUpperCase() || '?'}
+                </Text>
+              </View>
+            )}
+          </View>
+        </>
+      ) : (
+        // Fallback to profile picture while loading
+        <>
+          {profilePicture ? (
+            <Image
+              source={{ uri: profilePicture }}
+              style={styles.previewImage}
+              contentFit="cover"
+            />
+          ) : (
+            <View style={styles.profilePlaceholder}>
+              <Text style={styles.profilePlaceholderText}>
+                {userName?.charAt(0)?.toUpperCase() || '?'}
+              </Text>
+            </View>
+          )}
+        </>
+      )}
+    </View>
+  );
+}
 
 export default function StatusStoriesBar({ context, onStatusPress }: StatusStoriesBarProps) {
   const router = useRouter();
@@ -330,6 +458,8 @@ export default function StatusStoriesBar({ context, onStatusPress }: StatusStori
         {/* Other Users' Statuses (or all statuses if debugging) */}
         {statusesToShow.map((item: StatusFeedItem) => {
           const hasUnviewed = item.has_unviewed;
+          const status = item.latest_status;
+          const hasMedia = status?.media_path && (status.content_type === 'image' || status.content_type === 'video');
 
           return (
             <TouchableOpacity
@@ -344,18 +474,30 @@ export default function StatusStoriesBar({ context, onStatusPress }: StatusStori
                   hasUnviewed && styles.unreadRing,
                 ]}
               >
-                {item.user_avatar ? (
-                  <Image
-                    source={{ uri: item.user_avatar }}
-                    style={styles.avatar}
-                    contentFit="cover"
+                {/* Show story preview (media) if available, otherwise show profile picture */}
+                {hasMedia ? (
+                  <StoryPreviewBubble
+                    mediaPath={status.media_path!}
+                    contentType={status.content_type as 'image' | 'video'}
+                    profilePicture={item.user_avatar || null}
+                    userName={item.user_name || ''}
                   />
                 ) : (
-                  <View style={styles.avatarPlaceholder}>
-                    <Text style={styles.avatarPlaceholderText}>
-                      {item.user_name?.charAt(0)?.toUpperCase() || '?'}
-                    </Text>
-                  </View>
+                  <>
+                    {item.user_avatar ? (
+                      <Image
+                        source={{ uri: item.user_avatar }}
+                        style={styles.avatar}
+                        contentFit="cover"
+                      />
+                    ) : (
+                      <View style={styles.avatarPlaceholder}>
+                        <Text style={styles.avatarPlaceholderText}>
+                          {item.user_name?.charAt(0)?.toUpperCase() || '?'}
+                        </Text>
+                      </View>
+                    )}
+                  </>
                 )}
               </View>
               <Text
