@@ -152,9 +152,49 @@ export default function MessagesScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background.secondary }]}>
+      {/* Messenger-style Header */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Messages</Text>
+        <View style={styles.headerLeft}>
+          <Image
+            source={require('@/assets/images/icon.png')}
+            style={styles.appLogoImage}
+            contentFit="contain"
+          />
+          <Text style={styles.headerTitle}>Messages</Text>
+        </View>
+        <View style={styles.headerIcons}>
+          <TouchableOpacity 
+            style={styles.headerIconButton}
+            onPress={() => {
+              // Navigate to create message or search
+            }}
+          >
+            <View style={styles.composeIcon}>
+              <View style={styles.composeIconSquare} />
+            </View>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={styles.headerIconButton}
+            onPress={() => router.push('/(tabs)/feed' as any)}
+          >
+            <Image
+              source={require('@/assets/images/icon.png')}
+              style={styles.appLogoSmall}
+              contentFit="contain"
+            />
+          </TouchableOpacity>
+        </View>
       </View>
+
+      {/* Committed AI Search Bar */}
+      <TouchableOpacity style={styles.searchBarContainer} activeOpacity={0.7}>
+        <View style={styles.searchBar}>
+          <View style={styles.committedAIIcon}>
+            <View style={styles.committedAIGradient} />
+          </View>
+          <Text style={styles.searchPlaceholder}>Ask Committed AI or Search</Text>
+        </View>
+      </TouchableOpacity>
 
       {/* Status Stories Bar */}
       <StatusStoriesBar context="messenger" />
@@ -265,10 +305,82 @@ const createStyles = (colors: any) => StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.border.light,
   },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  appLogoImage: {
+    width: 28,
+    height: 28,
+    borderRadius: 6,
+  },
   headerTitle: {
     fontSize: 28,
-    fontWeight: '800' as const,
+    fontWeight: '700' as const,
     color: colors.text.primary,
+    letterSpacing: -0.3,
+  },
+  headerIcons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+  },
+  headerIconButton: {
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  composeIcon: {
+    width: 24,
+    height: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  composeIconSquare: {
+    width: 20,
+    height: 20,
+    borderWidth: 2,
+    borderColor: colors.text.primary,
+    borderRadius: 2,
+    position: 'relative',
+  },
+  appLogoSmall: {
+    width: 28,
+    height: 28,
+    borderRadius: 6,
+  },
+  searchBarContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    backgroundColor: colors.background.primary,
+  },
+  searchBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.background.secondary,
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    gap: 10,
+  },
+  committedAIIcon: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  committedAIGradient: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: colors.primary,
+    borderRadius: 12,
+  },
+  searchPlaceholder: {
+    flex: 1,
+    fontSize: 15,
+    color: colors.text.tertiary,
   },
   scrollContent: {
     paddingBottom: 100,
