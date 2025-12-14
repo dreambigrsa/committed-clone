@@ -75,9 +75,21 @@ export default function StatusAvatar({
       return;
     }
 
+    // Validate userId before checking status
+    if (!userId || userId === 'undefined' || userId === 'null' || userId === '' || typeof userId !== 'string') {
+      setHasStatus(false);
+      setIsChecking(false);
+      return;
+    }
+
     // Check if user has active status
     const checkStatus = async () => {
       try {
+        // Double-check userId is valid before calling
+        if (!userId || userId === 'undefined' || userId === 'null' || userId === '') {
+          setHasStatus(false);
+          return;
+        }
         const statuses = await getUserStatuses(userId);
         setHasStatus(statuses.length > 0);
       } catch (error) {
@@ -102,7 +114,8 @@ export default function StatusAvatar({
     }
 
     // If user has status, open status viewer
-    if (hasStatus && !isOwn) {
+    // Validate userId before navigating
+    if (hasStatus && !isOwn && userId && userId !== 'undefined' && userId !== 'null' && userId !== '') {
       router.push(`/status/${userId}` as any);
     }
   };
