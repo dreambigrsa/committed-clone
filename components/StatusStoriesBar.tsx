@@ -238,6 +238,27 @@ export default function StatusStoriesBar({ context, onStatusPress }: StatusStori
     );
   }
 
+  // Separate current user's status from others
+  const ownStatusInFeed = statusFeed.find((item: StatusFeedItem) => item.user_id === currentUser?.id);
+  const otherUsersStatuses = statusFeed.filter((item: StatusFeedItem) => item.user_id !== currentUser?.id);
+
+  console.log(`📊 [StatusStoriesBar] Status breakdown:`, {
+    totalStatusFeed: statusFeed.length,
+    ownStatusInFeed: !!ownStatusInFeed,
+    otherUsersCount: otherUsersStatuses.length,
+    currentUserId: currentUser?.id,
+  });
+
+  // Show other users' statuses (or all if none from other users)
+  const statusesToShow = otherUsersStatuses;
+
+  console.log(`🎨 [StatusStoriesBar] Rendering bar:`, {
+    totalStatusFeed: statusFeed.length,
+    otherUsersCount: otherUsersStatuses.length,
+    currentUserId: currentUser?.id,
+    willShowBubbles: otherUsersStatuses.length > 0,
+  });
+
   return (
     <View style={styles.container}>
       <ScrollView
@@ -246,35 +267,68 @@ export default function StatusStoriesBar({ context, onStatusPress }: StatusStori
         contentContainerStyle={styles.scrollView}
         bounces={false}
       >
-        {/* Create Status Button - Always First */}
-        <TouchableOpacity
-          style={styles.bubbleContainer}
-          onPress={() => router.push('/status/create' as any)}
-          activeOpacity={0.7}
-        >
-          <View style={[styles.avatarContainer, styles.createButton]}>
-            {currentUser?.profilePicture ? (
-              <Image
-                source={{ uri: currentUser.profilePicture }}
-                style={styles.avatar}
-                contentFit="cover"
-              />
-            ) : (
-              <View style={styles.avatarPlaceholder}>
-                <Text style={styles.avatarPlaceholderText}>
-                  {currentUser?.fullName?.charAt(0)?.toUpperCase() || '+'}
-                </Text>
-              </View>
-            )}
-            <View style={styles.plusIcon}>
-              <Text style={styles.plusIconText}>+</Text>
+        {/* Your Story Button - Shows your status if you have one, otherwise shows create */}
+        {ownStatusInFeed ? (
+          // You have statuses - show your story bubble (clickable to view)
+          <TouchableOpacity
+            style={styles.bubbleContainer}
+            onPress={() => router.push(`/status/${currentUser?.id}` as any)}
+            activeOpacity={0.7}
+          >
+            <View style={styles.avatarContainer}>
+              {ownStatusInFeed.user_avatar ? (
+                <Image
+                  source={{ uri: ownStatusInFeed.user_avatar }}
+                  style={styles.avatar}
+                  contentFit="cover"
+                />
+              ) : currentUser?.profilePicture ? (
+                <Image
+                  source={{ uri: currentUser.profilePicture }}
+                  style={styles.avatar}
+                  contentFit="cover"
+                />
+              ) : (
+                <View style={styles.avatarPlaceholder}>
+                  <Text style={styles.avatarPlaceholderText}>
+                    {currentUser?.fullName?.charAt(0)?.toUpperCase() || '+'}
+                  </Text>
+                </View>
+              )}
             </View>
-          </View>
-          <Text style={[styles.name, styles.yourStoryText]}>Your Story</Text>
-        </TouchableOpacity>
+            <Text style={[styles.name, styles.yourStoryText]}>Your Story</Text>
+          </TouchableOpacity>
+        ) : (
+          // No statuses - show create button
+          <TouchableOpacity
+            style={styles.bubbleContainer}
+            onPress={() => router.push('/status/create' as any)}
+            activeOpacity={0.7}
+          >
+            <View style={[styles.avatarContainer, styles.createButton]}>
+              {currentUser?.profilePicture ? (
+                <Image
+                  source={{ uri: currentUser.profilePicture }}
+                  style={styles.avatar}
+                  contentFit="cover"
+                />
+              ) : (
+                <View style={styles.avatarPlaceholder}>
+                  <Text style={styles.avatarPlaceholderText}>
+                    {currentUser?.fullName?.charAt(0)?.toUpperCase() || '+'}
+                  </Text>
+                </View>
+              )}
+              <View style={styles.plusIcon}>
+                <Text style={styles.plusIconText}>+</Text>
+              </View>
+            </View>
+            <Text style={[styles.name, styles.yourStoryText]}>Your Story</Text>
+          </TouchableOpacity>
+        )}
 
-        {/* Other Users' Statuses */}
-        {statusFeed.filter((item: StatusFeedItem) => item.user_id !== currentUser?.id).map((item: StatusFeedItem) => {
+        {/* Other Users' Statuses (or all statuses if debugging) */}
+        {statusesToShow.map((item: StatusFeedItem) => {
           const hasUnviewed = item.has_unviewed;
 
           return (
