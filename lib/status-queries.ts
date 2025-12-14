@@ -593,30 +593,45 @@ export async function createStatus(
   });
 
   // IMPORTANT: Ensure we have a valid session before inserting
+  // This is critical - RLS policies depend on auth.uid() which comes from the session token
   const { data: { session }, error: sessionError } = await supabase.auth.getSession();
   
-  if (sessionError || !session) {
-    console.error('No active session found:', sessionError);
-    console.error('User might not be logged in or session expired');
+  if (sessionError) {
+    console.error('Error getting session:', sessionError);
+    return null;
+  }
+  
+  if (!session) {
+    console.error('No active session found! User is not logged in.');
+    console.error('RLS policies require an authenticated session to work.');
     return null;
   }
 
-  console.log('Session check:', {
-    hasSession: !!session,
-    userId: session.user?.id,
-    expiresAt: session.expires_at,
-    accessToken: session.access_token ? 'present' : 'missing',
-  });
-
-  // Verify the user ID matches the session
-  if (user.id !== session.user.id) {
-    console.error('User ID mismatch!', {
-      userGetUser: user.id,
-      sessionUserId: session.user.id,
-    });
-    // Use session user ID instead
-    insertData.user_id = session.user.id;
+  if (!session.access_token) {
+    console.error('Session exists but has no access token!');
+    return null;
   }
+
+  console.log('=== SESSION VERIFICATION ===');
+  console.log('Has session:', !!session);
+  console.log('Session user ID:', session.user?.id);
+  console.log('getUser() user ID:', user.id);
+  console.log('IDs match:', user.id === session.user?.id);
+  console.log('Has access token:', !!session.access_token);
+  console.log('Session expires at:', session.expires_at ? new Date(session.expires_at * 1000).toISOString() : 'N/A');
+
+  // Always use session.user.id for consistency with auth.uid()
+  // This ensures the user_id matches what auth.uid() will return
+  const finalUserId = session.user.id;
+  
+  if (user.id !== finalUserId) {
+    console.warn('User ID mismatch! Using session user ID instead.', {
+      getUserUserId: user.id,
+      sessionUserId: finalUserId,
+    });
+  }
+  
+  insertData.user_id = finalUserId;
 
   const { data: status, error: statusError } = await supabase
     .from('statuses')
