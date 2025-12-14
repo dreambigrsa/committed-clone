@@ -159,9 +159,12 @@ export default function StatusStoriesBar({ context, onStatusPress }: StatusStori
       const feed = context === 'feed' 
         ? await getStatusFeedForFeed()
         : await getStatusFeedForMessenger();
-      setStatusFeed(feed);
+      // Ensure we always set an array, even if feed is null/undefined
+      setStatusFeed(Array.isArray(feed) ? feed : []);
     } catch (error) {
       console.error('Error loading status feed:', error);
+      // On error, set empty array to prevent crashes
+      setStatusFeed([]);
     } finally {
       setLoading(false);
     }
