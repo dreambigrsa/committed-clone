@@ -562,16 +562,65 @@ export async function createStatus(
   const expiresAt = new Date();
   expiresAt.setHours(expiresAt.getHours() + 24);
 
+  // Log what we're trying to insert for debugging
+  const insertData = {
+    user_id: user.id,
+    content_type: contentType,
+    text_content: textContent,
+    media_path: mediaPath,
+    privacy_level: privacyLevel,
+    expires_at: expiresAt.toISOString(),
+  };
+  
+  // Get current auth user to compare
+  const { data: { user: authUser } } = await supabase.auth.getUser();
+  
+  console.log('=== STATUS CREATION DEBUG ===');
+  console.log('User from getUser():', {
+    id: user.id,
+    email: user.email,
+    type: typeof user.id,
+  });
+  console.log('Auth user from auth.getUser():', {
+    id: authUser?.id,
+    email: authUser?.email,
+    type: typeof authUser?.id,
+  });
+  console.log('IDs match:', user.id === authUser?.id);
+  console.log('Insert data:', {
+    ...insertData,
+    user_id_type: typeof insertData.user_id,
+  });
+
+  // IMPORTANT: Ensure we have a valid session before inserting
+  const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+  
+  if (sessionError || !session) {
+    console.error('No active session found:', sessionError);
+    console.error('User might not be logged in or session expired');
+    return null;
+  }
+
+  console.log('Session check:', {
+    hasSession: !!session,
+    userId: session.user?.id,
+    expiresAt: session.expires_at,
+    accessToken: session.access_token ? 'present' : 'missing',
+  });
+
+  // Verify the user ID matches the session
+  if (user.id !== session.user.id) {
+    console.error('User ID mismatch!', {
+      userGetUser: user.id,
+      sessionUserId: session.user.id,
+    });
+    // Use session user ID instead
+    insertData.user_id = session.user.id;
+  }
+
   const { data: status, error: statusError } = await supabase
     .from('statuses')
-    .insert({
-      user_id: user.id,
-      content_type: contentType,
-      text_content: textContent,
-      media_path: mediaPath,
-      privacy_level: privacyLevel,
-      expires_at: expiresAt.toISOString(),
-    })
+    .insert(insertData)
     .select()
     .single();
 
