@@ -733,6 +733,108 @@ export async function markStatusAsViewed(statusId: string): Promise<boolean> {
 }
 
 /**
+ * Get status view count and viewers list
+ */
+export interface StatusViewer {
+  id: string;
+  viewer_id: string;
+  viewed_at: string;
+  user: {
+    id: string;
+    full_name: string;
+    profile_picture: string | null;
+  };
+}
+
+export async function getStatusViewers(statusId: string): Promise<StatusViewer[]> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    console.warn('⚠️ [getStatusViewers] No user found');
+    return [];
+  }
+
+  // Get the status to check ownership
+  const { data: status } = await supabase
+    .from('statuses')
+    .select('user_id')
+    .eq('id', statusId)
+    .single();
+
+  if (!status || status.user_id !== user.id) {
+    console.warn('⚠️ [getStatusViewers] Can only view own status viewers');
+    return [];
+  }
+
+  // Get all viewers
+  const { data: views, error } = await supabase
+    .from('status_views')
+    .select('id, viewer_id, viewed_at')
+    .eq('status_id', statusId)
+    .order('viewed_at', { ascending: false });
+
+  if (error) {
+    console.error('❌ [getStatusViewers] Error fetching viewers:', error);
+    return [];
+  }
+
+  if (!views || views.length === 0) return [];
+
+  // Get user info for all viewers
+  const viewerIds = views.map(v => v.viewer_id);
+  const { data: usersData } = await supabase
+    .from('users')
+    .select('id, full_name, profile_picture')
+    .in('id', viewerIds);
+
+  const usersMap = new Map();
+  if (usersData) {
+    usersData.forEach((u: any) => {
+      usersMap.set(u.id, u);
+    });
+  }
+
+  // Combine views with user data
+  return views.map((view: any) => ({
+    id: view.id,
+    viewer_id: view.viewer_id,
+    viewed_at: view.viewed_at,
+    user: usersMap.get(view.viewer_id) || {
+      id: view.viewer_id,
+      full_name: 'Unknown User',
+      profile_picture: null,
+    },
+  }));
+}
+
+export async function getStatusViewCount(statusId: string): Promise<number> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return 0;
+
+  // Get the status to check ownership
+  const { data: status } = await supabase
+    .from('statuses')
+    .select('user_id')
+    .eq('id', statusId)
+    .single();
+
+  if (!status || status.user_id !== user.id) {
+    return 0;
+  }
+
+  const { count, error } = await supabase
+    .from('status_views')
+    .select('*', { count: 'exact', head: true })
+    .eq('status_id', statusId);
+
+  if (error) {
+    console.error('❌ [getStatusViewCount] Error fetching view count:', error);
+    return 0;
+  }
+
+  return count || 0;
+}
+
+/**
  * Get signed URL for status media
  */
 export async function getSignedUrlForMedia(mediaPath: string): Promise<string | null> {
