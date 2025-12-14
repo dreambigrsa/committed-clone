@@ -280,7 +280,12 @@ export async function getUserStatuses(userId: string): Promise<Status[]> {
     return [];
   }
 
-  const { data: statuses, error } = await supabase
+  const isOwnStatus = userId === user.id;
+  console.log('👤 [getUserStatuses] Is own status:', isOwnStatus);
+
+  // For own statuses, show all (even expired/archived) for management
+  // For others, only show active statuses
+  let query = supabase
     .from('statuses')
     .select(`
       id,
@@ -294,10 +299,23 @@ export async function getUserStatuses(userId: string): Promise<Status[]> {
       archived,
       archived_at
     `)
-    .eq('user_id', userId)
-    .eq('archived', false)
-    .gt('expires_at', new Date().toISOString())
-    .order('created_at', { ascending: true });
+    .eq('user_id', userId);
+
+  if (!isOwnStatus) {
+    // For others, only show active statuses
+    query = query
+      .eq('archived', false)
+      .gt('expires_at', new Date().toISOString());
+  }
+  // For own statuses, show all (no filters) so user can manage them
+
+  const { data: statuses, error } = await query.order('created_at', { ascending: true });
+
+  console.log('📊 [getUserStatuses] Query result:', {
+    statusesCount: statuses?.length || 0,
+    isOwnStatus,
+    error: error ? { code: error.code, message: error.message } : null,
+  });
 
   if (error) {
     console.error('Error fetching user statuses:', error);
@@ -323,19 +341,37 @@ export async function getUserStatuses(userId: string): Promise<Status[]> {
  * Get status feed for the Messages screen
  */
 export async function getStatusFeedForMessenger(): Promise<StatusFeedItem[]> {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return [];
+  console.log('🔍 [getStatusFeedForMessenger] Starting...');
+  
+  const { data: { user }, error: userError } = await supabase.auth.getUser();
+  if (userError) {
+    console.error('❌ [getStatusFeedForMessenger] Auth error:', userError);
+    return [];
+  }
+  
+  if (!user) {
+    console.warn('⚠️ [getStatusFeedForMessenger] No user found');
+    return [];
+  }
+
+  console.log('✅ [getStatusFeedForMessenger] User authenticated:', user.id);
 
   // Get friends list
-  const { data: friends } = await supabase
+  const { data: friends, error: friendsError } = await supabase
     .from('friends')
     .select('friend_id')
     .eq('user_id', user.id)
     .eq('status', 'accepted');
 
-  const friendIds = friends?.map((f) => f.friend_id) || [];
+  if (friendsError) {
+    console.error('❌ [getStatusFeedForMessenger] Error fetching friends:', friendsError);
+  }
 
-  // Get all visible statuses from friends
+  const friendIds = friends?.map((f) => f.friend_id) || [];
+  console.log('👥 [getStatusFeedForMessenger] Friends count:', friendIds.length);
+
+  // Get all visible statuses (from friends AND recent chat participants)
+  // For now, get all visible statuses (RLS will filter based on privacy)
   const { data: statuses, error } = await supabase
     .from('statuses')
     .select(`
@@ -350,20 +386,45 @@ export async function getStatusFeedForMessenger(): Promise<StatusFeedItem[]> {
       archived,
       archived_at
     `)
-    .in('user_id', friendIds.length > 0 ? friendIds : [user.id]) // Fallback to own status if no friends
     .eq('archived', false)
     .gt('expires_at', new Date().toISOString())
     .order('created_at', { ascending: false });
 
+  console.log('📊 [getStatusFeedForMessenger] Query result:', {
+    statusesCount: statuses?.length || 0,
+    error: error ? {
+      message: error.message,
+      code: error.code,
+    } : null,
+  });
+
   if (error) {
-    console.error('Error fetching messenger status feed:', error);
+    console.error('❌ [getStatusFeedForMessenger] Error fetching statuses:', error);
     return [];
   }
 
-  if (!statuses || statuses.length === 0) return [];
+  if (!statuses || statuses.length === 0) {
+    console.warn('⚠️ [getStatusFeedForMessenger] No statuses returned');
+    return [];
+  }
+
+  // Filter to only show statuses from friends (or own status)
+  const filteredStatuses = statuses.filter((s: Status) => {
+    return s.user_id === user.id || friendIds.includes(s.user_id);
+  });
+
+  console.log('✅ [getStatusFeedForMessenger] Filtered statuses:', {
+    total: statuses.length,
+    afterFriendFilter: filteredStatuses.length,
+  });
+
+  if (filteredStatuses.length === 0) {
+    console.warn('⚠️ [getStatusFeedForMessenger] No statuses after friend filter');
+    return [];
+  }
 
   // Similar processing as getStatusFeedForFeed
-  const userIds = Array.from<string>(new Set<string>(statuses.map((s: Status) => s.user_id)));
+  const userIds = Array.from<string>(new Set<string>(filteredStatuses.map((s: Status) => s.user_id)));
   
   const { data: usersData } = await supabase
     .from('users')
@@ -372,20 +433,27 @@ export async function getStatusFeedForMessenger(): Promise<StatusFeedItem[]> {
 
   const usersMap = new Map<string, { id: string; full_name: string; profile_picture: string | null }>();
   if (usersData) {
+    console.log('✅ [getStatusFeedForMessenger] Fetched user data:', usersData.length);
     usersData.forEach((u: { id: string; full_name: string; profile_picture: string | null }) => {
       usersMap.set(u.id, u);
     });
+  } else {
+    console.warn('⚠️ [getStatusFeedForMessenger] No user data returned');
   }
 
   const statusMap = new Map<string, Status>();
-  for (const status of statuses) {
+  for (const status of filteredStatuses) {
     if (!statusMap.has(status.user_id)) {
-      const { data: view } = await supabase
+      const { data: view, error: viewError } = await supabase
         .from('status_views')
         .select('id')
         .eq('status_id', status.id)
         .eq('viewer_id', user.id)
-        .single();
+        .maybeSingle();
+
+      if (viewError && viewError.code !== 'PGRST116') {
+        console.warn('⚠️ [getStatusFeedForMessenger] Error checking view:', viewError);
+      }
 
       statusMap.set(status.user_id, {
         ...status,
@@ -397,12 +465,13 @@ export async function getStatusFeedForMessenger(): Promise<StatusFeedItem[]> {
 
   const feedItems: StatusFeedItem[] = [];
   for (const [userId, status] of statusMap.entries()) {
+    const isOwnStatus = userId === user.id;
     feedItems.push({
       user_id: userId,
-      user_name: status.user?.full_name || 'Unknown',
+      user_name: status.user?.full_name || (isOwnStatus ? 'You' : 'Unknown'),
       user_avatar: status.user?.profile_picture || null,
       latest_status: status,
-      has_unviewed: status.has_unviewed || false,
+      has_unviewed: isOwnStatus ? false : (status.has_unviewed || false),
     });
   }
 
@@ -413,6 +482,8 @@ export async function getStatusFeedForMessenger(): Promise<StatusFeedItem[]> {
     return new Date(b.latest_status.created_at).getTime() - 
            new Date(a.latest_status.created_at).getTime();
   });
+
+  console.log('🎉 [getStatusFeedForMessenger] Final feed items:', feedItems.length);
 
   return feedItems;
 }
@@ -520,7 +591,22 @@ export async function createStatus(
  */
 export async function markStatusAsViewed(statusId: string): Promise<boolean> {
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return false;
+  if (!user) {
+    console.warn('⚠️ [markStatusAsViewed] No user found');
+    return false;
+  }
+
+  // Get session to ensure RLS works
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session || !session.access_token) {
+    console.error('❌ [markStatusAsViewed] No session found');
+    return false;
+  }
+
+  console.log('👁️ [markStatusAsViewed] Marking status as viewed:', {
+    statusId,
+    viewerId: user.id,
+  });
 
   const { error } = await supabase
     .from('status_views')
@@ -533,10 +619,17 @@ export async function markStatusAsViewed(statusId: string): Promise<boolean> {
     });
 
   if (error) {
-    console.error('Error marking status as viewed:', error);
+    console.error('❌ [markStatusAsViewed] Error marking status as viewed:', error);
+    console.error('❌ [markStatusAsViewed] Error details:', {
+      code: error.code,
+      message: error.message,
+      details: error.details,
+      hint: error.hint,
+    });
     return false;
   }
 
+  console.log('✅ [markStatusAsViewed] Successfully marked as viewed');
   return true;
 }
 
