@@ -192,6 +192,7 @@ export default function MessagesScreen() {
                         userName={otherParticipant.name || 'Unknown'}
                         size={60}
                         isOwn={false}
+                        showStatusRing={!!otherParticipant.id}
                       />
                       <StatusIndicator 
                         status={otherParticipant.id && participantStatuses[otherParticipant.id] 
