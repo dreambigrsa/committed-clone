@@ -24,7 +24,6 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { Post, Advertisement, Sticker } from '@/types';
 import StickerPicker from '@/components/StickerPicker';
 import StatusIndicator from '@/components/StatusIndicator';
-import StatusAvatar from '@/components/StatusAvatar';
 import StatusStoriesBar from '@/components/StatusStoriesBar';
 import * as WebBrowser from 'expo-web-browser';
 import ReportContentModal from '@/components/ReportContentModal';
@@ -95,7 +94,7 @@ export default function FeedScreen() {
           }
         }
         if (isMounted) {
-          setPostStatuses((prev: Record<string, any>) => ({ ...prev, ...statusMap }));
+          setPostStatuses(prev => ({ ...prev, ...statusMap }));
         }
       };
       loadPostStatuses();
@@ -921,16 +920,16 @@ export default function FeedScreen() {
     return (
       <View style={styles.mediaWrapper}>
         <ScrollView
-          ref={(ref: ScrollView | null) => {
+          ref={(ref) => {
             postScrollRefs.current[post.id] = ref;
           }}
           horizontal
           pagingEnabled
           showsHorizontalScrollIndicator={false}
           style={styles.mediaContainer}
-          onMomentumScrollEnd={(event: any) => {
+          onMomentumScrollEnd={(event) => {
             const newIndex = Math.round(event.nativeEvent.contentOffset.x / width);
-            setPostImageIndices((prev: Record<string, number>) => ({
+            setPostImageIndices(prev => ({
               ...prev,
               [post.id]: newIndex,
             }));
@@ -938,10 +937,10 @@ export default function FeedScreen() {
           onScrollBeginDrag={() => {
             // Initialize index if not set
             if (postImageIndices[post.id] === undefined) {
-            setPostImageIndices((prev: Record<string, number>) => ({
-              ...prev,
-              [post.id]: 0,
-            }));
+              setPostImageIndices(prev => ({
+                ...prev,
+                [post.id]: 0,
+              }));
             }
           }}
         >
@@ -1099,7 +1098,7 @@ export default function FeedScreen() {
             useNativeControls
             resizeMode={ResizeMode.COVER}
             shouldPlay={false}
-            onError={(error: any) => {
+            onError={(error) => {
               console.error('Failed to load video ad:', ad.id, error);
               Alert.alert('Error', 'Failed to load video advertisement');
             }}
@@ -1233,17 +1232,17 @@ export default function FeedScreen() {
     });
 
     if (!result.canceled && result.assets) {
-      const urls = result.assets.map((asset: any) => asset.uri);
+      const urls = result.assets.map(asset => asset.uri);
       setEditMediaUrls([...editMediaUrls, ...urls]);
     }
   };
 
   const handleRemoveMedia = (index: number) => {
-    setEditMediaUrls(editMediaUrls.filter((_: any, i: number) => i !== index));
+    setEditMediaUrls(editMediaUrls.filter((_, i) => i !== index));
   };
 
   const handleSaveEdit = async (postId: string) => {
-    const post = posts.find((p: Post) => p.id === postId);
+    const post = posts.find(p => p.id === postId);
     if (!post) return;
     
     setIsUploadingMedia(true);
@@ -1338,13 +1337,18 @@ export default function FeedScreen() {
             onPress={() => router.push(`/profile/${post.userId}` as any)}
           >
             <View style={styles.postAvatarContainer}>
-              <StatusAvatar
-                userId={post.userId || ''}
-                avatarUrl={post.userAvatar}
-                userName={post.userName || 'Unknown'}
-                size={44}
-                isOwn={post.userId === currentUser.id}
-              />
+              {post.userAvatar ? (
+                <Image
+                  source={{ uri: post.userAvatar }}
+                  style={styles.postAvatar}
+                />
+              ) : (
+                <View style={styles.postAvatarPlaceholder}>
+                  <Text style={styles.postAvatarPlaceholderText}>
+                    {post.userName?.charAt(0) || '?'}
+                  </Text>
+                </View>
+              )}
               {postStatuses[post.userId] && (
                 <StatusIndicator 
                   status={postStatuses[post.userId].statusType} 
@@ -1581,7 +1585,7 @@ export default function FeedScreen() {
             </Text>
           </Animated.View>
         ) : (
-          personalizedPosts.map((post: Post, index: number) => {
+          personalizedPosts.map((post, index) => {
             // Smart ad distribution: show ad every 3 posts using smart algorithm
             // Algorithm ensures rotation - ads that were shown recently will have lower scores
             // and different ads will be selected, but ads can still appear again later
@@ -1621,14 +1625,14 @@ export default function FeedScreen() {
               horizontal
               pagingEnabled
               showsHorizontalScrollIndicator={false}
-              onMomentumScrollEnd={(event: any) => {
+              onMomentumScrollEnd={(event) => {
                 const newIndex = Math.round(event.nativeEvent.contentOffset.x / Dimensions.get('window').width);
-                setViewingImages((prev: { urls: string[]; index: number } | null) => prev ? { ...prev, index: newIndex } : null);
+                setViewingImages(prev => prev ? { ...prev, index: newIndex } : null);
               }}
               style={styles.imageViewerScroll}
               contentOffset={{ x: viewingImages.index * Dimensions.get('window').width, y: 0 }}
             >
-              {viewingImages.urls.map((url: string, index: number) => (
+              {viewingImages.urls.map((url, index) => (
                 <View key={index} style={styles.imageViewerItem}>
                   <Image
                     source={{ uri: url }}
@@ -1710,7 +1714,7 @@ function CommentsModal({
       setReplyText('');
       setSelectedSticker(null);
       setReplyingTo(null);
-      setExpandedReplies((prev: Set<string>) => new Set([...Array.from(prev), replyingTo]));
+      setExpandedReplies(prev => new Set([...prev, replyingTo]));
     } else if (commentText.trim() || selectedSticker) {
       await addComment(
         postId, 
