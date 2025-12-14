@@ -66,12 +66,7 @@ export async function getStatusFeedForFeed(): Promise<StatusFeedItem[]> {
       created_at,
       expires_at,
       archived,
-      archived_at,
-      users!inner (
-        id,
-        full_name,
-        profile_picture
-      )
+      archived_at
     `)
     .eq('archived', false)
     .gt('expires_at', new Date().toISOString())
@@ -89,14 +84,28 @@ export async function getStatusFeedForFeed(): Promise<StatusFeedItem[]> {
 
   if (!statuses || statuses.length === 0) return [];
 
+  // Fetch user data for all status owners
+  const userIds = Array.from<string>(new Set<string>(statuses.map((s: Status) => s.user_id)));
+  const { data: usersData } = await supabase
+    .from('users')
+    .select('id, full_name, profile_picture')
+    .in('id', userIds);
+
+  const usersMap = new Map<string, { id: string; full_name: string; profile_picture: string | null }>();
+  if (usersData) {
+    usersData.forEach((u: { id: string; full_name: string; profile_picture: string | null }) => {
+      usersMap.set(u.id, u);
+    });
+  }
+
   // Group by user, keeping only latest status per user
   const statusMap = new Map<string, Status>();
-  const userIds = new Set<string>();
+  const uniqueUserIds = new Set<string>();
 
   for (const status of statuses) {
     const userId = status.user_id;
     if (!statusMap.has(userId)) {
-      userIds.add(userId);
+      uniqueUserIds.add(userId);
       
       // Check if user has viewed this status
       const { data: view } = await supabase
@@ -108,7 +117,7 @@ export async function getStatusFeedForFeed(): Promise<StatusFeedItem[]> {
 
       statusMap.set(userId, {
         ...status,
-        user: status.users as any,
+        user: usersMap.get(userId) || undefined,
         has_unviewed: !view,
       });
     }
@@ -299,7 +308,8 @@ export async function getStatusFeedForMessenger(): Promise<StatusFeedItem[]> {
   }
 
   // Combine friend and chat participant IDs
-  const relevantUserIds = Array.from(new Set([...friendIds, ...chatParticipantIds]));
+  const allIds = [...Array.from(friendIds), ...Array.from(chatParticipantIds)];
+  const relevantUserIds = Array.from<string>(new Set<string>(allIds));
 
   if (relevantUserIds.length === 0) return [];
 
@@ -316,12 +326,7 @@ export async function getStatusFeedForMessenger(): Promise<StatusFeedItem[]> {
       created_at,
       expires_at,
       archived,
-      archived_at,
-      users!inner (
-        id,
-        full_name,
-        profile_picture
-      )
+      archived_at
     `)
     .in('user_id', relevantUserIds)
     .eq('archived', false)
@@ -334,6 +339,20 @@ export async function getStatusFeedForMessenger(): Promise<StatusFeedItem[]> {
   }
 
   if (!statuses || statuses.length === 0) return [];
+
+  // Fetch user data
+  const statusUserIds = Array.from<string>(new Set<string>(statuses.map((s: Status) => s.user_id)));
+  const { data: usersData } = await supabase
+    .from('users')
+    .select('id, full_name, profile_picture')
+    .in('id', statusUserIds);
+
+  const usersMap = new Map<string, { id: string; full_name: string; profile_picture: string | null }>();
+  if (usersData) {
+    usersData.forEach((u: { id: string; full_name: string; profile_picture: string | null }) => {
+      usersMap.set(u.id, u);
+    });
+  }
 
   // Group by user and get latest
   const statusMap = new Map<string, Status>();
@@ -350,7 +369,7 @@ export async function getStatusFeedForMessenger(): Promise<StatusFeedItem[]> {
 
       statusMap.set(userId, {
         ...status,
-        user: status.users as any,
+        user: usersMap.get(userId) || undefined,
         has_unviewed: !view,
       });
     }
