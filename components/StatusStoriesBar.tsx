@@ -43,6 +43,24 @@ const BUBBLE_SIZE = 64; // For other users' circular bubbles
 const BUBBLE_MARGIN = 8;
 
 /**
+ * Format time ago helper
+ */
+function formatTimeAgo(dateString: string): string {
+  const date = new Date(dateString);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMins / 60);
+  const diffDays = Math.floor(diffHours / 24);
+
+  if (diffMins < 1) return 'Just now';
+  if (diffMins < 60) return `${diffMins}m`;
+  if (diffHours < 24) return `${diffHours}h`;
+  if (diffDays < 7) return `${diffDays}d`;
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+/**
  * Other User Story Card Component
  * Facebook-style card showing preview of other users' statuses (Feed only)
  */
@@ -127,6 +145,16 @@ function OtherUserStoryCard({
       fontWeight: '500' as const,
       textAlign: 'center',
       marginBottom: 4,
+      textShadowColor: 'rgba(0, 0, 0, 0.5)',
+      textShadowOffset: { width: 0, height: 1 },
+      textShadowRadius: 2,
+    },
+    cardTime: {
+      color: '#FFFFFF',
+      fontSize: 9,
+      textAlign: 'center',
+      marginTop: 2,
+      opacity: 0.8,
       textShadowColor: 'rgba(0, 0, 0, 0.5)',
       textShadowOffset: { width: 0, height: 1 },
       textShadowRadius: 2,
@@ -319,6 +347,16 @@ function YourStoryCard({
       textShadowOffset: { width: 0, height: 1 },
       textShadowRadius: 2,
     },
+    cardTime: {
+      color: '#FFFFFF',
+      fontSize: 9,
+      textAlign: 'center',
+      marginTop: 2,
+      opacity: 0.8,
+      textShadowColor: 'rgba(0, 0, 0, 0.5)',
+      textShadowOffset: { width: 0, height: 1 },
+      textShadowRadius: 2,
+    },
     profileBadge: {
       position: 'absolute',
       top: 8,
@@ -382,6 +420,10 @@ function YourStoryCard({
           {/* Title - username or app name */}
           <Text style={cardStyles.cardTitle} numberOfLines={1}>
             {statusItem.user_name || 'Committed'}
+          </Text>
+          {/* Time elapsed */}
+          <Text style={cardStyles.cardTime}>
+            {formatTimeAgo(status.created_at)}
           </Text>
           
           {/* Status text preview */}
