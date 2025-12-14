@@ -18,7 +18,7 @@ import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { useApp } from '@/contexts/AppContext';
 import { useTheme } from '@/contexts/ThemeContext';
-import { getStatusFeedForFeed, getStatusFeedForMessenger, markStatusAsViewed } from '@/lib/status-queries';
+import { getStatusFeedForFeed, getStatusFeedForMessenger } from '@/lib/status-queries';
 import type { StatusFeedItem } from '@/lib/status-queries';
 
 interface StatusStoriesBarProps {
@@ -159,35 +159,28 @@ export default function StatusStoriesBar({ context, onStatusPress }: StatusStori
       const feed = context === 'feed' 
         ? await getStatusFeedForFeed()
         : await getStatusFeedForMessenger();
-      // Ensure we always set an array, even if feed is null/undefined
       setStatusFeed(Array.isArray(feed) ? feed : []);
     } catch (error) {
       console.error('Error loading status feed:', error);
-      // On error, set empty array to prevent crashes
       setStatusFeed([]);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleStatusPress = async (statusItem: StatusFeedItem) => {
+  const handleStatusPress = (statusItem: StatusFeedItem) => {
     if (onStatusPress) {
       onStatusPress(statusItem);
       return;
     }
 
     // Default behavior: Open status viewer
-    if (statusItem.latest_status) {
-      // Mark as viewed when opened
-      await markStatusAsViewed(statusItem.latest_status.id);
-      
-      // Navigate to status viewer
-      // You'll need to create this screen: app/status/[userId].tsx
-      router.push(`/status/${statusItem.user_id}` as any);
-      
-      // Reload feed to update unread indicators
+    router.push(`/status/${statusItem.user_id}` as any);
+    
+    // Reload feed after viewing
+    setTimeout(() => {
       loadStatusFeed();
-    }
+    }, 1000);
   };
 
   if (loading) {
@@ -232,7 +225,7 @@ export default function StatusStoriesBar({ context, onStatusPress }: StatusStori
               <Text style={styles.plusIconText}>+</Text>
             </View>
           </View>
-          <Text style={styles.name}>Your Story</Text>
+          <Text style={[styles.name, styles.yourStoryText]}>Your Story</Text>
         </TouchableOpacity>
 
         {/* Other Users' Statuses */}
