@@ -6,7 +6,7 @@
  */
 
 import React from 'react';
-import { View, StyleSheet, TouchableOpacity, TouchableOpacityProps } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, TouchableOpacityProps } from 'react-native';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -154,9 +154,9 @@ export default function StatusAvatar({
           />
         ) : (
           <View style={styles.avatarPlaceholder}>
-            <View style={styles.avatarPlaceholderText as any}>
+            <Text style={styles.avatarPlaceholderText}>
               {userName?.charAt(0)?.toUpperCase() || '?'}
-            </View>
+            </Text>
           </View>
         )}
       </View>
