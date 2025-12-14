@@ -53,6 +53,7 @@ export async function getStatusFeedForFeed(): Promise<StatusFeedItem[]> {
   if (!user) return [];
 
   // Get all visible statuses (RLS filters automatically)
+  // Note: If statuses table doesn't exist yet, return empty array
   const { data: statuses, error } = await supabase
     .from('statuses')
     .select(`
@@ -66,7 +67,7 @@ export async function getStatusFeedForFeed(): Promise<StatusFeedItem[]> {
       expires_at,
       archived,
       archived_at,
-      users:user_id (
+      users!inner (
         id,
         full_name,
         profile_picture
@@ -77,6 +78,11 @@ export async function getStatusFeedForFeed(): Promise<StatusFeedItem[]> {
     .order('created_at', { ascending: false });
 
   if (error) {
+    // If table doesn't exist, silently return empty array
+    if (error.code === 'PGRST200' || error.message?.includes('schema cache')) {
+      console.warn('Status table not found. Please run supabase-status-system-schema.sql in Supabase SQL Editor.');
+      return [];
+    }
     console.error('Error fetching status feed:', error);
     return [];
   }
@@ -311,7 +317,7 @@ export async function getStatusFeedForMessenger(): Promise<StatusFeedItem[]> {
       expires_at,
       archived,
       archived_at,
-      users:user_id (
+      users!inner (
         id,
         full_name,
         profile_picture
