@@ -14,6 +14,8 @@ import { useRouter } from 'expo-router';
 import { MessageCircle, Trash2 } from 'lucide-react-native';
 import { useApp } from '@/contexts/AppContext';
 import StatusIndicator from '@/components/StatusIndicator';
+import StatusAvatar from '@/components/StatusAvatar';
+import StatusStoriesBar from '@/components/StatusStoriesBar';
 import { UserStatus } from '@/types';
 import { useTheme } from '@/contexts/ThemeContext';
 
@@ -155,6 +157,9 @@ export default function MessagesScreen() {
         <Text style={styles.headerTitle}>Messages</Text>
       </View>
 
+      {/* Status Stories Bar */}
+      <StatusStoriesBar context="messenger" />
+
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
@@ -181,18 +186,14 @@ export default function MessagesScreen() {
                 >
                   <View style={styles.conversationLeft}>
                     <View style={styles.avatarContainer}>
-                      {otherParticipant.avatar ? (
-                        <Image
-                          source={{ uri: otherParticipant.avatar }}
-                          style={styles.avatar}
-                        />
-                      ) : (
-                        <View style={styles.avatarPlaceholder}>
-                          <Text style={styles.avatarPlaceholderText}>
-                            {otherParticipant.name?.charAt(0) || '?'}
-                          </Text>
-                        </View>
-                      )}
+                      <StatusAvatar
+                        userId={otherParticipant.id || ''}
+                        avatarUrl={otherParticipant.avatar}
+                        userName={otherParticipant.name || 'Unknown'}
+                        size={60}
+                        isOwn={false}
+                        showStatusRing={!!otherParticipant.id}
+                      />
                       <StatusIndicator 
                         status={otherParticipant.id && participantStatuses[otherParticipant.id] 
                           ? participantStatuses[otherParticipant.id].statusType 
@@ -318,24 +319,6 @@ const createStyles = (colors: any) => StyleSheet.create({
   },
   avatarContainer: {
     position: 'relative',
-  },
-  avatar: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-  },
-  avatarPlaceholder: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarPlaceholderText: {
-    fontSize: 24,
-    fontWeight: '700' as const,
-    color: colors.text.white,
   },
   unreadBadge: {
     position: 'absolute',

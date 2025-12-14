@@ -53,6 +53,7 @@ export async function getStatusFeedForFeed(): Promise<StatusFeedItem[]> {
   if (!user) return [];
 
   // Get all visible statuses (RLS filters automatically)
+  // Note: If statuses table doesn't exist yet, return empty array
   const { data: statuses, error } = await supabase
     .from('statuses')
     .select(`
@@ -65,32 +66,65 @@ export async function getStatusFeedForFeed(): Promise<StatusFeedItem[]> {
       created_at,
       expires_at,
       archived,
-      archived_at,
-      users:user_id (
-        id,
-        full_name,
-        profile_picture
-      )
+      archived_at
     `)
     .eq('archived', false)
     .gt('expires_at', new Date().toISOString())
     .order('created_at', { ascending: false });
 
   if (error) {
+    // If table doesn't exist, silently return empty array
+    if (error.code === 'PGRST200' || error.message?.includes('schema cache')) {
+      console.warn('Status table not found. Please run supabase-status-system-schema.sql in Supabase SQL Editor.');
+      return [];
+    }
     console.error('Error fetching status feed:', error);
     return [];
   }
 
   if (!statuses || statuses.length === 0) return [];
 
+  // Fetch user data for all status owners
+  // Filter out any invalid user_ids
+  // Basic UUID validation regex
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  const userIds = Array.from<string>(new Set<string>(statuses.map((s: Status) => s.user_id).filter((id: string) => {
+    if (!id || id === 'undefined' || id === 'null' || typeof id !== 'string') {
+      return false;
+    }
+    return uuidRegex.test(id);
+  })));
+
+  if (userIds.length === 0) {
+    console.warn('No valid user IDs found in statuses');
+    return [];
+  }
+
+  const { data: usersData, error: usersError } = await supabase
+    .from('users')
+    .select('id, full_name, profile_picture')
+    .in('id', userIds);
+
+  if (usersError) {
+    console.error('Error fetching user data for statuses:', usersError);
+    // Continue with empty user map rather than failing completely
+  }
+
+  const usersMap = new Map<string, { id: string; full_name: string; profile_picture: string | null }>();
+  if (usersData) {
+    usersData.forEach((u: { id: string; full_name: string; profile_picture: string | null }) => {
+      usersMap.set(u.id, u);
+    });
+  }
+
   // Group by user, keeping only latest status per user
   const statusMap = new Map<string, Status>();
-  const userIds = new Set<string>();
+  const uniqueUserIds = new Set<string>();
 
   for (const status of statuses) {
     const userId = status.user_id;
     if (!statusMap.has(userId)) {
-      userIds.add(userId);
+      uniqueUserIds.add(userId);
       
       // Check if user has viewed this status
       const { data: view } = await supabase
@@ -102,7 +136,7 @@ export async function getStatusFeedForFeed(): Promise<StatusFeedItem[]> {
 
       statusMap.set(userId, {
         ...status,
-        user: status.users as any,
+        user: usersMap.get(userId) || undefined,
         has_unviewed: !view,
       });
     }
@@ -162,6 +196,19 @@ export async function getStatusFeedForFeed(): Promise<StatusFeedItem[]> {
 export async function getUserStatuses(userId: string): Promise<Status[]> {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return [];
+
+  // Validate userId is not undefined or invalid
+  if (!userId || userId === 'undefined' || userId === 'null') {
+    console.error('Invalid userId provided to getUserStatuses:', userId);
+    return [];
+  }
+
+  // Validate UUID format (basic check)
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (!uuidRegex.test(userId)) {
+    console.error('Invalid UUID format for userId:', userId);
+    return [];
+  }
 
   const { data: statuses, error } = await supabase
     .from('statuses')
@@ -293,7 +340,12 @@ export async function getStatusFeedForMessenger(): Promise<StatusFeedItem[]> {
   }
 
   // Combine friend and chat participant IDs
-  const relevantUserIds = Array.from(new Set([...friendIds, ...chatParticipantIds]));
+  // Filter out invalid UUIDs
+  const uuidRegexMessenger = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  const allIds = [...Array.from(friendIds), ...Array.from(chatParticipantIds)].filter((id: string) => {
+    return id && id !== 'undefined' && id !== 'null' && typeof id === 'string' && uuidRegexMessenger.test(id);
+  });
+  const relevantUserIds = Array.from<string>(new Set<string>(allIds));
 
   if (relevantUserIds.length === 0) return [];
 
@@ -310,12 +362,7 @@ export async function getStatusFeedForMessenger(): Promise<StatusFeedItem[]> {
       created_at,
       expires_at,
       archived,
-      archived_at,
-      users:user_id (
-        id,
-        full_name,
-        profile_picture
-      )
+      archived_at
     `)
     .in('user_id', relevantUserIds)
     .eq('archived', false)
@@ -328,6 +375,34 @@ export async function getStatusFeedForMessenger(): Promise<StatusFeedItem[]> {
   }
 
   if (!statuses || statuses.length === 0) return [];
+
+  // Fetch user data
+  // Filter out invalid user_ids (reuse the same regex)
+  const statusUserIds = Array.from<string>(new Set<string>(statuses.map((s: Status) => s.user_id).filter((id: string) => {
+    return id && id !== 'undefined' && id !== 'null' && typeof id === 'string' && uuidRegexMessenger.test(id);
+  })));
+
+  if (statusUserIds.length === 0) {
+    console.warn('No valid user IDs found in messenger statuses');
+    return [];
+  }
+
+  const { data: usersData, error: usersError } = await supabase
+    .from('users')
+    .select('id, full_name, profile_picture')
+    .in('id', statusUserIds);
+
+  if (usersError) {
+    console.error('Error fetching user data for messenger statuses:', usersError);
+    // Continue with empty user map rather than failing completely
+  }
+
+  const usersMap = new Map<string, { id: string; full_name: string; profile_picture: string | null }>();
+  if (usersData) {
+    usersData.forEach((u: { id: string; full_name: string; profile_picture: string | null }) => {
+      usersMap.set(u.id, u);
+    });
+  }
 
   // Group by user and get latest
   const statusMap = new Map<string, Status>();
@@ -344,7 +419,7 @@ export async function getStatusFeedForMessenger(): Promise<StatusFeedItem[]> {
 
       statusMap.set(userId, {
         ...status,
-        user: status.users as any,
+        user: usersMap.get(userId) || undefined,
         has_unviewed: !view,
       });
     }
@@ -409,8 +484,24 @@ export async function createStatus(
   privacyLevel: 'public' | 'friends' | 'followers' | 'only_me' | 'custom',
   allowedUserIds?: string[] // For custom privacy
 ): Promise<Status | null> {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return null;
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
+  
+  if (authError) {
+    console.error('Error getting authenticated user:', authError);
+    return null;
+  }
+  
+  if (!user || !user.id) {
+    console.error('No authenticated user found or user.id is missing');
+    return null;
+  }
+
+  // Validate user.id is a valid UUID
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (!uuidRegex.test(user.id)) {
+    console.error('Invalid user.id format:', user.id);
+    return null;
+  }
 
   let mediaPath: string | null = null;
 
@@ -430,7 +521,7 @@ export async function createStatus(
       const blob = await response.blob();
 
       // Upload to storage
-      const { error: uploadError } = await supabase.storage
+      const { data: uploadData, error: uploadError } = await supabase.storage
         .from('status-media')
         .upload(filePath, blob, {
           contentType: contentType === 'video' ? 'video/mp4' : 'image/jpeg',
@@ -439,9 +530,27 @@ export async function createStatus(
 
       if (uploadError) {
         console.error('Error uploading status media:', uploadError);
+        console.error('Upload details:', {
+          bucket: 'status-media',
+          path: filePath,
+          userId: user.id,
+          fileSize: blob.size,
+          contentType: contentType === 'video' ? 'video/mp4' : 'image/jpeg',
+        });
+        
+        // If it's a 403, it's likely a storage policy issue
+        const errorStatus = (uploadError as any).statusCode || (uploadError as any).status;
+        if (errorStatus === 403 || uploadError.message?.includes('403') || uploadError.message?.includes('Forbidden')) {
+          console.error('403 Forbidden: Storage policy may be blocking upload. Check that:');
+          console.error('1. The status-media bucket exists in Supabase Storage');
+          console.error('2. The storage policies are correctly set up');
+          console.error('3. The user is authenticated and user.id matches the first folder in the path');
+        }
+        
         return null;
       }
 
+      // The storage path should include the bucket name
       mediaPath = `status-media/${filePath}`;
     } catch (error) {
       console.error('Error processing media:', error);
@@ -468,11 +577,37 @@ export async function createStatus(
 
   if (statusError) {
     console.error('Error creating status:', statusError);
+    console.error('Status insert details:', {
+      user_id: user.id,
+      content_type: contentType,
+      privacy_level: privacyLevel,
+      has_media: !!mediaPath,
+    });
+    
+    // If it's a 403 or RLS error, provide helpful message
+    if (statusError.code === '42501' || statusError.message?.includes('row-level security') || statusError.message?.includes('RLS')) {
+      console.error('RLS Policy Violation: Check that:');
+      console.error('1. RLS is enabled on statuses table');
+      console.error('2. The "Users can create own statuses" policy exists');
+      console.error('3. The policy allows INSERT with auth.uid() = user_id');
+      console.error('4. The user.id matches auth.uid() in Supabase');
+    }
+    
+    const errorStatus = (statusError as any).statusCode || (statusError as any).status || (statusError as any).code;
+    if (errorStatus === 403 || statusError.message?.includes('403') || statusError.message?.includes('Forbidden')) {
+      console.error('403 Forbidden: This could be an RLS policy issue or authentication issue');
+    }
+    
     // Clean up uploaded media if status creation failed
     if (mediaPath) {
-      const pathParts = mediaPath.split('/');
-      const filePath = pathParts.slice(1).join('/');
-      await supabase.storage.from('status-media').remove([filePath]);
+      try {
+        const pathParts = mediaPath.split('/');
+        // Remove bucket name (status-media) and get just the file path
+        const filePath = pathParts.length > 1 ? pathParts.slice(1).join('/') : mediaPath.replace('status-media/', '');
+        await supabase.storage.from('status-media').remove([filePath]);
+      } catch (cleanupError) {
+        console.error('Error cleaning up uploaded media:', cleanupError);
+      }
     }
     return null;
   }
