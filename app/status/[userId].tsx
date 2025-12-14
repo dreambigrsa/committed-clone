@@ -153,15 +153,37 @@ export default function StatusViewerScreen() {
   }, [currentIndex, statuses]);
 
   const loadStatuses = async () => {
-    if (!userId || userId === 'undefined') return;
+    if (!userId || userId === 'undefined' || userId === 'null') {
+      console.error('❌ [StatusViewer] Invalid userId:', userId);
+      router.back();
+      return;
+    }
 
+    console.log('🔍 [StatusViewer] Loading statuses for userId:', userId);
     setIsLoading(true);
+    
     try {
       const userStatuses = await getUserStatuses(userId);
+      console.log('📊 [StatusViewer] Received statuses:', {
+        count: userStatuses.length,
+        statuses: userStatuses.map(s => ({
+          id: s.id?.substring(0, 8) + '...',
+          content_type: s.content_type,
+        })),
+      });
+      
+      if (userStatuses.length === 0) {
+        console.warn('⚠️ [StatusViewer] No statuses found for user:', userId);
+        Alert.alert('No Statuses', 'This user has no active statuses.');
+        router.back();
+        return;
+      }
+      
       setStatuses(userStatuses);
       setCurrentIndex(0);
     } catch (error) {
-      console.error('Error loading statuses:', error);
+      console.error('❌ [StatusViewer] Error loading statuses:', error);
+      Alert.alert('Error', 'Failed to load statuses. Please try again.');
       router.back();
     } finally {
       setIsLoading(false);
