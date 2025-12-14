@@ -24,6 +24,8 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { Post, Advertisement, Sticker } from '@/types';
 import StickerPicker from '@/components/StickerPicker';
 import StatusIndicator from '@/components/StatusIndicator';
+import StatusAvatar from '@/components/StatusAvatar';
+import StatusStoriesBar from '@/components/StatusStoriesBar';
 import * as WebBrowser from 'expo-web-browser';
 import ReportContentModal from '@/components/ReportContentModal';
 import * as ImagePicker from 'expo-image-picker';
@@ -1336,18 +1338,13 @@ export default function FeedScreen() {
             onPress={() => router.push(`/profile/${post.userId}` as any)}
           >
             <View style={styles.postAvatarContainer}>
-              {post.userAvatar ? (
-                <Image
-                  source={{ uri: post.userAvatar }}
-                  style={styles.postAvatar}
-                />
-              ) : (
-                <View style={styles.postAvatarPlaceholder}>
-                  <Text style={styles.postAvatarPlaceholderText}>
-                    {post.userName?.charAt(0) || '?'}
-                  </Text>
-                </View>
-              )}
+              <StatusAvatar
+                userId={post.userId}
+                avatarUrl={post.userAvatar}
+                userName={post.userName || 'Unknown'}
+                size={44}
+                isOwn={post.userId === currentUser.id}
+              />
               {postStatuses[post.userId] && (
                 <StatusIndicator 
                   status={postStatuses[post.userId].statusType} 
@@ -1556,6 +1553,9 @@ export default function FeedScreen() {
           <Plus size={24} color={colors.primary} />
         </TouchableOpacity>
       </View>
+
+      {/* Status Stories Bar */}
+      <StatusStoriesBar context="feed" />
 
       <ScrollView
         contentContainerStyle={styles.scrollContent}
