@@ -1,308 +1,432 @@
 /**
- * Create Status Screen
+ * Status Viewer Screen
  * 
- * Allows users to create text, image, or video statuses
+ * Full-screen status viewer (like Instagram Stories)
+ * Shows all statuses from a user in sequence
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  TextInput,
+  Modal,
   TouchableOpacity,
-  ScrollView,
-  Alert,
+  Dimensions,
+  Animated,
+  StatusBar,
   ActivityIndicator,
-  Platform,
+  Alert,
 } from 'react-native';
-import { useRouter } from 'expo-router';
-import { useTheme } from '@/contexts/ThemeContext';
-import { createStatus } from '@/lib/status-queries';
-import * as ImagePicker from 'expo-image-picker';
 import { Image } from 'expo-image';
 import { Video, ResizeMode } from 'expo-av';
-import { X, Camera, Image as ImageIcon } from 'lucide-react-native';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { X, Trash2 } from 'lucide-react-native';
+import { getUserStatuses, markStatusAsViewed, getSignedUrlForMedia, deleteStatus } from '@/lib/status-queries';
+import { useApp } from '@/contexts/AppContext';
+import { useTheme } from '@/contexts/ThemeContext';
+import type { Status } from '@/lib/status-queries';
 
-export default function CreateStatusScreen() {
+const { width, height } = Dimensions.get('window');
+const PROGRESS_BAR_HEIGHT = 3;
+
+export default function StatusViewerScreen() {
+  const { userId } = useLocalSearchParams<{ userId: string }>();
   const router = useRouter();
   const { colors } = useTheme();
-  const [textContent, setTextContent] = useState('');
-  const [mediaUri, setMediaUri] = useState<string | null>(null);
-  const [contentType, setContentType] = useState<'text' | 'image' | 'video'>('text');
-  const [privacyLevel, setPrivacyLevel] = useState<'public' | 'friends' | 'followers' | 'only_me'>('friends');
-  const [isPosting, setIsPosting] = useState(false);
-
-  const pickImage = async () => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert('Permission Required', 'We need access to your photos to add images.');
-      return;
-    }
-
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      allowsEditing: true,
-      aspect: [9, 16],
-      quality: 0.8,
-    });
-
-    if (!result.canceled && result.assets[0]) {
-      setMediaUri(result.assets[0].uri);
-      setContentType('image');
-    }
-  };
-
-  const pickVideo = async () => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert('Permission Required', 'We need access to your videos.');
-      return;
-    }
-
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['videos'],
-      allowsEditing: true,
-      videoMaxDuration: 15, // 15 seconds max
-      quality: 0.8,
-    });
-
-    if (!result.canceled && result.assets[0]) {
-      setMediaUri(result.assets[0].uri);
-      setContentType('video');
-    }
-  };
-
-  const handlePost = async () => {
-    if (contentType === 'text' && !textContent.trim()) {
-      Alert.alert('Required', 'Please enter some text for your status.');
-      return;
-    }
-
-    if (contentType !== 'text' && !mediaUri) {
-      Alert.alert('Required', 'Please select an image or video.');
-      return;
-    }
-
-    setIsPosting(true);
-    try {
-      const status = await createStatus(
-        contentType,
-        textContent || null,
-        mediaUri,
-        privacyLevel
-      );
-
-      if (status) {
-        Alert.alert('Success', 'Status posted!', [
-          { text: 'OK', onPress: () => router.back() },
-        ]);
-      } else {
-        Alert.alert('Error', 'Failed to post status. Please try again.');
-      }
-    } catch (error) {
-      console.error('Error creating status:', error);
-      Alert.alert('Error', 'Failed to post status. Please try again.');
-    } finally {
-      setIsPosting(false);
-    }
-  };
+  const { currentUser } = useApp();
+  const [statuses, setStatuses] = useState<Status[]>([]);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [mediaUrl, setMediaUrl] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const progressAnim = useRef(new Animated.Value(0)).current;
+  const progressInterval = useRef<NodeJS.Timeout | null>(null);
 
   const styles = StyleSheet.create({
     container: {
       flex: 1,
-      backgroundColor: colors.background.primary,
+      backgroundColor: '#000',
+    },
+    progressContainer: {
+      flexDirection: 'row',
+      paddingHorizontal: 4,
+      paddingTop: 8,
+      gap: 4,
+      height: PROGRESS_BAR_HEIGHT + 8,
+    },
+    progressBarWrapper: {
+      flex: 1,
+      height: PROGRESS_BAR_HEIGHT,
+      backgroundColor: 'rgba(255, 255, 255, 0.3)',
+      borderRadius: PROGRESS_BAR_HEIGHT / 2,
+      overflow: 'hidden',
+    },
+    progressBarFill: {
+      height: '100%',
+      backgroundColor: '#fff',
     },
     header: {
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
-      padding: 16,
-      borderBottomWidth: StyleSheet.hairlineWidth,
-      borderBottomColor: colors.border.light,
-    },
-    headerTitle: {
-      fontSize: 18,
-      fontWeight: '600',
-      color: colors.text.primary,
-    },
-    postButton: {
       paddingHorizontal: 16,
-      paddingVertical: 8,
-      backgroundColor: colors.primary,
-      borderRadius: 20,
-      opacity: isPosting ? 0.5 : 1,
+      paddingVertical: 12,
+      paddingTop: 16,
     },
-    postButtonText: {
-      color: colors.text.white,
-      fontWeight: '600',
+    userInfo: {
+      flex: 1,
+    },
+    userName: {
+      color: '#fff',
+      fontSize: 16,
+      fontWeight: '600' as const,
+    },
+    timestamp: {
+      color: 'rgba(255, 255, 255, 0.7)',
+      fontSize: 12,
+      marginTop: 2,
+    },
+    closeButton: {
+      padding: 8,
     },
     content: {
       flex: 1,
-      padding: 16,
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingHorizontal: 20,
     },
-    textInput: {
-      minHeight: 200,
-      fontSize: 16,
-      color: colors.text.primary,
-      textAlignVertical: 'top',
-    },
-    mediaContainer: {
-      marginTop: 16,
-      borderRadius: 12,
-      overflow: 'hidden',
-      backgroundColor: colors.background.secondary,
+    textContent: {
+      color: '#fff',
+      fontSize: 24,
+      textAlign: 'center',
+      fontWeight: '500' as const,
     },
     media: {
-      width: '100%',
-      height: 400,
+      width: width,
+      height: height * 0.7,
     },
-    mediaRemove: {
-      position: 'absolute',
-      top: 8,
-      right: 8,
-      backgroundColor: 'rgba(0, 0, 0, 0.5)',
-      borderRadius: 20,
-      padding: 8,
-    },
-    actions: {
-      flexDirection: 'row',
-      gap: 12,
-      marginTop: 16,
-    },
-    actionButton: {
-      flex: 1,
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: 12,
-      borderRadius: 8,
-      backgroundColor: colors.background.secondary,
-      gap: 8,
-    },
-    actionButtonText: {
-      color: colors.text.primary,
-      fontWeight: '500',
-    },
-    privacySection: {
-      marginTop: 24,
-      padding: 16,
-      backgroundColor: colors.background.secondary,
-      borderRadius: 12,
-    },
-    privacyTitle: {
+    loadingText: {
+      color: '#fff',
       fontSize: 16,
-      fontWeight: '600',
-      color: colors.text.primary,
-      marginBottom: 12,
     },
-    privacyOption: {
-      flexDirection: 'row',
+    loadingContainer: {
+      flex: 1,
+      justifyContent: 'center',
       alignItems: 'center',
-      padding: 12,
-      borderRadius: 8,
-      marginBottom: 8,
-      backgroundColor: privacyLevel === 'public' ? colors.primary + '20' : 'transparent',
     },
-    privacyOptionText: {
-      fontSize: 14,
-      color: colors.text.primary,
-      marginLeft: 12,
+    navArea: {
+      position: 'absolute',
+      top: 0,
+      bottom: 0,
+      width: width / 3,
+    },
+    leftArea: {
+      left: 0,
+    },
+    rightArea: {
+      right: 0,
     },
   });
 
-  return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()}>
-          <X size={24} color={colors.text.primary} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Create Status</Text>
-        <TouchableOpacity
-          style={styles.postButton}
-          onPress={handlePost}
-          disabled={isPosting}
-        >
-          {isPosting ? (
-            <ActivityIndicator size="small" color={colors.text.white} />
-          ) : (
-            <Text style={styles.postButtonText}>Post</Text>
-          )}
-        </TouchableOpacity>
-      </View>
+  useEffect(() => {
+    if (!userId || userId === 'undefined') {
+      router.back();
+      return;
+    }
 
-      <ScrollView style={styles.content}>
-        {contentType === 'text' && (
-          <TextInput
-            style={styles.textInput}
-            placeholder="What's on your mind?"
-            placeholderTextColor={colors.text.tertiary}
-            value={textContent}
-            onChangeText={setTextContent}
-            multiline
-            autoFocus
-          />
-        )}
+    loadStatuses();
+  }, [userId]);
 
-        {mediaUri && (
-          <View style={styles.mediaContainer}>
-            {contentType === 'image' ? (
-              <Image source={{ uri: mediaUri }} style={styles.media} contentFit="cover" />
-            ) : (
-              <Video source={{ uri: mediaUri }} style={styles.media} resizeMode={ResizeMode.COVER} />
-            )}
-            <TouchableOpacity
-              style={styles.mediaRemove}
-              onPress={() => {
-                setMediaUri(null);
-                setContentType('text');
-              }}
-            >
-              <X size={20} color="#fff" />
-            </TouchableOpacity>
+  useEffect(() => {
+    if (statuses.length > 0 && currentIndex < statuses.length) {
+      loadMedia();
+      startProgress();
+      markAsViewed();
+    }
+
+    return () => {
+      if (progressInterval.current) {
+        clearInterval(progressInterval.current);
+      }
+    };
+  }, [currentIndex, statuses]);
+
+  const loadStatuses = async () => {
+    if (!userId || userId === 'undefined' || userId === 'null') {
+      console.error('❌ [StatusViewer] Invalid userId:', userId);
+      router.back();
+      return;
+    }
+
+    console.log('🔍 [StatusViewer] Loading statuses for userId:', userId);
+    setIsLoading(true);
+    
+    try {
+      const userStatuses = await getUserStatuses(userId);
+      console.log('📊 [StatusViewer] Received statuses:', {
+        count: userStatuses.length,
+        statuses: userStatuses.map(s => ({
+          id: s.id?.substring(0, 8) + '...',
+          content_type: s.content_type,
+        })),
+      });
+      
+      if (userStatuses.length === 0) {
+        console.warn('⚠️ [StatusViewer] No statuses found for user:', userId);
+        Alert.alert('No Statuses', 'This user has no active statuses.');
+        router.back();
+        return;
+      }
+      
+      setStatuses(userStatuses);
+      setCurrentIndex(0);
+    } catch (error) {
+      console.error('❌ [StatusViewer] Error loading statuses:', error);
+      Alert.alert('Error', 'Failed to load statuses. Please try again.');
+      router.back();
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const loadMedia = async () => {
+    const status = statuses[currentIndex];
+    if (!status || !status.media_path) {
+      setMediaUrl(null);
+      return;
+    }
+
+    try {
+      const url = await getSignedUrlForMedia(status.media_path);
+      setMediaUrl(url);
+    } catch (error) {
+      console.error('Error loading media:', error);
+      setMediaUrl(null);
+    }
+  };
+
+  const markAsViewed = async () => {
+    const status = statuses[currentIndex];
+    if (!status) return;
+
+    await markStatusAsViewed(status.id);
+  };
+
+  const startProgress = () => {
+    if (progressInterval.current) {
+      clearInterval(progressInterval.current);
+    }
+
+    progressAnim.setValue(0);
+    const duration = 5000; // 5 seconds per status
+    const steps = 100;
+    const stepDuration = duration / steps;
+    let currentStep = 0;
+
+    progressInterval.current = setInterval(() => {
+      currentStep++;
+      const progress = currentStep / steps;
+
+      progressAnim.setValue(progress);
+
+      if (progress >= 1) {
+        if (progressInterval.current) {
+          clearInterval(progressInterval.current);
+        }
+        handleNext();
+      }
+    }, stepDuration);
+  };
+
+  const handleNext = () => {
+    if (progressInterval.current) {
+      clearInterval(progressInterval.current);
+    }
+    if (currentIndex < statuses.length - 1) {
+      setCurrentIndex(currentIndex + 1);
+    } else {
+      router.back();
+    }
+  };
+
+  const handlePrev = () => {
+    if (progressInterval.current) {
+      clearInterval(progressInterval.current);
+    }
+    if (currentIndex > 0) {
+      setCurrentIndex(currentIndex - 1);
+    }
+  };
+
+  const handleClose = () => {
+    if (progressInterval.current) {
+      clearInterval(progressInterval.current);
+    }
+    router.back();
+  };
+
+  const handleDelete = async () => {
+    const status = statuses[currentIndex];
+    if (!status) return;
+
+    const isOwnStatus = currentUser?.id === status.user_id;
+
+    if (!isOwnStatus) {
+      Alert.alert('Error', 'You can only delete your own statuses.');
+      return;
+    }
+
+    Alert.alert(
+      'Delete Status',
+      'Are you sure you want to delete this status?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            setIsDeleting(true);
+            try {
+              const success = await deleteStatus(status.id);
+              if (success) {
+                const newStatuses = statuses.filter((s) => s.id !== status.id);
+                setStatuses(newStatuses);
+
+                if (newStatuses.length === 0) {
+                  router.back();
+                } else {
+                  const newIndex = currentIndex >= newStatuses.length 
+                    ? newStatuses.length - 1 
+                    : currentIndex;
+                  setCurrentIndex(newIndex);
+                }
+              } else {
+                Alert.alert('Error', 'Failed to delete status. Please try again.');
+              }
+            } catch (error) {
+              console.error('Error deleting status:', error);
+              Alert.alert('Error', 'Failed to delete status. Please try again.');
+            } finally {
+              setIsDeleting(false);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  if (isLoading || statuses.length === 0) {
+    return (
+      <Modal visible={true} animationType="fade">
+        <View style={[styles.container, { backgroundColor: '#000' }]}>
+          <StatusBar barStyle="light-content" />
+          <TouchableOpacity style={styles.closeButton} onPress={handleClose}>
+            <X size={24} color="#fff" />
+          </TouchableOpacity>
+          <View style={styles.loadingContainer}>
+            <Text style={styles.loadingText}>Loading...</Text>
           </View>
-        )}
-
-        <View style={styles.actions}>
-          <TouchableOpacity style={styles.actionButton} onPress={pickImage}>
-            <ImageIcon size={20} color={colors.text.primary} />
-            <Text style={styles.actionButtonText}>Photo</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.actionButton} onPress={pickVideo}>
-            <Camera size={20} color={colors.text.primary} />
-            <Text style={styles.actionButtonText}>Video</Text>
-          </TouchableOpacity>
         </View>
+      </Modal>
+    );
+  }
 
-        <View style={styles.privacySection}>
-          <Text style={styles.privacyTitle}>Privacy</Text>
-          {(['public', 'friends', 'followers', 'only_me'] as const).map((level) => (
-            <TouchableOpacity
-              key={level}
-              style={[
-                styles.privacyOption,
-                privacyLevel === level && { backgroundColor: colors.primary + '20' },
-              ]}
-              onPress={() => setPrivacyLevel(level)}
-            >
-              <View
-                style={{
-                  width: 20,
-                  height: 20,
-                  borderRadius: 10,
-                  borderWidth: 2,
-                  borderColor: privacyLevel === level ? colors.primary : colors.border.light,
-                  backgroundColor: privacyLevel === level ? colors.primary : 'transparent',
-                }}
-              />
-              <Text style={styles.privacyOptionText}>
-                {level.charAt(0).toUpperCase() + level.slice(1)}
-              </Text>
-            </TouchableOpacity>
+  const status = statuses[currentIndex];
+
+  return (
+    <Modal visible={true} animationType="fade" onRequestClose={handleClose}>
+      <StatusBar barStyle="light-content" />
+      <View style={styles.container}>
+        {/* Progress Bars */}
+        <View style={styles.progressContainer}>
+          {statuses.map((_, index) => (
+            <View key={index} style={styles.progressBarWrapper}>
+              {index === currentIndex ? (
+                <Animated.View
+                  style={[
+                    styles.progressBarFill,
+                    {
+                      width: progressAnim.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: ['0%', '100%'],
+                      }),
+                    },
+                  ]}
+                />
+              ) : index < currentIndex ? (
+                <View style={[styles.progressBarFill, { width: '100%' }]} />
+              ) : null}
+            </View>
           ))}
         </View>
-      </ScrollView>
-    </View>
+
+        {/* Header */}
+        <View style={styles.header}>
+          <View style={styles.userInfo}>
+            <Text style={styles.userName}>
+              {status.user?.full_name || 'User'}
+            </Text>
+            <Text style={styles.timestamp}>
+              {new Date(status.created_at).toLocaleTimeString([], {
+                hour: 'numeric',
+                minute: '2-digit',
+              })}
+            </Text>
+          </View>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            {/* Delete button - only show for own statuses */}
+            {currentUser?.id === status.user_id && (
+              <TouchableOpacity 
+                style={styles.closeButton} 
+                onPress={handleDelete}
+                disabled={isDeleting}
+              >
+                {isDeleting ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Trash2 size={20} color="#fff" />
+                )}
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity style={styles.closeButton} onPress={handleClose}>
+              <X size={24} color="#fff" />
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Content */}
+        <View style={styles.content}>
+          {status.content_type === 'text' ? (
+            <Text style={styles.textContent}>{status.text_content}</Text>
+          ) : status.content_type === 'image' && mediaUrl ? (
+            <Image source={{ uri: mediaUrl }} style={styles.media} contentFit="contain" />
+          ) : status.content_type === 'video' && mediaUrl ? (
+            <Video
+              source={{ uri: mediaUrl }}
+              style={styles.media}
+              useNativeControls
+              resizeMode={ResizeMode.CONTAIN}
+              shouldPlay
+            />
+          ) : (
+            <Text style={styles.loadingText}>Loading media...</Text>
+          )}
+        </View>
+
+        {/* Navigation Areas */}
+        <TouchableOpacity
+          style={[styles.navArea, styles.leftArea]}
+          onPress={handlePrev}
+          activeOpacity={1}
+        />
+        <TouchableOpacity
+          style={[styles.navArea, styles.rightArea]}
+          onPress={handleNext}
+          activeOpacity={1}
+        />
+      </View>
+    </Modal>
   );
 }
 
