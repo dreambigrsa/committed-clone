@@ -266,24 +266,29 @@ export async function getStatusFeedForFeed(): Promise<StatusFeedItem[]> {
  * Get all statuses for a specific user (for viewing their story)
  */
 export async function getUserStatuses(userId: string): Promise<Status[]> {
+  console.log('🔍 [getUserStatuses] Starting:', { userId });
+  
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return [];
+  if (!user) {
+    console.warn('⚠️ [getUserStatuses] No user found');
+    return [];
+  }
 
   if (!userId || userId === 'undefined' || userId === 'null') {
-    console.error('Invalid userId provided to getUserStatuses:', userId);
+    console.error('❌ [getUserStatuses] Invalid userId:', userId);
     return [];
   }
 
   const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
   if (!uuidRegex.test(userId)) {
-    console.error('Invalid UUID format for userId:', userId);
+    console.error('❌ [getUserStatuses] Invalid UUID format:', userId);
     return [];
   }
 
   const isOwnStatus = userId === user.id;
   console.log('👤 [getUserStatuses] Is own status:', isOwnStatus);
 
-  // For own statuses, show all (even expired/archived) for management
+  // Build query - for own statuses, show ALL (even expired/archived) for management
   // For others, only show active statuses
   let query = supabase
     .from('statuses')
@@ -307,34 +312,62 @@ export async function getUserStatuses(userId: string): Promise<Status[]> {
       .eq('archived', false)
       .gt('expires_at', new Date().toISOString());
   }
-  // For own statuses, show all (no filters) so user can manage them
+  // For own statuses, show all (no filters) - RLS policy "Users can view own statuses always" allows this
 
   const { data: statuses, error } = await query.order('created_at', { ascending: true });
 
   console.log('📊 [getUserStatuses] Query result:', {
     statusesCount: statuses?.length || 0,
     isOwnStatus,
-    error: error ? { code: error.code, message: error.message } : null,
+    statuses: statuses?.map((s: any) => ({
+      id: s.id?.substring(0, 8) + '...',
+      content_type: s.content_type,
+      archived: s.archived,
+      expires_at: s.expires_at,
+    })),
+    error: error ? { 
+      code: error.code, 
+      message: error.message,
+      details: error.details,
+      hint: error.hint,
+    } : null,
   });
 
   if (error) {
-    console.error('Error fetching user statuses:', error);
+    console.error('❌ [getUserStatuses] Error fetching user statuses:', error);
+    if (error.code === 'PGRST200' || error.message?.includes('schema cache')) {
+      console.error('❌ [getUserStatuses] Table might not exist. Run COMPLETE-STATUS-FIX.sql');
+    }
     return [];
   }
 
-  if (!statuses || statuses.length === 0) return [];
+  if (!statuses || statuses.length === 0) {
+    console.warn('⚠️ [getUserStatuses] No statuses returned for user:', userId);
+    return [];
+  }
 
   // Fetch user data
-  const { data: userData } = await supabase
+  const { data: userData, error: userError } = await supabase
     .from('users')
     .select('id, full_name, profile_picture')
     .eq('id', userId)
     .single();
 
-  return statuses.map((status: Status) => ({
+  if (userError) {
+    console.error('❌ [getUserStatuses] Error fetching user data:', userError);
+  }
+
+  const result = statuses.map((status: Status) => ({
     ...status,
     user: userData || undefined,
   }));
+
+  console.log('✅ [getUserStatuses] Returning:', {
+    count: result.length,
+    userData: !!userData,
+  });
+
+  return result;
 }
 
 /**
