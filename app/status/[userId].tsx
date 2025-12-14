@@ -161,7 +161,13 @@ export default function StatusViewerScreen() {
   }, [currentIndex, statuses]);
 
   const loadStatuses = async () => {
-    if (!userId) return;
+    // Validate userId before making the request
+    if (!userId || userId === 'undefined' || userId === 'null' || typeof userId !== 'string') {
+      console.error('Invalid userId in StatusViewer:', userId);
+      setIsLoading(false);
+      return;
+    }
+
     setIsLoading(true);
     try {
       const userStatuses = await getUserStatuses(userId);
@@ -169,6 +175,7 @@ export default function StatusViewerScreen() {
       setCurrentIndex(0);
     } catch (error) {
       console.error('Error loading statuses:', error);
+      setStatuses([]);
     } finally {
       setIsLoading(false);
     }
