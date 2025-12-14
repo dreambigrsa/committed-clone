@@ -143,25 +143,70 @@ export default function StatusStoriesBar({ context, onStatusPress }: StatusStori
   });
 
   useEffect(() => {
-    loadStatusFeed();
+    let isMounted = true;
+
+    const loadData = async () => {
+      console.log(`🔄 [StatusStoriesBar] useEffect triggered for context: ${context}`);
+      setLoading(true);
+      try {
+        const feed = context === 'feed' 
+          ? await getStatusFeedForFeed()
+          : await getStatusFeedForMessenger();
+        
+        console.log(`✅ [StatusStoriesBar] Feed loaded in useEffect:`, {
+          context,
+          feedLength: feed?.length || 0,
+          feed: feed,
+        });
+        
+        if (isMounted) {
+          setStatusFeed(Array.isArray(feed) ? feed : []);
+        }
+      } catch (error) {
+        console.error('❌ [StatusStoriesBar] Error loading status feed in useEffect:', error);
+        if (isMounted) {
+          setStatusFeed([]);
+        }
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
+    };
+
+    loadData();
     
     // Refresh every 30 seconds to check for new statuses
     const interval = setInterval(() => {
-      loadStatusFeed();
+      if (isMounted) {
+        loadData();
+      }
     }, 30000);
 
-    return () => clearInterval(interval);
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
   }, [context]);
 
+  // Keep loadStatusFeed for manual refreshes (like after viewing a status)
   const loadStatusFeed = async () => {
+    console.log(`🔄 [StatusStoriesBar] Manual loadStatusFeed called for context: ${context}`);
     setLoading(true);
     try {
       const feed = context === 'feed' 
         ? await getStatusFeedForFeed()
         : await getStatusFeedForMessenger();
+      
+      console.log(`✅ [StatusStoriesBar] Feed loaded manually:`, {
+        context,
+        feedLength: feed?.length || 0,
+        feed: feed,
+      });
+      
       setStatusFeed(Array.isArray(feed) ? feed : []);
     } catch (error) {
-      console.error('Error loading status feed:', error);
+      console.error('❌ [StatusStoriesBar] Error loading status feed manually:', error);
       setStatusFeed([]);
     } finally {
       setLoading(false);
