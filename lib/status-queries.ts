@@ -85,11 +85,30 @@ export async function getStatusFeedForFeed(): Promise<StatusFeedItem[]> {
   if (!statuses || statuses.length === 0) return [];
 
   // Fetch user data for all status owners
-  const userIds = Array.from<string>(new Set<string>(statuses.map((s: Status) => s.user_id)));
-  const { data: usersData } = await supabase
+  // Filter out any invalid user_ids
+  // Basic UUID validation regex
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  const userIds = Array.from<string>(new Set<string>(statuses.map((s: Status) => s.user_id).filter((id: string) => {
+    if (!id || id === 'undefined' || id === 'null' || typeof id !== 'string') {
+      return false;
+    }
+    return uuidRegex.test(id);
+  })));
+
+  if (userIds.length === 0) {
+    console.warn('No valid user IDs found in statuses');
+    return [];
+  }
+
+  const { data: usersData, error: usersError } = await supabase
     .from('users')
     .select('id, full_name, profile_picture')
     .in('id', userIds);
+
+  if (usersError) {
+    console.error('Error fetching user data for statuses:', usersError);
+    // Continue with empty user map rather than failing completely
+  }
 
   const usersMap = new Map<string, { id: string; full_name: string; profile_picture: string | null }>();
   if (usersData) {
@@ -177,6 +196,19 @@ export async function getStatusFeedForFeed(): Promise<StatusFeedItem[]> {
 export async function getUserStatuses(userId: string): Promise<Status[]> {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return [];
+
+  // Validate userId is not undefined or invalid
+  if (!userId || userId === 'undefined' || userId === 'null') {
+    console.error('Invalid userId provided to getUserStatuses:', userId);
+    return [];
+  }
+
+  // Validate UUID format (basic check)
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (!uuidRegex.test(userId)) {
+    console.error('Invalid UUID format for userId:', userId);
+    return [];
+  }
 
   const { data: statuses, error } = await supabase
     .from('statuses')
@@ -308,7 +340,11 @@ export async function getStatusFeedForMessenger(): Promise<StatusFeedItem[]> {
   }
 
   // Combine friend and chat participant IDs
-  const allIds = [...Array.from(friendIds), ...Array.from(chatParticipantIds)];
+  // Filter out invalid UUIDs
+  const uuidRegexMessenger = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  const allIds = [...Array.from(friendIds), ...Array.from(chatParticipantIds)].filter((id: string) => {
+    return id && id !== 'undefined' && id !== 'null' && typeof id === 'string' && uuidRegexMessenger.test(id);
+  });
   const relevantUserIds = Array.from<string>(new Set<string>(allIds));
 
   if (relevantUserIds.length === 0) return [];
@@ -341,11 +377,25 @@ export async function getStatusFeedForMessenger(): Promise<StatusFeedItem[]> {
   if (!statuses || statuses.length === 0) return [];
 
   // Fetch user data
-  const statusUserIds = Array.from<string>(new Set<string>(statuses.map((s: Status) => s.user_id)));
-  const { data: usersData } = await supabase
+  // Filter out invalid user_ids (reuse the same regex)
+  const statusUserIds = Array.from<string>(new Set<string>(statuses.map((s: Status) => s.user_id).filter((id: string) => {
+    return id && id !== 'undefined' && id !== 'null' && typeof id === 'string' && uuidRegexMessenger.test(id);
+  })));
+
+  if (statusUserIds.length === 0) {
+    console.warn('No valid user IDs found in messenger statuses');
+    return [];
+  }
+
+  const { data: usersData, error: usersError } = await supabase
     .from('users')
     .select('id, full_name, profile_picture')
     .in('id', statusUserIds);
+
+  if (usersError) {
+    console.error('Error fetching user data for messenger statuses:', usersError);
+    // Continue with empty user map rather than failing completely
+  }
 
   const usersMap = new Map<string, { id: string; full_name: string; profile_picture: string | null }>();
   if (usersData) {
@@ -434,8 +484,24 @@ export async function createStatus(
   privacyLevel: 'public' | 'friends' | 'followers' | 'only_me' | 'custom',
   allowedUserIds?: string[] // For custom privacy
 ): Promise<Status | null> {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return null;
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
+  
+  if (authError) {
+    console.error('Error getting authenticated user:', authError);
+    return null;
+  }
+  
+  if (!user || !user.id) {
+    console.error('No authenticated user found or user.id is missing');
+    return null;
+  }
+
+  // Validate user.id is a valid UUID
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (!uuidRegex.test(user.id)) {
+    console.error('Invalid user.id format:', user.id);
+    return null;
+  }
 
   let mediaPath: string | null = null;
 
