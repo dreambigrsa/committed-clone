@@ -17,12 +17,14 @@ import {
   StatusBar,
   ActivityIndicator,
   Alert,
+  TextInput,
+  ScrollView,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { Video, ResizeMode } from 'expo-av';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { X, Trash2 } from 'lucide-react-native';
-import { getUserStatuses, markStatusAsViewed, getSignedUrlForMedia, deleteStatus } from '@/lib/status-queries';
+import { X, Trash2, Plus, Music, Type, Image as ImageIcon, RefreshCw, Share2, MoreHorizontal, Globe } from 'lucide-react-native';
+import { getUserStatuses, markStatusAsViewed, getSignedUrlForMedia, deleteStatus, getStatusViewers, getStatusViewCount, type StatusViewer } from '@/lib/status-queries';
 import { useApp } from '@/contexts/AppContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import type { Status } from '@/lib/status-queries';
@@ -40,6 +42,12 @@ export default function StatusViewerScreen() {
   const [mediaUrl, setMediaUrl] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [showPlusMenu, setShowPlusMenu] = useState(false);
+  const [showViewers, setShowViewers] = useState(false);
+  const [messageText, setMessageText] = useState('');
+  const [viewCount, setViewCount] = useState<number>(0);
+  const [viewers, setViewers] = useState<StatusViewer[]>([]);
+  const [loadingViewers, setLoadingViewers] = useState(false);
   const progressAnim = useRef(new Animated.Value(0)).current;
   const progressInterval = useRef<NodeJS.Timeout | null>(null);
 
@@ -77,15 +85,49 @@ export default function StatusViewerScreen() {
     userInfo: {
       flex: 1,
     },
+    userInfoRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+    },
+    profilePicture: {
+      width: 32,
+      height: 32,
+      borderRadius: 16,
+    },
+    profilePlaceholder: {
+      backgroundColor: 'rgba(255, 255, 255, 0.2)',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    profilePlaceholderText: {
+      color: '#fff',
+      fontSize: 14,
+      fontWeight: '600' as const,
+    },
     userName: {
       color: '#fff',
       fontSize: 16,
       fontWeight: '600' as const,
     },
+    timestampRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      marginTop: 2,
+    },
     timestamp: {
       color: 'rgba(255, 255, 255, 0.7)',
       fontSize: 12,
-      marginTop: 2,
+    },
+    viewCountButton: {
+      paddingHorizontal: 8,
+      paddingVertical: 2,
+    },
+    viewCountText: {
+      color: 'rgba(255, 255, 255, 0.7)',
+      fontSize: 12,
+      fontWeight: '500' as const,
     },
     closeButton: {
       padding: 8,
@@ -127,6 +169,103 @@ export default function StatusViewerScreen() {
     rightArea: {
       right: 0,
     },
+    bottomBar: {
+      position: 'absolute',
+      bottom: 0,
+      left: 0,
+      right: 0,
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: 12,
+      paddingVertical: 12,
+      paddingBottom: 20,
+      backgroundColor: 'rgba(0, 0, 0, 0.5)',
+      gap: 8,
+    },
+    quickReactions: {
+      flexDirection: 'row',
+      gap: 4,
+    },
+    quickReactionEmoji: {
+      fontSize: 20,
+    },
+    messageInputContainer: {
+      flex: 1,
+      backgroundColor: 'rgba(255, 255, 255, 0.1)',
+      borderRadius: 20,
+      paddingHorizontal: 16,
+      paddingVertical: 10,
+      maxHeight: 50,
+    },
+    messageInput: {
+      color: '#fff',
+      fontSize: 14,
+      padding: 0,
+    },
+    reactionButtons: {
+      flexDirection: 'row',
+      gap: 8,
+    },
+    reactionButton: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor: 'rgba(255, 255, 255, 0.1)',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    reactionEmoji: {
+      fontSize: 22,
+    },
+    plusButton: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor: 'rgba(255, 255, 255, 0.1)',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    plusMenuOverlay: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+    },
+    plusMenuBackdrop: {
+      flex: 1,
+      backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    },
+    plusMenu: {
+      position: 'absolute',
+      bottom: 80,
+      left: 0,
+      right: 0,
+      backgroundColor: '#1a1a1a',
+      borderTopLeftRadius: 16,
+      borderTopRightRadius: 16,
+      paddingTop: 8,
+      paddingBottom: 20,
+    },
+    plusMenuOption: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      padding: 16,
+      gap: 16,
+    },
+    plusMenuIcon: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor: 'rgba(255, 255, 255, 0.1)',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    plusMenuText: {
+      color: '#fff',
+      fontSize: 16,
+      fontWeight: '500' as const,
+    },
   });
 
   useEffect(() => {
@@ -143,6 +282,7 @@ export default function StatusViewerScreen() {
       loadMedia();
       startProgress();
       markAsViewed();
+      loadViewCount();
     }
 
     return () => {
@@ -151,6 +291,43 @@ export default function StatusViewerScreen() {
       }
     };
   }, [currentIndex, statuses]);
+
+  const loadViewCount = async () => {
+    const status = statuses[currentIndex];
+    if (!status || currentUser?.id !== status.user_id) {
+      setViewCount(0);
+      return;
+    }
+
+    try {
+      const count = await getStatusViewCount(status.id);
+      setViewCount(count);
+    } catch (error) {
+      console.error('Error loading view count:', error);
+    }
+  };
+
+  const loadViewers = async () => {
+    const status = statuses[currentIndex];
+    if (!status || currentUser?.id !== status.user_id) {
+      return;
+    }
+
+    setLoadingViewers(true);
+    try {
+      const viewerList = await getStatusViewers(status.id);
+      setViewers(viewerList);
+    } catch (error) {
+      console.error('Error loading viewers:', error);
+    } finally {
+      setLoadingViewers(false);
+    }
+  };
+
+  const handleViewersPress = async () => {
+    await loadViewers();
+    setShowViewers(true);
+  };
 
   const loadStatuses = async () => {
     if (!userId || userId === 'undefined' || userId === 'null') {
@@ -266,6 +443,35 @@ export default function StatusViewerScreen() {
     router.back();
   };
 
+  const formatTimeAgo = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMins / 60);
+    const diffDays = Math.floor(diffHours / 24);
+
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins}m`;
+    if (diffHours < 24) return `${diffHours}h`;
+    if (diffDays < 7) return `${diffDays}d`;
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  };
+
+  const handleSendMessage = () => {
+    if (messageText.trim()) {
+      // TODO: Implement send message to status
+      console.log('Sending message:', messageText);
+      setMessageText('');
+      // You can navigate to conversation or show a toast
+    }
+  };
+
+  const handleReaction = (reaction: string) => {
+    // TODO: Implement reaction
+    console.log('Reaction:', reaction);
+  };
+
   const handleDelete = async () => {
     const status = statuses[currentIndex];
     if (!status) return;
@@ -364,15 +570,42 @@ export default function StatusViewerScreen() {
         {/* Header */}
         <View style={styles.header}>
           <View style={styles.userInfo}>
-            <Text style={styles.userName}>
-              {status.user?.full_name || 'User'}
-            </Text>
-            <Text style={styles.timestamp}>
-              {new Date(status.created_at).toLocaleTimeString([], {
-                hour: 'numeric',
-                minute: '2-digit',
-              })}
-            </Text>
+            <View style={styles.userInfoRow}>
+              {status.user?.profile_picture ? (
+                <Image
+                  source={{ uri: status.user.profile_picture }}
+                  style={styles.profilePicture}
+                  contentFit="cover"
+                />
+              ) : (
+                <View style={[styles.profilePicture, styles.profilePlaceholder]}>
+                  <Text style={styles.profilePlaceholderText}>
+                    {(status.user?.full_name || 'U').charAt(0).toUpperCase()}
+                  </Text>
+                </View>
+              )}
+              <View style={{ flex: 1 }}>
+                <Text style={styles.userName}>
+                  {status.user?.full_name || 'User'}
+                </Text>
+                <View style={styles.timestampRow}>
+                  <Text style={styles.timestamp}>
+                    {formatTimeAgo(status.created_at)}
+                  </Text>
+                  {/* Show view count for own statuses */}
+                  {currentUser?.id === status.user_id && viewCount > 0 && (
+                    <TouchableOpacity 
+                      style={styles.viewCountButton}
+                      onPress={handleViewersPress}
+                    >
+                      <Text style={styles.viewCountText}>
+                        {viewCount} {viewCount === 1 ? 'viewer' : 'viewers'}
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              </View>
+            </View>
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
             {/* Delete button - only show for own statuses */}
@@ -425,6 +658,144 @@ export default function StatusViewerScreen() {
           onPress={handleNext}
           activeOpacity={1}
         />
+
+        {/* Bottom Interaction Bar */}
+        <View style={styles.bottomBar}>
+          {/* Quick Reactions (small emojis) */}
+          <View style={styles.quickReactions}>
+            <TouchableOpacity onPress={() => handleReaction('heart-eyes')}>
+              <Text style={styles.quickReactionEmoji}>😍</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => handleReaction('heart-eyes')}>
+              <Text style={styles.quickReactionEmoji}>😍</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => handleReaction('heart-eyes')}>
+              <Text style={styles.quickReactionEmoji}>😍</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => handleReaction('heart')}>
+              <Text style={styles.quickReactionEmoji}>❤️</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => handleReaction('wink')}>
+              <Text style={styles.quickReactionEmoji}>😉</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Send Message Input */}
+          <View style={styles.messageInputContainer}>
+            <TextInput
+              style={styles.messageInput}
+              placeholder="Send message..."
+              placeholderTextColor="rgba(255, 255, 255, 0.5)"
+              value={messageText}
+              onChangeText={setMessageText}
+              onSubmitEditing={handleSendMessage}
+              multiline={false}
+            />
+          </View>
+
+          {/* Reaction Buttons */}
+          <View style={styles.reactionButtons}>
+            <TouchableOpacity
+              style={styles.reactionButton}
+              onPress={() => handleReaction('heart')}
+            >
+              <Text style={styles.reactionEmoji}>❤️</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.reactionButton}
+              onPress={() => handleReaction('like')}
+            >
+              <Text style={styles.reactionEmoji}>👍</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.reactionButton}
+              onPress={() => handleReaction('laugh')}
+            >
+              <Text style={styles.reactionEmoji}>😂</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Plus Icon */}
+          <TouchableOpacity
+            style={styles.plusButton}
+            onPress={() => setShowPlusMenu(!showPlusMenu)}
+          >
+            <Plus size={24} color="#fff" />
+          </TouchableOpacity>
+        </View>
+
+        {/* Plus Menu Modal */}
+        {showPlusMenu && (
+          <View style={styles.plusMenuOverlay}>
+            <TouchableOpacity
+              style={styles.plusMenuBackdrop}
+              onPress={() => setShowPlusMenu(false)}
+              activeOpacity={1}
+            />
+            <View style={styles.plusMenu}>
+              <TouchableOpacity
+                style={styles.plusMenuOption}
+                onPress={() => {
+                  setShowPlusMenu(false);
+                  router.push('/status/create' as any);
+                }}
+              >
+                <View style={styles.plusMenuIcon}>
+                  <Plus size={24} color="#fff" />
+                </View>
+                <Text style={styles.plusMenuText}>Create story</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.plusMenuOption}
+                onPress={() => {
+                  setShowPlusMenu(false);
+                  // TODO: Navigate to create with music
+                }}
+              >
+                <View style={styles.plusMenuIcon}>
+                  <Music size={24} color="#fff" />
+                </View>
+                <Text style={styles.plusMenuText}>Create with music</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.plusMenuOption}
+                onPress={() => {
+                  setShowPlusMenu(false);
+                  // TODO: Navigate to Imagine
+                }}
+              >
+                <View style={styles.plusMenuIcon}>
+                  <ImageIcon size={24} color="#fff" />
+                </View>
+                <Text style={styles.plusMenuText}>Imagine</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.plusMenuOption}
+                onPress={() => {
+                  setShowPlusMenu(false);
+                  // TODO: Implement reshare
+                }}
+              >
+                <View style={styles.plusMenuIcon}>
+                  <RefreshCw size={24} color="#fff" />
+                </View>
+                <Text style={styles.plusMenuText}>Reshare story</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.plusMenuOption}
+                onPress={() => {
+                  setShowPlusMenu(false);
+                  // TODO: Implement share
+                }}
+              >
+                <View style={styles.plusMenuIcon}>
+                  <Share2 size={24} color="#fff" />
+                </View>
+                <Text style={styles.plusMenuText}>Share story</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
       </View>
     </Modal>
   );
