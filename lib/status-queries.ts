@@ -403,8 +403,43 @@ export async function getStatusFeedForMessenger(): Promise<StatusFeedItem[]> {
   const friendIds = friends?.map((f) => f.friend_id) || [];
   console.log('👥 [getStatusFeedForMessenger] Friends count:', friendIds.length);
 
-  // Get all visible statuses (from friends AND recent chat participants)
-  // For now, get all visible statuses (RLS will filter based on privacy)
+  // Get recent chat participants (from conversations/messages)
+  // Try to get participants from conversations table
+  let recentParticipantIds: string[] = [];
+  try {
+    const { data: conversations } = await supabase
+      .from('conversations')
+      .select('participant_ids, updated_at')
+      .order('updated_at', { ascending: false })
+      .limit(50); // Get recent 50 conversations
+
+    if (conversations) {
+      const allParticipants = new Set<string>();
+      conversations.forEach((conv: any) => {
+        if (Array.isArray(conv.participant_ids)) {
+          // Check if current user is in this conversation
+          if (conv.participant_ids.includes(user.id)) {
+            conv.participant_ids.forEach((p: string) => {
+              if (p !== user.id) {
+                allParticipants.add(p);
+              }
+            });
+          }
+        }
+      });
+      recentParticipantIds = Array.from(allParticipants);
+      console.log('💬 [getStatusFeedForMessenger] Recent chat participants:', recentParticipantIds.length);
+    }
+  } catch (error) {
+    console.warn('⚠️ [getStatusFeedForMessenger] Could not fetch chat participants:', error);
+  }
+
+  // Combine friends and recent chat participants
+  const allowedUserIds = Array.from(new Set([...friendIds, ...recentParticipantIds]));
+  console.log('👥 [getStatusFeedForMessenger] Total allowed users (friends + chat):', allowedUserIds.length);
+
+  // Get all visible statuses (RLS will filter based on privacy)
+  // IMPORTANT: Don't filter by user_id here - let RLS handle privacy, then filter client-side
   const { data: statuses, error } = await supabase
     .from('statuses')
     .select(`
@@ -441,19 +476,50 @@ export async function getStatusFeedForMessenger(): Promise<StatusFeedItem[]> {
     return [];
   }
 
-  // Filter to only show statuses from friends (or own status)
+  // Filter to show statuses from:
+  // 1. Own status
+  // 2. Friends (if privacy allows)
+  // 3. Recent chat participants (if privacy allows)
+  // Note: RLS already filtered by privacy_level='public' or privacy checks
   const filteredStatuses = statuses.filter((s: Status) => {
-    return s.user_id === user.id || friendIds.includes(s.user_id);
+    if (s.user_id === user.id) {
+      return true; // Always show own status
+    }
+    
+    // For friends/followers privacy, check if user is in allowed list
+    if (s.privacy_level === 'friends' || s.privacy_level === 'followers') {
+      return allowedUserIds.includes(s.user_id);
+    }
+    
+    // For public, allow if user is in allowed list (friends or recent chats)
+    if (s.privacy_level === 'public') {
+      return allowedUserIds.includes(s.user_id);
+    }
+    
+    return false; // only_me and custom are handled by RLS
   });
 
   console.log('✅ [getStatusFeedForMessenger] Filtered statuses:', {
     total: statuses.length,
-    afterFriendFilter: filteredStatuses.length,
+    afterFilter: filteredStatuses.length,
+    ownStatusCount: filteredStatuses.filter(s => s.user_id === user.id).length,
+    friendsStatusCount: filteredStatuses.filter(s => friendIds.includes(s.user_id)).length,
+    chatParticipantsStatusCount: filteredStatuses.filter(s => 
+      !friendIds.includes(s.user_id) && recentParticipantIds.includes(s.user_id)
+    ).length,
   });
 
   if (filteredStatuses.length === 0) {
-    console.warn('⚠️ [getStatusFeedForMessenger] No statuses after friend filter');
-    return [];
+    console.warn('⚠️ [getStatusFeedForMessenger] No statuses after filtering');
+    // Still return own status if exists
+    const ownStatuses = statuses.filter(s => s.user_id === user.id);
+    if (ownStatuses.length > 0) {
+      console.log('✅ [getStatusFeedForMessenger] Returning own status only');
+      // Continue processing with own statuses only
+      filteredStatuses.push(...ownStatuses);
+    } else {
+      return [];
+    }
   }
 
   // Similar processing as getStatusFeedForFeed
