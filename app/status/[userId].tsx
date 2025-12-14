@@ -38,6 +38,106 @@ export default function StatusViewerScreen() {
   const progressAnim = useRef(new Animated.Value(0)).current;
   const progressInterval = useRef<NodeJS.Timeout | null>(null);
 
+  // Define styles at the top to avoid "used before declaration" errors
+  const styles = StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: '#000',
+    },
+    progressContainer: {
+      flexDirection: 'row',
+      paddingHorizontal: 8,
+      paddingTop: 8,
+      gap: 4,
+    },
+    progressBarWrapper: {
+      flex: 1,
+      height: PROGRESS_BAR_HEIGHT,
+      backgroundColor: 'rgba(255,255,255,0.3)',
+      borderRadius: PROGRESS_BAR_HEIGHT / 2,
+      overflow: 'hidden',
+    },
+    progressBarFill: {
+      height: '100%',
+      backgroundColor: '#fff',
+      borderRadius: PROGRESS_BAR_HEIGHT / 2,
+    },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: 16,
+      paddingTop: 12,
+      paddingBottom: 8,
+    },
+    userInfo: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      flex: 1,
+    },
+    userAvatar: {
+      width: 32,
+      height: 32,
+      borderRadius: 16,
+      marginRight: 8,
+    },
+    userName: {
+      color: '#fff',
+      fontSize: 15,
+      fontWeight: '600' as const,
+    },
+    timestamp: {
+      color: 'rgba(255,255,255,0.7)',
+      fontSize: 12,
+      marginLeft: 8,
+    },
+    closeButton: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor: 'rgba(0,0,0,0.3)',
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginLeft: 12,
+    },
+    content: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingHorizontal: 20,
+    },
+    textContent: {
+      color: '#fff',
+      fontSize: 28,
+      fontWeight: '600' as const,
+      textAlign: 'center',
+    },
+    media: {
+      width: width,
+      height: height * 0.7,
+    },
+    navArea: {
+      position: 'absolute',
+      top: 0,
+      bottom: 0,
+      width: width / 3,
+    },
+    leftArea: {
+      left: 0,
+    },
+    rightArea: {
+      right: 0,
+    },
+    loadingContainer: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    loadingText: {
+      color: '#fff',
+      fontSize: 16,
+    },
+  });
+
   useEffect(() => {
     loadStatuses();
     return () => {
@@ -164,105 +264,6 @@ export default function StatusViewerScreen() {
 
   const status = statuses[currentIndex];
 
-  const styles = StyleSheet.create({
-    container: {
-      flex: 1,
-      backgroundColor: '#000',
-    },
-    progressContainer: {
-      flexDirection: 'row',
-      paddingHorizontal: 8,
-      paddingTop: 8,
-      gap: 4,
-    },
-    progressBarWrapper: {
-      flex: 1,
-      height: PROGRESS_BAR_HEIGHT,
-      backgroundColor: 'rgba(255,255,255,0.3)',
-      borderRadius: PROGRESS_BAR_HEIGHT / 2,
-      overflow: 'hidden',
-    },
-    progressBarFill: {
-      height: '100%',
-      backgroundColor: '#fff',
-      borderRadius: PROGRESS_BAR_HEIGHT / 2,
-    },
-    header: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      paddingHorizontal: 16,
-      paddingTop: 12,
-      paddingBottom: 8,
-    },
-    userInfo: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      flex: 1,
-    },
-    userAvatar: {
-      width: 32,
-      height: 32,
-      borderRadius: 16,
-      marginRight: 8,
-    },
-    userName: {
-      color: '#fff',
-      fontSize: 15,
-      fontWeight: '600' as const,
-    },
-    timestamp: {
-      color: 'rgba(255,255,255,0.7)',
-      fontSize: 12,
-      marginLeft: 8,
-    },
-    closeButton: {
-      width: 40,
-      height: 40,
-      borderRadius: 20,
-      backgroundColor: 'rgba(0,0,0,0.3)',
-      alignItems: 'center',
-      justifyContent: 'center',
-      marginLeft: 12,
-    },
-    content: {
-      flex: 1,
-      justifyContent: 'center',
-      alignItems: 'center',
-      paddingHorizontal: 20,
-    },
-    textContent: {
-      color: '#fff',
-      fontSize: 28,
-      fontWeight: '600' as const,
-      textAlign: 'center',
-    },
-    media: {
-      width: width,
-      height: height * 0.7,
-    },
-    navArea: {
-      position: 'absolute',
-      top: 0,
-      bottom: 0,
-      width: width / 3,
-    },
-    leftArea: {
-      left: 0,
-    },
-    rightArea: {
-      right: 0,
-    },
-    loadingContainer: {
-      flex: 1,
-      justifyContent: 'center',
-      alignItems: 'center',
-    },
-    loadingText: {
-      color: '#fff',
-      fontSize: 16,
-    },
-  });
-
   return (
     <Modal visible={true} animationType="fade" onRequestClose={handleClose}>
       <StatusBar barStyle="light-content" />
@@ -342,4 +343,5 @@ export default function StatusViewerScreen() {
     </Modal>
   );
 }
+
 
