@@ -53,7 +53,6 @@ export async function getStatusFeedForFeed(): Promise<StatusFeedItem[]> {
   if (!user) return [];
 
   // Get all visible statuses (RLS filters automatically)
-  // Note: If statuses table doesn't exist yet, return empty array
   const { data: statuses, error } = await supabase
     .from('statuses')
     .select(`
@@ -66,65 +65,32 @@ export async function getStatusFeedForFeed(): Promise<StatusFeedItem[]> {
       created_at,
       expires_at,
       archived,
-      archived_at
+      archived_at,
+      users:user_id (
+        id,
+        full_name,
+        profile_picture
+      )
     `)
     .eq('archived', false)
     .gt('expires_at', new Date().toISOString())
     .order('created_at', { ascending: false });
 
   if (error) {
-    // If table doesn't exist, silently return empty array
-    if (error.code === 'PGRST200' || error.message?.includes('schema cache')) {
-      console.warn('Status table not found. Please run supabase-status-system-schema.sql in Supabase SQL Editor.');
-      return [];
-    }
     console.error('Error fetching status feed:', error);
     return [];
   }
 
   if (!statuses || statuses.length === 0) return [];
 
-  // Fetch user data for all status owners
-  // Filter out any invalid user_ids
-  // Basic UUID validation regex
-  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-  const userIds = Array.from<string>(new Set<string>(statuses.map((s: Status) => s.user_id).filter((id: string) => {
-    if (!id || id === 'undefined' || id === 'null' || typeof id !== 'string') {
-      return false;
-    }
-    return uuidRegex.test(id);
-  })));
-
-  if (userIds.length === 0) {
-    console.warn('No valid user IDs found in statuses');
-    return [];
-  }
-
-  const { data: usersData, error: usersError } = await supabase
-    .from('users')
-    .select('id, full_name, profile_picture')
-    .in('id', userIds);
-
-  if (usersError) {
-    console.error('Error fetching user data for statuses:', usersError);
-    // Continue with empty user map rather than failing completely
-  }
-
-  const usersMap = new Map<string, { id: string; full_name: string; profile_picture: string | null }>();
-  if (usersData) {
-    usersData.forEach((u: { id: string; full_name: string; profile_picture: string | null }) => {
-      usersMap.set(u.id, u);
-    });
-  }
-
   // Group by user, keeping only latest status per user
   const statusMap = new Map<string, Status>();
-  const uniqueUserIds = new Set<string>();
+  const userIds = new Set<string>();
 
   for (const status of statuses) {
     const userId = status.user_id;
     if (!statusMap.has(userId)) {
-      uniqueUserIds.add(userId);
+      userIds.add(userId);
       
       // Check if user has viewed this status
       const { data: view } = await supabase
@@ -136,7 +102,7 @@ export async function getStatusFeedForFeed(): Promise<StatusFeedItem[]> {
 
       statusMap.set(userId, {
         ...status,
-        user: usersMap.get(userId) || undefined,
+        user: status.users as any,
         has_unviewed: !view,
       });
     }
@@ -196,19 +162,6 @@ export async function getStatusFeedForFeed(): Promise<StatusFeedItem[]> {
 export async function getUserStatuses(userId: string): Promise<Status[]> {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return [];
-
-  // Validate userId is not undefined or invalid
-  if (!userId || userId === 'undefined' || userId === 'null') {
-    console.error('Invalid userId provided to getUserStatuses:', userId);
-    return [];
-  }
-
-  // Validate UUID format (basic check)
-  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-  if (!uuidRegex.test(userId)) {
-    console.error('Invalid UUID format for userId:', userId);
-    return [];
-  }
 
   const { data: statuses, error } = await supabase
     .from('statuses')
@@ -340,12 +293,7 @@ export async function getStatusFeedForMessenger(): Promise<StatusFeedItem[]> {
   }
 
   // Combine friend and chat participant IDs
-  // Filter out invalid UUIDs
-  const uuidRegexMessenger = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-  const allIds = [...Array.from(friendIds), ...Array.from(chatParticipantIds)].filter((id: string) => {
-    return id && id !== 'undefined' && id !== 'null' && typeof id === 'string' && uuidRegexMessenger.test(id);
-  });
-  const relevantUserIds = Array.from<string>(new Set<string>(allIds));
+  const relevantUserIds = Array.from(new Set([...friendIds, ...chatParticipantIds]));
 
   if (relevantUserIds.length === 0) return [];
 
@@ -362,7 +310,12 @@ export async function getStatusFeedForMessenger(): Promise<StatusFeedItem[]> {
       created_at,
       expires_at,
       archived,
-      archived_at
+      archived_at,
+      users:user_id (
+        id,
+        full_name,
+        profile_picture
+      )
     `)
     .in('user_id', relevantUserIds)
     .eq('archived', false)
@@ -375,34 +328,6 @@ export async function getStatusFeedForMessenger(): Promise<StatusFeedItem[]> {
   }
 
   if (!statuses || statuses.length === 0) return [];
-
-  // Fetch user data
-  // Filter out invalid user_ids (reuse the same regex)
-  const statusUserIds = Array.from<string>(new Set<string>(statuses.map((s: Status) => s.user_id).filter((id: string) => {
-    return id && id !== 'undefined' && id !== 'null' && typeof id === 'string' && uuidRegexMessenger.test(id);
-  })));
-
-  if (statusUserIds.length === 0) {
-    console.warn('No valid user IDs found in messenger statuses');
-    return [];
-  }
-
-  const { data: usersData, error: usersError } = await supabase
-    .from('users')
-    .select('id, full_name, profile_picture')
-    .in('id', statusUserIds);
-
-  if (usersError) {
-    console.error('Error fetching user data for messenger statuses:', usersError);
-    // Continue with empty user map rather than failing completely
-  }
-
-  const usersMap = new Map<string, { id: string; full_name: string; profile_picture: string | null }>();
-  if (usersData) {
-    usersData.forEach((u: { id: string; full_name: string; profile_picture: string | null }) => {
-      usersMap.set(u.id, u);
-    });
-  }
 
   // Group by user and get latest
   const statusMap = new Map<string, Status>();
@@ -419,7 +344,7 @@ export async function getStatusFeedForMessenger(): Promise<StatusFeedItem[]> {
 
       statusMap.set(userId, {
         ...status,
-        user: usersMap.get(userId) || undefined,
+        user: status.users as any,
         has_unviewed: !view,
       });
     }
@@ -484,24 +409,8 @@ export async function createStatus(
   privacyLevel: 'public' | 'friends' | 'followers' | 'only_me' | 'custom',
   allowedUserIds?: string[] // For custom privacy
 ): Promise<Status | null> {
-  const { data: { user }, error: authError } = await supabase.auth.getUser();
-  
-  if (authError) {
-    console.error('Error getting authenticated user:', authError);
-    return null;
-  }
-  
-  if (!user || !user.id) {
-    console.error('No authenticated user found or user.id is missing');
-    return null;
-  }
-
-  // Validate user.id is a valid UUID
-  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-  if (!uuidRegex.test(user.id)) {
-    console.error('Invalid user.id format:', user.id);
-    return null;
-  }
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return null;
 
   let mediaPath: string | null = null;
 

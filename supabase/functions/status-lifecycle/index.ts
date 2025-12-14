@@ -1,8 +1,6 @@
-// @ts-nocheck
 // Supabase Edge Function for Status Lifecycle Management
 // Runs hourly via pg_cron to archive and delete expired statuses
 // Deploy: supabase functions deploy status-lifecycle
-// Note: This file runs in Deno runtime, not Node.js. TypeScript errors are expected when checked with Node.js types.
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
@@ -10,7 +8,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
-serve(async (req: Request) => {
+serve(async (req) => {
   try {
     // CORS headers
     if (req.method === 'OPTIONS') {
@@ -26,14 +24,10 @@ serve(async (req: Request) => {
     // Create admin client
     const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-    const results: {
-      archived: number;
-      deleted: number;
-      errors: string[];
-    } = {
+    const results = {
       archived: 0,
       deleted: 0,
-      errors: [],
+      errors: [] as string[],
     };
 
     // ============================================
@@ -56,7 +50,7 @@ serve(async (req: Request) => {
             archived: true,
             archived_at: new Date().toISOString(),
           })
-          .in('id', expiredStatuses.map((s: { id: string }) => s.id));
+          .in('id', expiredStatuses.map(s => s.id));
 
         if (updateError) {
           console.error('Error archiving statuses:', updateError);
@@ -118,7 +112,7 @@ serve(async (req: Request) => {
         const { error: deleteError } = await supabaseAdmin
           .from('statuses')
           .delete()
-          .in('id', oldStatuses.map((s: { id: string }) => s.id));
+          .in('id', oldStatuses.map(s => s.id));
 
         if (deleteError) {
           console.error('Error deleting statuses:', deleteError);
@@ -168,5 +162,4 @@ serve(async (req: Request) => {
     );
   }
 });
-
 
