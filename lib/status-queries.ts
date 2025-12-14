@@ -207,29 +207,26 @@ export async function getStatusFeedForFeed(): Promise<StatusFeedItem[]> {
   // Build feed items
   const feedItems: StatusFeedItem[] = [];
 
-  // Add own status first
-  const ownStatus = statusMap.get(user.id);
-  if (ownStatus) {
-    feedItems.push({
-      user_id: user.id,
-      user_name: ownStatus.user?.full_name || 'You',
-      user_avatar: ownStatus.user?.profile_picture || null,
-      latest_status: ownStatus,
-      has_unviewed: false,
-    });
-    statusMap.delete(user.id);
-  }
-
-  // Add other users' statuses
+  // IMPORTANT: Include ALL statuses, including own status
+  // The component will handle displaying them appropriately
   for (const [userId, status] of statusMap.entries()) {
+    const isOwnStatus = userId === user.id;
     feedItems.push({
       user_id: userId,
-      user_name: status.user?.full_name || 'Unknown',
+      user_name: status.user?.full_name || (isOwnStatus ? 'You' : 'Unknown'),
       user_avatar: status.user?.profile_picture || null,
       latest_status: status,
-      has_unviewed: status.has_unviewed || false,
+      has_unviewed: isOwnStatus ? false : (status.has_unviewed || false),
     });
   }
+
+  console.log(`📦 [getStatusFeedForFeed] Built feed items:`, {
+    totalItems: feedItems.length,
+    ownStatusIncluded: feedItems.some(item => item.user_id === user.id),
+    ownStatusUser: feedItems.find(item => item.user_id === user.id)?.user_name,
+    otherStatusesCount: feedItems.filter(item => item.user_id !== user.id).length,
+    allUserIds: feedItems.map(item => item.user_id),
+  });
 
   // Sort: unviewed first, then by most recent
   feedItems.sort((a, b) => {
@@ -247,6 +244,20 @@ export async function getStatusFeedForFeed(): Promise<StatusFeedItem[]> {
     user_name: item.user_name,
     has_unviewed: item.has_unviewed,
   })));
+
+  // DEBUG: If no feed items, log everything we know
+  if (feedItems.length === 0) {
+    console.error('❌ [getStatusFeedForFeed] NO FEED ITEMS RETURNED!');
+    console.error('📋 [getStatusFeedForFeed] Debug info:', {
+      activeStatusesCount: activeStatuses.length,
+      userIdsCount: userIds.length,
+      usersDataCount: usersData?.length || 0,
+      statusMapSize: statusMap.size,
+      currentUserId: user.id,
+      statusesFromQuery: statuses?.length || 0,
+      allStatusUserIds: statuses?.map((s: any) => s.user_id) || [],
+    });
+  }
 
   return feedItems;
 }
