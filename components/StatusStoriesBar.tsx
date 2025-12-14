@@ -70,6 +70,29 @@ export default function StatusStoriesBar({ context, onStatusPress }: StatusStori
       padding: 2,
       marginBottom: 4,
     },
+    createButton: {
+      borderColor: colors.border.light,
+      borderWidth: 2,
+    },
+    plusIcon: {
+      position: 'absolute',
+      bottom: 0,
+      right: 0,
+      width: 24,
+      height: 24,
+      borderRadius: 12,
+      backgroundColor: colors.primary,
+      borderWidth: 3,
+      borderColor: colors.background.primary,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    plusIconText: {
+      color: colors.text.white,
+      fontSize: 16,
+      fontWeight: '700' as const,
+      lineHeight: 18,
+    },
     unreadRing: {
       borderWidth: 3,
       borderColor: colors.primary, // Highlighted ring for unviewed
@@ -174,10 +197,6 @@ export default function StatusStoriesBar({ context, onStatusPress }: StatusStori
     );
   }
 
-  if (statusFeed.length === 0) {
-    return null; // Don't show bar if no statuses
-  }
-
   return (
     <View style={styles.container}>
       <ScrollView
@@ -186,9 +205,36 @@ export default function StatusStoriesBar({ context, onStatusPress }: StatusStori
         contentContainerStyle={styles.scrollView}
         bounces={false}
       >
-        {statusFeed.map((item: StatusFeedItem) => {
-          const isOwnStory = item.user_id === currentUser?.id;
-          const hasUnviewed = item.has_unviewed && !isOwnStory;
+        {/* Create Status Button - Always First */}
+        <TouchableOpacity
+          style={styles.bubbleContainer}
+          onPress={() => router.push('/status/create' as any)}
+          activeOpacity={0.7}
+        >
+          <View style={[styles.avatarContainer, styles.createButton]}>
+            {currentUser?.profilePicture ? (
+              <Image
+                source={{ uri: currentUser.profilePicture }}
+                style={styles.avatar}
+                contentFit="cover"
+              />
+            ) : (
+              <View style={styles.avatarPlaceholder}>
+                <Text style={styles.avatarPlaceholderText}>
+                  {currentUser?.fullName?.charAt(0)?.toUpperCase() || '+'}
+                </Text>
+              </View>
+            )}
+            <View style={styles.plusIcon}>
+              <Text style={styles.plusIconText}>+</Text>
+            </View>
+          </View>
+          <Text style={styles.name}>Your Story</Text>
+        </TouchableOpacity>
+
+        {/* Other Users' Statuses */}
+        {statusFeed.filter((item: StatusFeedItem) => item.user_id !== currentUser?.id).map((item: StatusFeedItem) => {
+          const hasUnviewed = item.has_unviewed;
 
           return (
             <TouchableOpacity
@@ -218,10 +264,10 @@ export default function StatusStoriesBar({ context, onStatusPress }: StatusStori
                 )}
               </View>
               <Text
-                style={[styles.name, isOwnStory && styles.yourStoryText]}
+                style={styles.name}
                 numberOfLines={1}
               >
-                {isOwnStory ? 'Your Story' : item.user_name}
+                {item.user_name}
               </Text>
             </TouchableOpacity>
           );
