@@ -585,56 +585,42 @@ export default function CreateStatusScreen() {
           
           {/* Text Input Area */}
           <View style={styles.textInputWrapper}>
-            {/* Background container for white-bg and black-bg - renders behind text to create shape-following effect */}
-            {(textEffect === 'white-bg' || textEffect === 'black-bg') ? (
-              <View
+            {/* Background Text Layer - follows text shape when white-bg or black-bg is selected */}
+            {(textEffect === 'white-bg' || textEffect === 'black-bg') && (
+              <Text
                 style={[
-                  styles.textBackgroundContainer,
+                  styles.textBackgroundShape,
+                  getTextStyle(),
                   {
+                    textAlign: textAlignment,
                     backgroundColor: textEffect === 'white-bg' ? '#fff' : '#000',
-                    alignSelf: textAlignment === 'left' ? 'flex-start' : 
-                              textAlignment === 'right' ? 'flex-end' : 'center',
+                    color: textEffect === 'white-bg' ? '#000' : '#fff',
+                    // Make background wrap tightly around text by using same content
+                    paddingHorizontal: textContent ? 8 : 0,
+                    paddingVertical: textContent ? 6 : 0,
                   },
                 ]}
               >
-                {textContent ? (
-                  <Text
-                    style={[
-                      styles.textBackgroundLayerText,
-                      getTextStyle(),
-                      {
-                        textAlign: textAlignment,
-                        color: textEffect === 'white-bg' ? '#000' : '#fff',
-                      },
-                    ]}
-                  >
-                    {textContent}
-                  </Text>
-                ) : (
-                  <Text
-                    style={[
-                      styles.textBackgroundLayerPlaceholder,
-                      getTextStyle(),
-                      {
-                        textAlign: textAlignment,
-                        color: textEffect === 'white-bg' ? 'rgba(0, 0, 0, 0.4)' : 'rgba(255, 255, 255, 0.5)',
-                      },
-                    ]}
-                  >
-                    Type or @Tag
-                  </Text>
-                )}
-              </View>
-            ) : null}
+                {textContent || ' '}
+              </Text>
+            )}
             
-            {/* Main text input */}
+            {/* Main text input - transparent when background effect is active */}
             <TextInput
               style={[
                 styles.fullScreenTextInput,
                 getTextStyle(),
                 getTextEffectStyle(),
                 { textAlign: textAlignment },
-                (textEffect === 'white-bg' || textEffect === 'black-bg') && styles.textInputWithBg,
+                (textEffect === 'white-bg' || textEffect === 'black-bg') && {
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  backgroundColor: 'transparent',
+                  color: textEffect === 'white-bg' ? '#000' : '#fff',
+                },
               ]}
               placeholder="Type or @Tag"
               placeholderTextColor={getPlaceholderColor()}
@@ -1228,26 +1214,15 @@ const styles = StyleSheet.create({
     padding: 24,
     position: 'relative',
   },
-  textBackgroundContainer: {
+  textBackgroundShape: {
     position: 'absolute',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    borderRadius: 12,
-    maxWidth: '90%',
-    minWidth: 100,
+    textAlignVertical: 'center',
     zIndex: 0,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  textBackgroundLayerText: {
-    textAlignVertical: 'center',
-  },
-  textBackgroundLayerPlaceholder: {
-    textAlignVertical: 'center',
-    fontSize: 32,
+    borderRadius: 8,
+    alignSelf: 'center',
+    maxWidth: '90%',
   },
   fullScreenTextInput: {
     width: '100%',
