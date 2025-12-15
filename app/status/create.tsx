@@ -85,7 +85,9 @@ export default function CreateStatusScreen() {
     const effects: TextEffect[] = ['default', 'white-bg', 'black-bg', 'outline-white', 'outline-black', 'glow'];
     const currentIndex = effects.indexOf(textEffect);
     const nextIndex = (currentIndex + 1) % effects.length;
-    setTextEffect(effects[nextIndex]);
+    const nextEffect = effects[nextIndex];
+    setTextEffect(nextEffect);
+    console.log('🎨 Text effect changed to:', nextEffect); // Debug log
   };
 
   // Cycle through text alignment when alignment button is clicked
@@ -583,23 +585,46 @@ export default function CreateStatusScreen() {
           
           {/* Text Input Area */}
           <View style={styles.textInputWrapper}>
-            {/* Background layer for white-bg and black-bg - renders behind text to create shape-following effect */}
-            {(textEffect === 'white-bg' || textEffect === 'black-bg') && textContent ? (
-              <Text
+            {/* Background container for white-bg and black-bg - renders behind text to create shape-following effect */}
+            {(textEffect === 'white-bg' || textEffect === 'black-bg') ? (
+              <View
                 style={[
-                  styles.textBackgroundLayer,
-                  getTextStyle(),
+                  styles.textBackgroundContainer,
                   {
-                    textAlign: textAlignment,
-                    color: textEffect === 'white-bg' ? '#fff' : '#000',
-                    textShadowColor: 'transparent',
-                    textShadowRadius: 0,
-                    textShadowOffset: { width: 0, height: 0 },
+                    backgroundColor: textEffect === 'white-bg' ? '#fff' : '#000',
+                    alignSelf: textAlignment === 'left' ? 'flex-start' : 
+                              textAlignment === 'right' ? 'flex-end' : 'center',
                   },
                 ]}
               >
-                {textContent}
-              </Text>
+                {textContent ? (
+                  <Text
+                    style={[
+                      styles.textBackgroundLayerText,
+                      getTextStyle(),
+                      {
+                        textAlign: textAlignment,
+                        color: textEffect === 'white-bg' ? '#000' : '#fff',
+                      },
+                    ]}
+                  >
+                    {textContent}
+                  </Text>
+                ) : (
+                  <Text
+                    style={[
+                      styles.textBackgroundLayerPlaceholder,
+                      getTextStyle(),
+                      {
+                        textAlign: textAlignment,
+                        color: textEffect === 'white-bg' ? 'rgba(0, 0, 0, 0.4)' : 'rgba(255, 255, 255, 0.5)',
+                      },
+                    ]}
+                  >
+                    Type or @Tag
+                  </Text>
+                )}
+              </View>
             ) : null}
             
             {/* Main text input */}
@@ -1203,16 +1228,26 @@ const styles = StyleSheet.create({
     padding: 24,
     position: 'relative',
   },
-  textBackgroundLayer: {
+  textBackgroundContainer: {
     position: 'absolute',
-    width: '100%',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    textAlignVertical: 'center',
+    borderRadius: 12,
+    maxWidth: '90%',
+    minWidth: 100,
     zIndex: 0,
-    opacity: 0.95,
-    // Make background layer thicker to create the shape-following effect
-    fontWeight: '700' as const,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  textBackgroundLayerText: {
+    textAlignVertical: 'center',
+  },
+  textBackgroundLayerPlaceholder: {
+    textAlignVertical: 'center',
+    fontSize: 32,
   },
   fullScreenTextInput: {
     width: '100%',
