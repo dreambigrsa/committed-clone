@@ -1,11 +1,9 @@
 /**
  * Create Status Screen
  * 
- * Beautiful, modern story creation flow with:
- * - Gallery/media picker with story creation tools
- * - Privacy settings
- * - Text creation with style options
- * - Preview and posting
+ * Facebook-style story creation with full-screen text input,
+ * vertical options on the right, color picker, text effects,
+ * alignment, fonts, and background image support.
  */
 
 import React, { useState, useEffect } from 'react';
@@ -24,6 +22,7 @@ import {
   KeyboardAvoidingView,
   StatusBar,
   SafeAreaView,
+  Modal,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -49,32 +48,59 @@ import {
   Camera,
   Check,
   ChevronRight,
+  AlignLeft,
+  AlignCenter,
+  AlignRight,
+  Upload,
 } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 
 const { width, height } = Dimensions.get('window');
-const GRID_ITEM_SIZE = (width - 48) / 3; // 3 columns with padding
+const GRID_ITEM_SIZE = (width - 48) / 3;
 
 type ScreenMode = 'gallery' | 'text' | 'privacy' | 'preview';
+type TextEffect = 'default' | 'white-bg' | 'black-bg' | 'outline-white' | 'outline-black' | 'glow';
+type TextAlignment = 'left' | 'center' | 'right';
+type FontStyle = 'classic' | 'neon' | 'typewriter' | 'elegant' | 'bold' | 'italic';
 
 export default function CreateStatusScreen() {
   const router = useRouter();
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
   const { currentUser } = useApp();
   const [screenMode, setScreenMode] = useState<ScreenMode>('gallery');
   const [textContent, setTextContent] = useState('');
   const [mediaUri, setMediaUri] = useState<string | null>(null);
+  const [backgroundImageUri, setBackgroundImageUri] = useState<string | null>(null);
   const [contentType, setContentType] = useState<'text' | 'image' | 'video'>('text');
   const [privacyLevel, setPrivacyLevel] = useState<'public' | 'friends' | 'followers' | 'only_me'>('friends');
   const [isPosting, setIsPosting] = useState(false);
   const [mediaAssets, setMediaAssets] = useState<MediaLibrary.Asset[]>([]);
   const [selectedGallery, setSelectedGallery] = useState<string>('Gallery');
-  const [textStyle, setTextStyle] = useState<'classic' | 'neon' | 'typewriter'>('classic');
+  const [textStyle, setTextStyle] = useState<FontStyle>('classic');
+  const [textEffect, setTextEffect] = useState<TextEffect>('default');
+  const [textAlignment, setTextAlignment] = useState<TextAlignment>('center');
   const [textBackgroundColor, setTextBackgroundColor] = useState<string>('#1A73E8');
-  const [showMoreOptions, setShowMoreOptions] = useState(false);
+  const [showColorPicker, setShowColorPicker] = useState(false);
+  const [showFontPicker, setShowFontPicker] = useState(false);
+  const [showAlignmentPicker, setShowAlignmentPicker] = useState(false);
   const [lastStatus, setLastStatus] = useState<any>(null);
   const [lastStatusMediaUrl, setLastStatusMediaUrl] = useState<string | null>(null);
   const [selectedMedia, setSelectedMedia] = useState<MediaLibrary.Asset | null>(null);
+
+  const bgColor = isDark ? '#000' : '#fff';
+  const textColor = isDark ? '#fff' : '#000';
+  const cardBg = isDark ? '#1a1a1a' : '#f5f5f5';
+  const borderColor = isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)';
+
+  const colorPalette = [
+    '#1A73E8', '#1877F2', '#42A5F5', '#66BB6A', '#34A853',
+    '#EF5350', '#EA4335', '#FFA726', '#FBBC04', '#AB47BC',
+    '#EC407A', '#FF5722', '#00BCD4', '#009688', '#4CAF50',
+    '#8BC34A', '#CDDC39', '#FFEB3B', '#FFC107', '#FF9800',
+    '#FF5722', '#F44336', '#E91E63', '#9C27B0', '#673AB7',
+    '#3F51B5', '#2196F3', '#00BCD4', '#009688', '#4CAF50',
+    '#000000', '#FFFFFF', '#808080', '#C0C0C0',
+  ];
 
   useEffect(() => {
     loadMediaAssets();
@@ -90,7 +116,7 @@ export default function CreateStatusScreen() {
 
     const assets = await MediaLibrary.getAssetsAsync({
       mediaType: [MediaLibrary.MediaType.photo, MediaLibrary.MediaType.video],
-      sortBy: MediaLibrary.MediaType.video ? MediaLibrary.SortBy.creationTime : MediaLibrary.SortBy.creationTime,
+      sortBy: MediaLibrary.SortBy.creationTime,
       first: 100,
     });
 
@@ -165,10 +191,12 @@ export default function CreateStatusScreen() {
 
     setIsPosting(true);
     try {
+      // If background image is set, use it as mediaUri
+      const finalMediaUri = backgroundImageUri || mediaUri;
       const status = await createStatus(
         contentType,
         textContent || null,
-        mediaUri,
+        finalMediaUri,
         privacyLevel
       );
 
@@ -219,25 +247,45 @@ export default function CreateStatusScreen() {
     }
   };
 
+  const handleBackgroundImageUpload = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission Required', 'We need access to your photos.');
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [9, 16],
+      quality: 0.8,
+    });
+
+    if (!result.canceled && result.assets[0]) {
+      setBackgroundImageUri(result.assets[0].uri);
+      setShowColorPicker(false);
+    }
+  };
+
   // Gallery Picker Screen
   if (screenMode === 'gallery') {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: '#000' }]}>
-        <StatusBar barStyle="light-content" />
+      <SafeAreaView style={[styles.container, { backgroundColor: bgColor }]}>
+        <StatusBar barStyle={isDark ? "light-content" : "dark-content"} />
         
         {/* Header */}
-        <View style={styles.header}>
+        <View style={[styles.header, { borderBottomColor: borderColor }]}>
           <TouchableOpacity onPress={() => router.back()} style={styles.headerButton}>
-            <X size={24} color="#fff" />
+            <X size={24} color={textColor} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Create story</Text>
+          <Text style={[styles.headerTitle, { color: textColor }]}>Create story</Text>
           <TouchableOpacity onPress={() => setScreenMode('privacy')} style={styles.headerButton}>
-            <Settings size={24} color="#fff" />
+            <Settings size={24} color={textColor} />
           </TouchableOpacity>
         </View>
 
-        {/* Story Creation Tools - Better Design */}
-        <View style={styles.toolsSection}>
+        {/* Story Creation Tools */}
+        <View style={[styles.toolsSection, { borderBottomColor: borderColor }]}>
           <ScrollView 
             horizontal 
             showsHorizontalScrollIndicator={false}
@@ -248,31 +296,31 @@ export default function CreateStatusScreen() {
               onPress={handleTextOption}
               activeOpacity={0.8}
             >
-              <View style={styles.toolIconWrapper}>
-                <Type size={28} color="#fff" />
+              <View style={[styles.toolIconWrapper, { backgroundColor: cardBg, borderColor }]}>
+                <Type size={28} color={colors.primary} />
               </View>
-              <Text style={styles.toolLabel}>Text</Text>
+              <Text style={[styles.toolLabel, { color: textColor }]}>Text</Text>
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.toolCard} activeOpacity={0.8}>
-              <View style={styles.toolIconWrapper}>
-                <Music size={28} color="#fff" />
+              <View style={[styles.toolIconWrapper, { backgroundColor: cardBg, borderColor }]}>
+                <Music size={28} color={colors.primary} />
               </View>
-              <Text style={styles.toolLabel}>Music</Text>
+              <Text style={[styles.toolLabel, { color: textColor }]}>Music</Text>
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.toolCard} activeOpacity={0.8}>
-              <View style={styles.toolIconWrapper}>
-                <ImageIcon size={28} color="#fff" />
+              <View style={[styles.toolIconWrapper, { backgroundColor: cardBg, borderColor }]}>
+                <ImageIcon size={28} color={colors.primary} />
               </View>
-              <Text style={styles.toolLabel}>AI images</Text>
+              <Text style={[styles.toolLabel, { color: textColor }]}>AI images</Text>
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.toolCard} activeOpacity={0.8}>
-              <View style={styles.toolIconWrapper}>
-                <Grid3x3 size={28} color="#fff" />
+              <View style={[styles.toolIconWrapper, { backgroundColor: cardBg, borderColor }]}>
+                <Grid3x3 size={28} color={colors.primary} />
               </View>
-              <Text style={styles.toolLabel}>Collage</Text>
+              <Text style={[styles.toolLabel, { color: textColor }]}>Collage</Text>
             </TouchableOpacity>
 
             <TouchableOpacity 
@@ -280,10 +328,10 @@ export default function CreateStatusScreen() {
               onPress={handleSelectMultiple}
               activeOpacity={0.8}
             >
-              <View style={styles.toolIconWrapper}>
-                <ImageIcon size={32} color="#fff" />
+              <View style={[styles.toolIconWrapper, { backgroundColor: cardBg, borderColor }]}>
+                <ImageIcon size={32} color={colors.primary} />
               </View>
-              <Text style={styles.toolLabel}>Select multiple</Text>
+              <Text style={[styles.toolLabel, { color: textColor }]}>Select multiple</Text>
             </TouchableOpacity>
 
             <TouchableOpacity 
@@ -291,24 +339,24 @@ export default function CreateStatusScreen() {
               onPress={handleTakePhoto}
               activeOpacity={0.8}
             >
-              <View style={styles.toolIconWrapper}>
-                <Camera size={28} color="#fff" />
+              <View style={[styles.toolIconWrapper, { backgroundColor: cardBg, borderColor }]}>
+                <Camera size={28} color={colors.primary} />
               </View>
-              <Text style={styles.toolLabel}>Camera</Text>
+              <Text style={[styles.toolLabel, { color: textColor }]}>Camera</Text>
             </TouchableOpacity>
           </ScrollView>
         </View>
 
         {/* Gallery Selector */}
         <TouchableOpacity 
-          style={styles.gallerySelector}
+          style={[styles.gallerySelector, { borderBottomColor: borderColor }]}
           activeOpacity={0.7}
         >
-          <Text style={styles.gallerySelectorText}>{selectedGallery}</Text>
-          <ChevronDown size={18} color="#999" />
+          <Text style={[styles.gallerySelectorText, { color: textColor }]}>{selectedGallery}</Text>
+          <ChevronDown size={18} color={colors.text.secondary} />
         </TouchableOpacity>
 
-        {/* Media Grid - Better Design */}
+        {/* Media Grid */}
         <FlatList
           data={mediaAssets}
           numColumns={3}
@@ -351,21 +399,21 @@ export default function CreateStatusScreen() {
   // Privacy Settings Screen
   if (screenMode === 'privacy') {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: '#1a1a1a' }]}>
-        <StatusBar barStyle="light-content" />
+      <SafeAreaView style={[styles.container, { backgroundColor: bgColor }]}>
+        <StatusBar barStyle={isDark ? "light-content" : "dark-content"} />
         
-        <View style={styles.header}>
+        <View style={[styles.header, { borderBottomColor: borderColor }]}>
           <TouchableOpacity onPress={() => setScreenMode('gallery')} style={styles.headerButton}>
-            <ChevronRight size={24} color="#fff" style={{ transform: [{ rotate: '180deg' }] }} />
+            <ChevronRight size={24} color={textColor} style={{ transform: [{ rotate: '180deg' }] }} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Story privacy</Text>
+          <Text style={[styles.headerTitle, { color: textColor }]}>Story privacy</Text>
           <View style={{ width: 24 }} />
         </View>
 
         <ScrollView style={styles.privacyContent} showsVerticalScrollIndicator={false}>
           <View style={styles.privacySection}>
-            <Text style={styles.sectionTitle}>Who can see your story?</Text>
-            <Text style={styles.sectionSubtitle}>
+            <Text style={[styles.sectionTitle, { color: textColor }]}>Who can see your story?</Text>
+            <Text style={[styles.sectionSubtitle, { color: colors.text.secondary }]}>
               Your story will be visible for 24 hours on Committed and Messages.
             </Text>
 
@@ -379,7 +427,8 @@ export default function CreateStatusScreen() {
                 key={option.value}
                 style={[
                   styles.privacyOption,
-                  privacyLevel === option.value && styles.privacyOptionActive,
+                  { backgroundColor: cardBg },
+                  privacyLevel === option.value && { backgroundColor: colors.primary + '20', borderColor: colors.primary, borderWidth: 1 },
                 ]}
                 onPress={() => setPrivacyLevel(option.value as any)}
                 activeOpacity={0.7}
@@ -387,18 +436,19 @@ export default function CreateStatusScreen() {
                 <View style={styles.privacyOptionLeft}>
                   <Text style={styles.privacyIcon}>{option.icon}</Text>
                   <View style={styles.privacyOptionContent}>
-                    <Text style={styles.privacyOptionLabel}>{option.label}</Text>
-                    <Text style={styles.privacyOptionSubtitle}>{option.subtitle}</Text>
+                    <Text style={[styles.privacyOptionLabel, { color: textColor }]}>{option.label}</Text>
+                    <Text style={[styles.privacyOptionSubtitle, { color: colors.text.secondary }]}>{option.subtitle}</Text>
                   </View>
                 </View>
                 <View
                   style={[
                     styles.radioButton,
-                    privacyLevel === option.value && styles.radioButtonSelected,
+                    { borderColor: colors.border.medium },
+                    privacyLevel === option.value && { borderColor: colors.primary },
                   ]}
                 >
                   {privacyLevel === option.value && (
-                    <View style={styles.radioButtonInner} />
+                    <View style={[styles.radioButtonInner, { backgroundColor: colors.primary }]} />
                   )}
                 </View>
               </TouchableOpacity>
@@ -406,11 +456,11 @@ export default function CreateStatusScreen() {
           </View>
 
           <View style={styles.privacySection}>
-            <Text style={styles.sectionTitle}>Other settings</Text>
-            <TouchableOpacity style={styles.settingsOption} activeOpacity={0.7}>
+            <Text style={[styles.sectionTitle, { color: textColor }]}>Other settings</Text>
+            <TouchableOpacity style={[styles.settingsOption, { backgroundColor: cardBg }]} activeOpacity={0.7}>
               <Text style={styles.settingsIcon}>🔇</Text>
-              <Text style={styles.settingsLabel}>Stories you've muted</Text>
-              <ChevronRight size={20} color="#999" />
+              <Text style={[styles.settingsLabel, { color: textColor }]}>Stories you've muted</Text>
+              <ChevronRight size={20} color={colors.text.secondary} />
             </TouchableOpacity>
           </View>
         </ScrollView>
@@ -418,7 +468,7 @@ export default function CreateStatusScreen() {
     );
   }
 
-  // Preview Screen (for media)
+  // Preview Screen
   if (screenMode === 'preview' && mediaUri) {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: '#000' }]}>
@@ -464,7 +514,6 @@ export default function CreateStatusScreen() {
           )}
         </View>
 
-        {/* Privacy Badge */}
         <TouchableOpacity 
           style={styles.privacyBadge}
           onPress={() => setScreenMode('privacy')}
@@ -479,48 +528,122 @@ export default function CreateStatusScreen() {
     );
   }
 
-  // Text Creation Screen
+  // Text Creation Screen - Facebook Style Full Screen
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={[styles.container, { backgroundColor: '#000' }]}
+      style={[styles.container, { backgroundColor: bgColor }]}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
     >
-      <StatusBar barStyle="light-content" />
+      <StatusBar barStyle={isDark ? "light-content" : "dark-content"} />
       <SafeAreaView style={styles.flex1}>
         {/* Header */}
-        <View style={styles.textHeader}>
-          <View style={styles.textHeaderLeft}>
-            <TouchableOpacity 
-              style={styles.textHeaderIconButton}
-              onPress={() => setScreenMode('gallery')}
-            >
-              <ChevronRight size={20} color="#fff" style={{ transform: [{ rotate: '180deg' }] }} />
+        <View style={[styles.textHeader, { borderBottomColor: borderColor }]}>
+          <TouchableOpacity 
+            style={styles.textHeaderIconButton}
+            onPress={() => setScreenMode('gallery')}
+          >
+            <ChevronRight size={20} color={textColor} style={{ transform: [{ rotate: '180deg' }] }} />
+          </TouchableOpacity>
+          <View style={styles.textHeaderRight}>
+            <TouchableOpacity style={styles.textHeaderIconButton}>
+              <Smile size={20} color={textColor} />
             </TouchableOpacity>
             <TouchableOpacity style={styles.textHeaderIconButton}>
-              <Text style={styles.emojiIcon}>💬</Text>
-            </TouchableOpacity>
-            <TouchableOpacity 
-              style={styles.textHeaderIconButton}
-              onPress={() => {
-                const colors = ['#1A73E8', '#1877F2', '#42A5F5', '#66BB6A', '#EF5350', '#FFA726', '#AB47BC', '#EC407A'];
-                const randomColor = colors[Math.floor(Math.random() * colors.length)];
-                setTextBackgroundColor(randomColor);
-              }}
-            >
-              <View style={[styles.colorDot, { backgroundColor: textBackgroundColor }]} />
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.textHeaderIconButton}>
-              <Type size={20} color="#fff" />
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.textHeaderIconButton}>
-              <MoreHorizontal size={20} color="#fff" />
+              <MoreHorizontal size={20} color={textColor} />
             </TouchableOpacity>
           </View>
+        </View>
+
+        {/* Full Screen Text Input with Background */}
+        <View style={styles.fullScreenTextContainer}>
+          {backgroundImageUri ? (
+            <Image 
+              source={{ uri: backgroundImageUri }} 
+              style={styles.backgroundImage} 
+              contentFit="cover" 
+            />
+          ) : (
+            <View style={[styles.textInputArea, { backgroundColor: textBackgroundColor }]} />
+          )}
+          
+          <TextInput
+            style={[
+              styles.fullScreenTextInput,
+              getTextStyle(),
+              getTextEffectStyle(),
+              { textAlign: textAlignment },
+            ]}
+            placeholder="Type or @Tag"
+            placeholderTextColor="rgba(255, 255, 255, 0.6)"
+            value={textContent}
+            onChangeText={setTextContent}
+            multiline
+            autoFocus
+          />
+        </View>
+
+        {/* Vertical Options on Right Side */}
+        <View style={styles.verticalOptionsContainer}>
+          {/* Color Picker */}
           <TouchableOpacity
-            style={[styles.doneButton, isPosting && styles.doneButtonDisabled]}
+            style={[styles.verticalOptionButton, { backgroundColor: 'rgba(0, 0, 0, 0.5)' }]}
+            onPress={() => setShowColorPicker(!showColorPicker)}
+            activeOpacity={0.7}
+          >
+            <View style={[styles.colorPreviewCircle, { backgroundColor: textBackgroundColor }]} />
+          </TouchableOpacity>
+
+          {/* Text Effect (Aa) */}
+          <TouchableOpacity
+            style={[styles.verticalOptionButton, { backgroundColor: 'rgba(0, 0, 0, 0.5)' }]}
+            onPress={() => setShowFontPicker(!showFontPicker)}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.aaButton}>Aa</Text>
+          </TouchableOpacity>
+
+          {/* Alignment */}
+          <TouchableOpacity
+            style={[styles.verticalOptionButton, { backgroundColor: 'rgba(0, 0, 0, 0.5)' }]}
+            onPress={() => setShowAlignmentPicker(!showAlignmentPicker)}
+            activeOpacity={0.7}
+          >
+            {textAlignment === 'left' ? (
+              <AlignLeft size={24} color="#fff" />
+            ) : textAlignment === 'center' ? (
+              <AlignCenter size={24} color="#fff" />
+            ) : (
+              <AlignRight size={24} color="#fff" />
+            )}
+          </TouchableOpacity>
+
+          {/* Music */}
+          <TouchableOpacity
+            style={[styles.verticalOptionButton, { backgroundColor: 'rgba(0, 0, 0, 0.5)' }]}
+            activeOpacity={0.7}
+          >
+            <Music size={24} color="#fff" />
+          </TouchableOpacity>
+
+          {/* Stickers */}
+          <TouchableOpacity
+            style={[styles.verticalOptionButton, { backgroundColor: 'rgba(0, 0, 0, 0.5)' }]}
+            activeOpacity={0.7}
+          >
+            <Smile size={24} color="#fff" />
+          </TouchableOpacity>
+
+          {/* Done Button */}
+          <TouchableOpacity
+            style={[
+              styles.verticalDoneButton,
+              { backgroundColor: colors.primary },
+              (isPosting || !textContent.trim()) && { opacity: 0.5 },
+            ]}
             onPress={handlePost}
             disabled={isPosting || !textContent.trim()}
+            activeOpacity={0.7}
           >
             {isPosting ? (
               <ActivityIndicator size="small" color="#fff" />
@@ -530,158 +653,340 @@ export default function CreateStatusScreen() {
           </TouchableOpacity>
         </View>
 
-        <ScrollView 
-          style={styles.textContent} 
-          contentContainerStyle={styles.textContentContainer}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-        >
-          {/* Text Input Area - Better Design */}
-          <View style={[styles.textInputArea, { backgroundColor: textBackgroundColor }]}>
-            <TextInput
-              style={[styles.textInput, getTextStyle()]}
-              placeholder="Type or @Tag"
-              placeholderTextColor="rgba(255, 255, 255, 0.6)"
-              value={textContent}
-              onChangeText={setTextContent}
-              multiline
-              autoFocus
-              textAlign={textStyle === 'classic' ? 'center' : 'left'}
-            />
-          </View>
-
-          {/* Text Style Options - Better Design */}
-          <View style={styles.textStyleContainer}>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.textStyleScroll}>
-              {(['classic', 'neon', 'typewriter'] as const).map((style) => (
-                <TouchableOpacity
-                  key={style}
-                  style={[
-                    styles.textStyleOption,
-                    textStyle === style && styles.textStyleOptionActive,
-                  ]}
-                  onPress={() => setTextStyle(style)}
-                  activeOpacity={0.7}
-                >
-                  <Text style={[
-                    styles.textStyleOptionText,
-                    textStyle === style && styles.textStyleOptionTextActive,
-                  ]}>
-                    {style.charAt(0).toUpperCase() + style.slice(1)}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
-
-          {/* Options Bar - Better Layout */}
-          <View style={styles.optionsContainer}>
-            <ScrollView 
-              horizontal 
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.optionsScroll}
+        {/* Color Picker Modal */}
+        {showColorPicker && (
+          <Modal
+            visible={showColorPicker}
+            transparent
+            animationType="slide"
+            onRequestClose={() => setShowColorPicker(false)}
+          >
+            <TouchableOpacity
+              style={styles.modalOverlay}
+              activeOpacity={1}
+              onPress={() => setShowColorPicker(false)}
             >
-              <OptionButton icon={<Music size={20} color="#fff" />} label="Music" />
-              <OptionButton 
-                icon={<Palette size={20} color="#fff" />} 
-                label="Background"
-                onPress={() => {
-                  const colors = ['#1A73E8', '#1877F2', '#42A5F5', '#66BB6A', '#EF5350', '#FFA726', '#AB47BC', '#EC407A', '#000', '#fff'];
-                  const randomColor = colors[Math.floor(Math.random() * colors.length)];
-                  setTextBackgroundColor(randomColor);
-                }}
-              />
-              <OptionButton icon={<Smile size={20} color="#fff" />} label="Stickers" />
-              <OptionButton icon={<Type size={20} color="#fff" />} label="Fonts" />
-              
-              {!showMoreOptions ? (
-                <TouchableOpacity 
-                  style={styles.optionButton}
-                  onPress={() => setShowMoreOptions(true)}
+              <View style={[styles.colorPickerContainer, { backgroundColor: cardBg }]}>
+                <View style={styles.colorPickerHeader}>
+                  <Text style={[styles.colorPickerTitle, { color: textColor }]}>Background</Text>
+                  <TouchableOpacity onPress={() => setShowColorPicker(false)}>
+                    <X size={24} color={textColor} />
+                  </TouchableOpacity>
+                </View>
+                
+                {/* Color Circles */}
+                <ScrollView 
+                  horizontal 
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.colorPaletteContainer}
+                >
+                  {colorPalette.map((color, index) => (
+                    <TouchableOpacity
+                      key={index}
+                      style={[
+                        styles.colorCircle,
+                        { backgroundColor: color },
+                        textBackgroundColor === color && styles.colorCircleSelected,
+                      ]}
+                      onPress={() => {
+                        setTextBackgroundColor(color);
+                        setBackgroundImageUri(null); // Clear background image when color is selected
+                      }}
+                      activeOpacity={0.7}
+                    />
+                  ))}
+                </ScrollView>
+
+                {/* Upload Background Image */}
+                <TouchableOpacity
+                  style={[styles.uploadBackgroundButton, { backgroundColor: colors.primary }]}
+                  onPress={handleBackgroundImageUpload}
                   activeOpacity={0.7}
                 >
-                  <Text style={styles.optionLabel}>See more</Text>
+                  <Upload size={20} color="#fff" />
+                  <Text style={styles.uploadBackgroundText}>Upload background image</Text>
                 </TouchableOpacity>
-              ) : (
-                <>
-                  <OptionButton icon={<AtSign size={20} color="#fff" />} label="Mention" />
-                  <OptionButton icon={<LinkIcon size={20} color="#fff" />} label="Link" />
-                  <TouchableOpacity 
-                    style={styles.optionButton}
-                    onPress={() => setShowMoreOptions(false)}
+
+                {/* Remove Background */}
+                {backgroundImageUri && (
+                  <TouchableOpacity
+                    style={[styles.removeBackgroundButton, { borderColor: colors.danger }]}
+                    onPress={() => {
+                      setBackgroundImageUri(null);
+                      setShowColorPicker(false);
+                    }}
                     activeOpacity={0.7}
                   >
-                    <Text style={styles.optionLabel}>See less</Text>
+                    <X size={20} color={colors.danger} />
+                    <Text style={[styles.removeBackgroundText, { color: colors.danger }]}>
+                      Remove background image
+                    </Text>
                   </TouchableOpacity>
-                </>
-              )}
-            </ScrollView>
-          </View>
-
-          {/* Preview of Last Status */}
-          {lastStatus && (
-            <View style={styles.previewContainer}>
-              <Text style={styles.previewSectionTitle}>Your last story</Text>
-              <View style={[styles.statusPreview, lastStatus.content_type === 'text' && styles.statusPreviewCentered]}>
-                {lastStatus.content_type === 'text' ? (
-                  <Text style={styles.previewText}>{lastStatus.text_content || 'Your last status'}</Text>
-                ) : lastStatusMediaUrl ? (
-                  lastStatus.content_type === 'video' ? (
-                    <Video
-                      source={{ uri: lastStatusMediaUrl }}
-                      style={styles.previewMedia}
-                      resizeMode={ResizeMode.COVER}
-                      shouldPlay={false}
-                      useNativeControls={false}
-                    />
-                  ) : (
-                    <Image
-                      source={{ uri: lastStatusMediaUrl }}
-                      style={styles.previewMedia}
-                      contentFit="cover"
-                    />
-                  )
-                ) : null}
+                )}
               </View>
-              <Text style={styles.previewUsername}>{currentUser?.fullName || 'You'}</Text>
-            </View>
-          )}
-        </ScrollView>
+            </TouchableOpacity>
+          </Modal>
+        )}
+
+        {/* Font/Effect Picker Modal */}
+        {showFontPicker && (
+          <Modal
+            visible={showFontPicker}
+            transparent
+            animationType="slide"
+            onRequestClose={() => setShowFontPicker(false)}
+          >
+            <TouchableOpacity
+              style={styles.modalOverlay}
+              activeOpacity={1}
+              onPress={() => setShowFontPicker(false)}
+            >
+              <View style={[styles.fontPickerContainer, { backgroundColor: cardBg }]}>
+                <View style={styles.fontPickerHeader}>
+                  <Text style={[styles.fontPickerTitle, { color: textColor }]}>Font & Effect</Text>
+                  <TouchableOpacity onPress={() => setShowFontPicker(false)}>
+                    <X size={24} color={textColor} />
+                  </TouchableOpacity>
+                </View>
+
+                {/* Text Effects */}
+                <View style={styles.effectSection}>
+                  <Text style={[styles.sectionLabel, { color: textColor }]}>Effects</Text>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.effectOptions}>
+                    {([
+                      { value: 'default', label: 'Default', preview: 'Aa' },
+                      { value: 'white-bg', label: 'White BG', preview: 'Aa' },
+                      { value: 'black-bg', label: 'Black BG', preview: 'Aa' },
+                      { value: 'outline-white', label: 'Outline', preview: 'Aa' },
+                      { value: 'outline-black', label: 'Outline B', preview: 'Aa' },
+                      { value: 'glow', label: 'Glow', preview: 'Aa' },
+                    ] as const).map((effect) => (
+                      <TouchableOpacity
+                        key={effect.value}
+                        style={[
+                          styles.effectOption,
+                          { backgroundColor: cardBg },
+                          textEffect === effect.value && { borderColor: colors.primary, borderWidth: 2 },
+                        ]}
+                        onPress={() => setTextEffect(effect.value)}
+                        activeOpacity={0.7}
+                      >
+                        <Text style={[styles.effectPreview, getEffectPreviewStyle(effect.value)]}>
+                          {effect.preview}
+                        </Text>
+                        <Text style={[styles.effectLabel, { color: textColor }]}>{effect.label}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                </View>
+
+                {/* Font Styles */}
+                <View style={styles.fontSection}>
+                  <Text style={[styles.sectionLabel, { color: textColor }]}>Fonts</Text>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.fontOptions}>
+                    {(['classic', 'neon', 'typewriter', 'elegant', 'bold', 'italic'] as const).map((font) => (
+                      <TouchableOpacity
+                        key={font}
+                        style={[
+                          styles.fontOption,
+                          { backgroundColor: cardBg },
+                          textStyle === font && { borderColor: colors.primary, borderWidth: 2 },
+                        ]}
+                        onPress={() => setTextStyle(font)}
+                        activeOpacity={0.7}
+                      >
+                        <Text style={[styles.fontPreview, getFontPreviewStyle(font)]}>
+                          {font.charAt(0).toUpperCase() + font.slice(1)}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                </View>
+              </View>
+            </TouchableOpacity>
+          </Modal>
+        )}
+
+        {/* Alignment Picker Modal */}
+        {showAlignmentPicker && (
+          <Modal
+            visible={showAlignmentPicker}
+            transparent
+            animationType="slide"
+            onRequestClose={() => setShowAlignmentPicker(false)}
+          >
+            <TouchableOpacity
+              style={styles.modalOverlay}
+              activeOpacity={1}
+              onPress={() => setShowAlignmentPicker(false)}
+            >
+              <View style={[styles.alignmentPickerContainer, { backgroundColor: cardBg }]}>
+                <View style={styles.alignmentPickerHeader}>
+                  <Text style={[styles.alignmentPickerTitle, { color: textColor }]}>Alignment</Text>
+                  <TouchableOpacity onPress={() => setShowAlignmentPicker(false)}>
+                    <X size={24} color={textColor} />
+                  </TouchableOpacity>
+                </View>
+
+                <View style={styles.alignmentOptions}>
+                  {([
+                    { value: 'left', icon: AlignLeft, label: 'Left' },
+                    { value: 'center', icon: AlignCenter, label: 'Center' },
+                    { value: 'right', icon: AlignRight, label: 'Right' },
+                  ] as const).map((align) => {
+                    const Icon = align.icon;
+                    return (
+                      <TouchableOpacity
+                        key={align.value}
+                        style={[
+                          styles.alignmentOption,
+                          { backgroundColor: cardBg },
+                          textAlignment === align.value && { borderColor: colors.primary, borderWidth: 2 },
+                        ]}
+                        onPress={() => {
+                          setTextAlignment(align.value);
+                          setShowAlignmentPicker(false);
+                        }}
+                        activeOpacity={0.7}
+                      >
+                        <Icon size={32} color={textAlignment === align.value ? colors.primary : textColor} />
+                        <Text style={[styles.alignmentLabel, { color: textColor }]}>{align.label}</Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </View>
+            </TouchableOpacity>
+          </Modal>
+        )}
       </SafeAreaView>
     </KeyboardAvoidingView>
   );
 
   function getTextStyle() {
     const baseStyle: any = {
-      fontSize: textStyle === 'typewriter' ? 20 : 28,
-      color: textStyle === 'neon' ? '#00ffff' : '#fff',
-      fontWeight: textStyle === 'typewriter' ? ('400' as const) : ('600' as const),
-      fontFamily: textStyle === 'typewriter' ? 'monospace' : undefined,
+      fontSize: textStyle === 'typewriter' ? 20 : textStyle === 'elegant' ? 24 : 32,
+      color: textEffect === 'black-bg' ? '#fff' : textEffect === 'white-bg' ? '#000' : '#fff',
+      fontWeight: textStyle === 'bold' ? ('700' as const) : textStyle === 'typewriter' ? ('400' as const) : ('600' as const),
+      fontStyle: textStyle === 'italic' ? ('italic' as const) : ('normal' as const),
     };
+
+    // Font family
+    if (textStyle === 'typewriter') {
+      baseStyle.fontFamily = 'monospace';
+    } else if (textStyle === 'elegant') {
+      baseStyle.fontFamily = Platform.OS === 'ios' ? 'Georgia' : 'serif';
+    } else if (textStyle === 'neon') {
+      baseStyle.fontFamily = Platform.OS === 'ios' ? 'Arial' : 'sans-serif-medium';
+    }
+
     return baseStyle;
   }
-}
 
-// Option Button Component
-function OptionButton({ 
-  icon, 
-  label, 
-  onPress 
-}: { 
-  icon: React.ReactNode; 
-  label: string; 
-  onPress?: () => void;
-}) {
-  return (
-    <TouchableOpacity 
-      style={styles.optionButton}
-      onPress={onPress}
-      activeOpacity={0.7}
-    >
-      {icon}
-      <Text style={styles.optionLabel}>{label}</Text>
-    </TouchableOpacity>
-  );
+  function getTextEffectStyle() {
+    const styles: any = {};
+    
+    switch (textEffect) {
+      case 'white-bg':
+        styles.backgroundColor = 'rgba(255, 255, 255, 0.9)';
+        styles.color = '#000';
+        styles.paddingHorizontal = 12;
+        styles.paddingVertical = 6;
+        styles.borderRadius = 8;
+        break;
+      case 'black-bg':
+        styles.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+        styles.color = '#fff';
+        styles.paddingHorizontal = 12;
+        styles.paddingVertical = 6;
+        styles.borderRadius = 8;
+        break;
+      case 'outline-white':
+        styles.textShadowColor = '#fff';
+        styles.textShadowOffset = { width: -2, height: 2 };
+        styles.textShadowRadius = 4;
+        break;
+      case 'outline-black':
+        styles.textShadowColor = '#000';
+        styles.textShadowOffset = { width: -2, height: 2 };
+        styles.textShadowRadius = 4;
+        break;
+      case 'glow':
+        styles.textShadowColor = textBackgroundColor;
+        styles.textShadowOffset = { width: 0, height: 0 };
+        styles.textShadowRadius = 20;
+        break;
+    }
+    
+    return styles;
+  }
+
+  function getEffectPreviewStyle(effect: TextEffect) {
+    const styles: any = {
+      fontSize: 24,
+      fontWeight: '600' as const,
+    };
+    
+    switch (effect) {
+      case 'white-bg':
+        styles.backgroundColor = 'rgba(255, 255, 255, 0.9)';
+        styles.color = '#000';
+        break;
+      case 'black-bg':
+        styles.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+        styles.color = '#fff';
+        break;
+      case 'outline-white':
+        styles.color = textBackgroundColor;
+        styles.textShadowColor = '#fff';
+        styles.textShadowOffset = { width: -1, height: 1 };
+        styles.textShadowRadius = 2;
+        break;
+      case 'outline-black':
+        styles.color = '#fff';
+        styles.textShadowColor = '#000';
+        styles.textShadowOffset = { width: -1, height: 1 };
+        styles.textShadowRadius = 2;
+        break;
+      case 'glow':
+        styles.color = '#fff';
+        styles.textShadowColor = textBackgroundColor;
+        styles.textShadowOffset = { width: 0, height: 0 };
+        styles.textShadowRadius = 10;
+        break;
+      default:
+        styles.color = '#fff';
+    }
+    
+    return styles;
+  }
+
+  function getFontPreviewStyle(font: FontStyle) {
+    const styles: any = {
+      fontSize: 18,
+      color: textColor,
+    };
+    
+    switch (font) {
+      case 'bold':
+        styles.fontWeight = '700' as const;
+        break;
+      case 'italic':
+        styles.fontStyle = 'italic' as const;
+        break;
+      case 'neon':
+        styles.color = '#00ffff';
+        break;
+      case 'elegant':
+        styles.fontFamily = Platform.OS === 'ios' ? 'Georgia' : 'serif';
+        break;
+      case 'typewriter':
+        styles.fontFamily = 'monospace';
+        break;
+    }
+    
+    return styles;
+  }
 }
 
 const styles = StyleSheet.create({
@@ -691,7 +996,6 @@ const styles = StyleSheet.create({
   flex1: {
     flex: 1,
   },
-  // Header Styles
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -699,22 +1003,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     paddingTop: Platform.OS === 'ios' ? 8 : 16,
+    borderBottomWidth: 1,
   },
   headerButton: {
     padding: 8,
     borderRadius: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
   },
   headerTitle: {
     fontSize: 18,
     fontWeight: '700' as const,
-    color: '#fff',
   },
-  // Tools Section
   toolsSection: {
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.1)',
   },
   toolsScrollContent: {
     paddingHorizontal: 16,
@@ -738,20 +1039,16 @@ const styles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 16,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 8,
     borderWidth: 2,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
   },
   toolLabel: {
     fontSize: 12,
-    color: '#fff',
     fontWeight: '500' as const,
     textAlign: 'center',
   },
-  // Gallery Selector
   gallerySelector: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -759,14 +1056,11 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     gap: 8,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.1)',
   },
   gallerySelectorText: {
     fontSize: 16,
-    color: '#fff',
     fontWeight: '600' as const,
   },
-  // Grid Styles
   gridContainer: {
     padding: 16,
   },
@@ -804,7 +1098,6 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '600' as const,
   },
-  // Privacy Screen
   privacyContent: {
     flex: 1,
     padding: 16,
@@ -815,12 +1108,10 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 22,
     fontWeight: '700' as const,
-    color: '#fff',
     marginBottom: 8,
   },
   sectionSubtitle: {
     fontSize: 15,
-    color: '#aaa',
     marginBottom: 24,
     lineHeight: 20,
   },
@@ -830,13 +1121,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 16,
     borderRadius: 12,
-    backgroundColor: '#2a2a2a',
     marginBottom: 12,
-  },
-  privacyOptionActive: {
-    backgroundColor: 'rgba(26, 115, 232, 0.2)',
-    borderWidth: 1,
-    borderColor: '#1A73E8',
   },
   privacyOptionLeft: {
     flexDirection: 'row',
@@ -852,38 +1137,30 @@ const styles = StyleSheet.create({
   },
   privacyOptionLabel: {
     fontSize: 17,
-    color: '#fff',
     fontWeight: '600' as const,
     marginBottom: 4,
   },
   privacyOptionSubtitle: {
     fontSize: 14,
-    color: '#aaa',
   },
   radioButton: {
     width: 24,
     height: 24,
     borderRadius: 12,
     borderWidth: 2,
-    borderColor: '#555',
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  radioButtonSelected: {
-    borderColor: '#1A73E8',
   },
   radioButtonInner: {
     width: 12,
     height: 12,
     borderRadius: 6,
-    backgroundColor: '#1A73E8',
   },
   settingsOption: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: 16,
     borderRadius: 12,
-    backgroundColor: '#2a2a2a',
     marginBottom: 12,
   },
   settingsIcon: {
@@ -893,10 +1170,8 @@ const styles = StyleSheet.create({
   settingsLabel: {
     flex: 1,
     fontSize: 17,
-    color: '#fff',
     fontWeight: '600' as const,
   },
-  // Preview Screen
   previewHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -939,7 +1214,6 @@ const styles = StyleSheet.create({
     fontWeight: '600' as const,
     fontSize: 16,
   },
-  // Text Creation Screen
   textHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -947,161 +1221,241 @@ const styles = StyleSheet.create({
     padding: 16,
     paddingTop: Platform.OS === 'ios' ? 8 : 16,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.1)',
   },
-  textHeaderLeft: {
+  textHeaderRight: {
     flexDirection: 'row',
-    alignItems: 'center',
     gap: 8,
   },
   textHeaderIconButton: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    backgroundColor: 'rgba(0, 0, 0, 0.05)',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  emojiIcon: {
-    fontSize: 18,
+  fullScreenTextContainer: {
+    flex: 1,
+    position: 'relative',
   },
-  colorDot: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
+  backgroundImage: {
+    position: 'absolute',
+    width: '100%',
+    height: '100%',
+  },
+  textInputArea: {
+    position: 'absolute',
+    width: '100%',
+    height: '100%',
+  },
+  fullScreenTextInput: {
+    flex: 1,
+    padding: 24,
+    textAlignVertical: 'center',
+    width: '100%',
+    minHeight: '100%',
+  },
+  verticalOptionsContainer: {
+    position: 'absolute',
+    right: 16,
+    top: height * 0.3,
+    alignItems: 'center',
+    gap: 12,
+  },
+  verticalOptionButton: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  colorPreviewCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     borderWidth: 2,
     borderColor: '#fff',
   },
-  doneButton: {
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    backgroundColor: '#1A73E8',
-    borderRadius: 20,
+  aaButton: {
+    fontSize: 18,
+    fontWeight: '700' as const,
+    color: '#fff',
   },
-  doneButtonDisabled: {
-    opacity: 0.5,
+  verticalDoneButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 20,
+    marginTop: 8,
   },
   doneButtonText: {
     color: '#fff',
     fontWeight: '600' as const,
-    fontSize: 16,
-  },
-  textContent: {
-    flex: 1,
-  },
-  textContentContainer: {
-    padding: 16,
-  },
-  textInputArea: {
-    minHeight: 300,
-    borderRadius: 16,
-    padding: 24,
-    marginBottom: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 5,
-  },
-  textInput: {
-    flex: 1,
-    textAlignVertical: 'center',
-    width: '100%',
-    minHeight: 200,
-  },
-  textStyleContainer: {
-    marginBottom: 20,
-  },
-  textStyleScroll: {
-    gap: 12,
-    paddingRight: 16,
-  },
-  textStyleOption: {
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 24,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
-    marginRight: 12,
-  },
-  textStyleOptionActive: {
-    backgroundColor: '#1A73E8',
-    borderColor: '#1A73E8',
-  },
-  textStyleOptionText: {
-    color: '#aaa',
-    fontWeight: '500' as const,
     fontSize: 14,
   },
-  textStyleOptionTextActive: {
-    color: '#fff',
-    fontWeight: '600' as const,
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
   },
-  optionsContainer: {
-    marginBottom: 24,
+  colorPickerContainer: {
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 20,
+    paddingBottom: Platform.OS === 'ios' ? 40 : 20,
+    maxHeight: height * 0.5,
   },
-  optionsScroll: {
+  colorPickerHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  colorPickerTitle: {
+    fontSize: 20,
+    fontWeight: '700' as const,
+  },
+  colorPaletteContainer: {
     gap: 12,
-    paddingRight: 16,
+    paddingVertical: 10,
   },
-  optionButton: {
+  colorCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    marginRight: 12,
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  colorCircleSelected: {
+    borderColor: '#1A73E8',
+    borderWidth: 3,
+  },
+  uploadBackgroundButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    justifyContent: 'center',
+    padding: 16,
+    borderRadius: 12,
     gap: 8,
-    marginRight: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    marginTop: 16,
   },
-  optionLabel: {
+  uploadBackgroundText: {
     color: '#fff',
-    fontSize: 14,
-    fontWeight: '500' as const,
-  },
-  previewContainer: {
-    marginTop: 32,
-    alignItems: 'center',
-    paddingBottom: 40,
-  },
-  previewSectionTitle: {
     fontSize: 16,
     fontWeight: '600' as const,
-    color: '#aaa',
-    marginBottom: 12,
-    alignSelf: 'flex-start',
   },
-  statusPreview: {
-    width: '100%',
-    minHeight: 200,
-    borderRadius: 16,
-    backgroundColor: '#1a1a1a',
-    padding: 20,
-    marginBottom: 12,
-    overflow: 'hidden',
-  },
-  statusPreviewCentered: {
+  removeBackgroundButton: {
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  previewText: {
-    fontSize: 18,
-    color: '#fff',
-    textAlign: 'center',
-  },
-  previewMedia: {
-    width: '100%',
-    height: 200,
+    padding: 16,
     borderRadius: 12,
+    borderWidth: 2,
+    gap: 8,
+    marginTop: 12,
   },
-  previewUsername: {
-    fontSize: 13,
-    color: '#999',
+  removeBackgroundText: {
+    fontSize: 16,
+    fontWeight: '600' as const,
+  },
+  fontPickerContainer: {
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 20,
+    paddingBottom: Platform.OS === 'ios' ? 40 : 20,
+    maxHeight: height * 0.6,
+  },
+  fontPickerHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  fontPickerTitle: {
+    fontSize: 20,
+    fontWeight: '700' as const,
+  },
+  effectSection: {
+    marginBottom: 24,
+  },
+  sectionLabel: {
+    fontSize: 16,
+    fontWeight: '600' as const,
+    marginBottom: 12,
+  },
+  effectOptions: {
+    gap: 12,
+  },
+  effectOption: {
+    width: 80,
+    height: 80,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+    borderWidth: 1,
+    borderColor: 'transparent',
+  },
+  effectPreview: {
+    fontSize: 24,
+    fontWeight: '700' as const,
+    marginBottom: 4,
+  },
+  effectLabel: {
+    fontSize: 12,
+    fontWeight: '500' as const,
+  },
+  fontSection: {
+    marginBottom: 24,
+  },
+  fontOptions: {
+    gap: 12,
+  },
+  fontOption: {
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 12,
+    marginRight: 12,
+    borderWidth: 1,
+    borderColor: 'transparent',
+  },
+  fontPreview: {
+    fontSize: 18,
+    fontWeight: '600' as const,
+  },
+  alignmentPickerContainer: {
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 20,
+    paddingBottom: Platform.OS === 'ios' ? 40 : 20,
+  },
+  alignmentPickerHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  alignmentPickerTitle: {
+    fontSize: 20,
+    fontWeight: '700' as const,
+  },
+  alignmentOptions: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    gap: 16,
+  },
+  alignmentOption: {
+    flex: 1,
+    padding: 20,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'transparent',
+  },
+  alignmentLabel: {
+    marginTop: 8,
+    fontSize: 14,
     fontWeight: '500' as const,
   },
 });
