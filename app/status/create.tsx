@@ -611,9 +611,9 @@ export default function CreateStatusScreen() {
                         {
                           alignSelf: textAlignment === 'left' ? 'flex-start' : 
                                     textAlignment === 'right' ? 'flex-end' : 'center',
-                          // Slight vertical overlap to ensure no visible gaps and single connected silhouette
-                          marginBottom: 0,
-                          marginTop: isFirstLine ? 0 : -2, // Overlap by 2px for seamless connection
+                          // Even spacing between lines for clean, soft appearance
+                          marginBottom: index < textLines.length - 1 ? 4 : 0, // Even 4px spacing
+                          marginTop: 0,
                         },
                       ]}
                     >
@@ -623,13 +623,8 @@ export default function CreateStatusScreen() {
                           {
                             backgroundColor: textEffect === 'white-bg' ? '#fff' : '#000',
                             shadowColor: textEffect === 'white-bg' ? '#000' : '#fff',
-                            // Rounded corners only on outer edges for unified container feel
-                            borderTopLeftRadius: isFirstLine ? 20 : 0,
-                            borderTopRightRadius: isFirstLine ? 20 : 0,
-                            borderBottomLeftRadius: isLastLine ? 20 : 0,
-                            borderBottomRightRadius: isLastLine ? 20 : 0,
-                            // Single line = fully rounded pill
-                            borderRadius: isFirstLine && isLastLine ? 20 : undefined,
+                            // Soft rounded edges on all corners for clean, modern look
+                            borderRadius: 16, // Even, rounded edges throughout
                             // Use Text inside View to determine width, but make it completely invisible
                             alignSelf: textAlignment === 'left' ? 'flex-start' : 
                                       textAlignment === 'right' ? 'flex-end' : 'center',
@@ -1275,31 +1270,28 @@ const styles = StyleSheet.create({
   },
   // Wrapper for each line to handle alignment
   textLineWrapper: {
-    // Slight overlap for seamless connection - creates single connected silhouette
-    marginBottom: 0,
+    // Even spacing between lines for clean, soft appearance
     width: '100%',
   },
-  // Individual connected background per line - seamlessly merged into one unified container
+  // Individual background per line - soft rounded edges with even spacing
   textLineBackground: {
     // View container that wraps transparent Text for width calculation
-    // Variable width per line creates adaptive pill shapes that connect
+    // Variable width per line creates adaptive pill shapes with soft edges
     paddingHorizontal: 16,
     paddingVertical: 12,
-    // Border radius set dynamically: rounded only on outer edges (first/last line)
-    // Inner edges are square for seamless connection
-    // Soft shadow creates depth for the unified container
+    // Soft rounded edges on all corners - clean, modern appearance
+    borderRadius: 16,
+    // Soft shadow creates gentle depth
     shadowOffset: {
       width: 0,
-      height: 2,
+      height: 1,
     },
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
+    shadowOpacity: 0.12,
+    shadowRadius: 3,
     elevation: 2,
     // View wraps transparent Text that determines width - creates adaptive-width pills
     // Short lines = narrow backgrounds, long lines = wide backgrounds
     maxWidth: '100%',
-    // Ensure backgrounds overlap slightly to eliminate any visible gaps
-    overflow: 'hidden',
     // View sizes to its content (transparent Text inside)
     alignSelf: 'flex-start',
   },
