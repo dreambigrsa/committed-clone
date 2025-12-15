@@ -113,21 +113,21 @@ export default function StatusViewerScreen() {
     timestampRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 8,
       marginTop: 2,
+      gap: 4,
     },
     timestamp: {
       color: 'rgba(255, 255, 255, 0.7)',
       fontSize: 12,
     },
-    viewCountButton: {
-      paddingHorizontal: 8,
-      paddingVertical: 2,
+    timestampSeparator: {
+      color: 'rgba(255, 255, 255, 0.5)',
+      fontSize: 12,
+      marginHorizontal: 2,
     },
     viewCountText: {
       color: 'rgba(255, 255, 255, 0.7)',
       fontSize: 12,
-      fontWeight: '500' as const,
     },
     closeButton: {
       padding: 8,
@@ -282,7 +282,10 @@ export default function StatusViewerScreen() {
       loadMedia();
       startProgress();
       markAsViewed();
-      loadViewCount();
+      // Load view count after a short delay to ensure status is set
+      setTimeout(() => {
+        loadViewCount();
+      }, 100);
     }
 
     return () => {
@@ -294,16 +297,23 @@ export default function StatusViewerScreen() {
 
   const loadViewCount = async () => {
     const status = statuses[currentIndex];
-    if (!status || currentUser?.id !== status.user_id) {
+    if (!status) {
+      setViewCount(0);
+      return;
+    }
+
+    // Only show view count for own statuses
+    if (currentUser?.id !== status.user_id) {
       setViewCount(0);
       return;
     }
 
     try {
       const count = await getStatusViewCount(status.id);
-      setViewCount(count);
+      setViewCount(count || 0);
     } catch (error) {
       console.error('Error loading view count:', error);
+      setViewCount(0);
     }
   };
 
@@ -325,8 +335,13 @@ export default function StatusViewerScreen() {
   };
 
   const handleViewersPress = async () => {
-    await loadViewers();
+    const status = statuses[currentIndex];
+    if (!status || currentUser?.id !== status.user_id) {
+      return; // Only allow viewing for own statuses
+    }
+    
     setShowViewers(true);
+    await loadViewers();
   };
 
   const loadStatuses = async () => {
@@ -584,7 +599,7 @@ export default function StatusViewerScreen() {
                   </Text>
                 </View>
               )}
-              <View style={{ flex: 1 }}>
+                <View style={{ flex: 1 }}>
                 <Text style={styles.userName}>
                   {status.user?.full_name || 'User'}
                 </Text>
@@ -592,16 +607,19 @@ export default function StatusViewerScreen() {
                   <Text style={styles.timestamp}>
                     {formatTimeAgo(status.created_at)}
                   </Text>
-                  {/* Show view count for own statuses */}
+                  {/* Show view count for own statuses - inline with timestamp */}
                   {currentUser?.id === status.user_id && viewCount > 0 && (
-                    <TouchableOpacity 
-                      style={styles.viewCountButton}
-                      onPress={handleViewersPress}
-                    >
-                      <Text style={styles.viewCountText}>
-                        {viewCount} {viewCount === 1 ? 'viewer' : 'viewers'}
-                      </Text>
-                    </TouchableOpacity>
+                    <>
+                      <Text style={styles.timestampSeparator}>·</Text>
+                      <TouchableOpacity 
+                        onPress={handleViewersPress}
+                        activeOpacity={0.7}
+                      >
+                        <Text style={styles.viewCountText}>
+                          {viewCount} {viewCount === 1 ? 'viewer' : 'viewers'}
+                        </Text>
+                      </TouchableOpacity>
+                    </>
                   )}
                 </View>
               </View>
@@ -796,6 +814,301 @@ export default function StatusViewerScreen() {
             </View>
           </View>
         )}
+
+        {/* Viewers Modal */}
+        {showViewers && status && (
+          <ViewersListModal
+            visible={showViewers}
+            onClose={() => setShowViewers(false)}
+            viewers={viewers}
+            loading={loadingViewers}
+            viewCount={viewCount}
+            status={status}
+            onRefresh={async () => {
+              await loadViewers();
+              await loadViewCount();
+            }}
+          />
+        )}
+      </View>
+    </Modal>
+  );
+}
+
+/**
+ * Viewers List Modal Component
+ */
+function ViewersListModal({
+  visible,
+  onClose,
+  viewers: initialViewers,
+  loading: initialLoading,
+  viewCount: initialViewCount,
+  status,
+  onRefresh,
+}: {
+  visible: boolean;
+  onClose: () => void;
+  viewers: StatusViewer[];
+  loading: boolean;
+  viewCount: number;
+  status: Status;
+  onRefresh: () => Promise<void>;
+}) {
+  const { colors } = useTheme();
+  const [activeTab, setActiveTab] = useState<'viewers' | 'insights'>('viewers');
+  const [viewers, setViewers] = useState<StatusViewer[]>(initialViewers);
+  const [loading, setLoading] = useState(initialLoading);
+  const [viewCount, setViewCount] = useState(initialViewCount);
+
+  useEffect(() => {
+    setViewers(initialViewers);
+    setLoading(initialLoading);
+    setViewCount(initialViewCount);
+  }, [initialViewers, initialLoading, initialViewCount]);
+
+  const styles = StyleSheet.create({
+    modalOverlay: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: '#1a1a1a',
+      zIndex: 1000,
+    },
+    header: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      padding: 16,
+      paddingTop: 50,
+      borderBottomWidth: 1,
+      borderBottomColor: '#333',
+    },
+    headerTitle: {
+      fontSize: 20,
+      fontWeight: '700' as const,
+      color: '#fff',
+    },
+    closeButton: {
+      padding: 8,
+    },
+    tabs: {
+      flexDirection: 'row',
+      borderBottomWidth: 1,
+      borderBottomColor: '#333',
+    },
+    tab: {
+      flex: 1,
+      paddingVertical: 16,
+      alignItems: 'center',
+      borderBottomWidth: 2,
+      borderBottomColor: 'transparent',
+    },
+    tabActive: {
+      borderBottomColor: colors.primary || '#1877F2',
+    },
+    tabText: {
+      fontSize: 16,
+      fontWeight: '600' as const,
+      color: '#aaa',
+    },
+    tabTextActive: {
+      color: '#fff',
+    },
+    content: {
+      flex: 1,
+      padding: 16,
+    },
+    viewersHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 16,
+    },
+    viewersCount: {
+      fontSize: 16,
+      fontWeight: '600' as const,
+      color: '#fff',
+    },
+    refreshButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+      borderRadius: 8,
+      backgroundColor: '#333',
+      gap: 6,
+    },
+    refreshButtonText: {
+      color: '#fff',
+      fontSize: 14,
+      fontWeight: '500' as const,
+    },
+    viewerItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: 12,
+      gap: 12,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: '#333',
+    },
+    viewerAvatar: {
+      width: 48,
+      height: 48,
+      borderRadius: 24,
+    },
+    viewerAvatarPlaceholder: {
+      width: 48,
+      height: 48,
+      borderRadius: 24,
+      backgroundColor: '#333',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    viewerAvatarText: {
+      color: '#fff',
+      fontSize: 18,
+      fontWeight: '600' as const,
+    },
+    viewerInfo: {
+      flex: 1,
+    },
+    viewerName: {
+      fontSize: 16,
+      fontWeight: '600' as const,
+      color: '#fff',
+      marginBottom: 4,
+    },
+    viewerTime: {
+      fontSize: 14,
+      color: '#aaa',
+    },
+    viewerOptions: {
+      padding: 8,
+    },
+    emptyState: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: 40,
+    },
+    emptyText: {
+      fontSize: 16,
+      color: '#aaa',
+      textAlign: 'center',
+    },
+  });
+
+  const formatViewTime = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMins / 60);
+    const diffDays = Math.floor(diffHours / 24);
+
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffHours < 24) return `${diffHours}h ago`;
+    if (diffDays < 7) return `${diffDays}d ago`;
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  };
+
+  const handleRefresh = async () => {
+    setLoading(true);
+    try {
+      await onRefresh();
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (!visible) return null;
+
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <View style={styles.modalOverlay}>
+        <View style={styles.header}>
+          <View style={{ width: 24 }} />
+          <Text style={styles.headerTitle}>Story viewers</Text>
+          <TouchableOpacity style={styles.closeButton} onPress={onClose}>
+            <X size={24} color="#fff" />
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.tabs}>
+          <TouchableOpacity
+            style={[styles.tab, activeTab === 'viewers' && styles.tabActive]}
+            onPress={() => setActiveTab('viewers')}
+          >
+            <Text style={[styles.tabText, activeTab === 'viewers' && styles.tabTextActive]}>
+              Viewers
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.tab, activeTab === 'insights' && styles.tabActive]}
+            onPress={() => setActiveTab('insights')}
+          >
+            <Text style={[styles.tabText, activeTab === 'insights' && styles.tabTextActive]}>
+              Insights
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        <ScrollView style={styles.content}>
+          {activeTab === 'viewers' ? (
+            <>
+              <View style={styles.viewersHeader}>
+                <Text style={styles.viewersCount}>
+                  {viewCount} {viewCount === 1 ? 'viewer' : 'viewers'}
+                </Text>
+                <TouchableOpacity style={styles.refreshButton} onPress={handleRefresh}>
+                  <RefreshCw size={16} color="#fff" />
+                  <Text style={styles.refreshButtonText}>Refresh</Text>
+                </TouchableOpacity>
+              </View>
+
+              {loading ? (
+                <ActivityIndicator size="large" color="#fff" style={{ marginTop: 40 }} />
+              ) : viewers.length === 0 ? (
+                <View style={styles.emptyState}>
+                  <Text style={styles.emptyText}>No viewers yet</Text>
+                </View>
+              ) : (
+                viewers.map((viewer) => (
+                  <TouchableOpacity key={viewer.id} style={styles.viewerItem}>
+                    {viewer.user.profile_picture ? (
+                      <Image
+                        source={{ uri: viewer.user.profile_picture }}
+                        style={styles.viewerAvatar}
+                        contentFit="cover"
+                      />
+                    ) : (
+                      <View style={styles.viewerAvatarPlaceholder}>
+                        <Text style={styles.viewerAvatarText}>
+                          {viewer.user.full_name.charAt(0).toUpperCase()}
+                        </Text>
+                      </View>
+                    )}
+                    <View style={styles.viewerInfo}>
+                      <Text style={styles.viewerName}>{viewer.user.full_name}</Text>
+                      <Text style={styles.viewerTime}>{formatViewTime(viewer.viewed_at)}</Text>
+                    </View>
+                    <TouchableOpacity style={styles.viewerOptions}>
+                      <MoreHorizontal size={20} color="#aaa" />
+                    </TouchableOpacity>
+                  </TouchableOpacity>
+                ))
+              )}
+            </>
+          ) : (
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyText}>Insights coming soon</Text>
+            </View>
+          )}
+        </ScrollView>
       </View>
     </Modal>
   );
