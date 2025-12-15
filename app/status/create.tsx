@@ -548,25 +548,25 @@ export default function CreateStatusScreen() {
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={[styles.container, { backgroundColor: bgColor }]}
+      style={[styles.container, { backgroundColor: textBackgroundColor }]}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
     >
-      <StatusBar barStyle={isDark ? "light-content" : "dark-content"} />
+      <StatusBar barStyle="light-content" />
       <SafeAreaView style={styles.flex1}>
-        {/* Header */}
-        <View style={[styles.textHeader, { borderBottomColor: borderColor }]}>
+        {/* Header - Facebook Style with transparent background */}
+        <View style={styles.textHeader}>
           <TouchableOpacity 
             style={styles.textHeaderIconButton}
             onPress={() => setScreenMode('gallery')}
           >
-            <ChevronRight size={20} color={textColor} style={{ transform: [{ rotate: '180deg' }] }} />
+            <ChevronRight size={20} color="#fff" style={{ transform: [{ rotate: '180deg' }] }} />
           </TouchableOpacity>
           <View style={styles.textHeaderRight}>
             <TouchableOpacity style={styles.textHeaderIconButton}>
-              <Smile size={20} color={textColor} />
+              <Smile size={20} color="#fff" />
             </TouchableOpacity>
             <TouchableOpacity style={styles.textHeaderIconButton}>
-              <MoreHorizontal size={20} color={textColor} />
+              <MoreHorizontal size={20} color="#fff" />
             </TouchableOpacity>
           </View>
         </View>
@@ -631,14 +631,13 @@ export default function CreateStatusScreen() {
           </View>
         </View>
 
-        {/* Text Style Selector at Bottom (Classic, Neon, Typewriter) */}
+        {/* Text Style Selector at Bottom (Classic, Neon, Typewriter) - Facebook Style */}
         <View style={styles.textStyleSelectorContainer}>
           {(['classic', 'neon', 'typewriter'] as const).map((style) => (
             <TouchableOpacity
               key={style}
               style={[
                 styles.textStyleButton,
-                { backgroundColor: cardBg },
                 textStyle === style && styles.textStyleButtonActive,
               ]}
               onPress={() => setTextStyle(style)}
@@ -646,7 +645,6 @@ export default function CreateStatusScreen() {
             >
               <Text style={[
                 styles.textStyleButtonText,
-                { color: textColor },
                 textStyle === style && styles.textStyleButtonTextActive,
               ]}>
                 {style.charAt(0).toUpperCase() + style.slice(1)}
@@ -1171,7 +1169,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 16,
     paddingTop: Platform.OS === 'ios' ? 8 : 16,
-    borderBottomWidth: 1,
+    backgroundColor: 'transparent',
   },
   textHeaderRight: {
     flexDirection: 'row',
@@ -1181,7 +1179,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: 'rgba(0, 0, 0, 0.05)',
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1439,7 +1437,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500' as const,
   },
-  // Text Style Selector at Bottom
+  // Text Style Selector at Bottom - Facebook Style
   textStyleSelectorContainer: {
     position: 'absolute',
     bottom: Platform.OS === 'ios' ? 100 : 80,
@@ -1448,26 +1446,28 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    gap: 12,
+    gap: 8,
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 10,
   },
   textStyleButton: {
-    paddingHorizontal: 20,
+    paddingHorizontal: 18,
     paddingVertical: 10,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: 'transparent',
-    minWidth: 80,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    minWidth: 75,
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
   },
   textStyleButtonActive: {
     backgroundColor: '#fff',
-    borderColor: 'rgba(255, 255, 255, 0.3)',
+    borderColor: '#fff',
   },
   textStyleButtonText: {
     fontSize: 14,
     fontWeight: '600' as const,
+    color: '#fff',
   },
   textStyleButtonTextActive: {
     color: '#000',
