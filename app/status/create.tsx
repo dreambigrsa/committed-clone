@@ -1,10 +1,11 @@
 /**
  * Create Status Screen
  * 
- * Facebook-style story creation flow:
- * 1. Gallery picker with story creation tools
- * 2. Privacy settings (gear icon)
- * 3. Text creation screen with style options
+ * Beautiful, modern story creation flow with:
+ * - Gallery/media picker with story creation tools
+ * - Privacy settings
+ * - Text creation with style options
+ * - Preview and posting
  */
 
 import React, { useState, useEffect } from 'react';
@@ -20,8 +21,9 @@ import {
   Platform,
   FlatList,
   Dimensions,
-  Keyboard,
   KeyboardAvoidingView,
+  StatusBar,
+  SafeAreaView,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -38,21 +40,22 @@ import {
   Type, 
   Image as ImageIcon, 
   Grid3x3,
-  Check,
   ChevronDown,
   AtSign,
   Link as LinkIcon,
   MoreHorizontal,
   Palette,
   Smile,
-  AlignCenter,
+  Camera,
+  Check,
+  ChevronRight,
 } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 
-const { width } = Dimensions.get('window');
+const { width, height } = Dimensions.get('window');
 const GRID_ITEM_SIZE = (width - 48) / 3; // 3 columns with padding
 
-type ScreenMode = 'gallery' | 'text' | 'privacy';
+type ScreenMode = 'gallery' | 'text' | 'privacy' | 'preview';
 
 export default function CreateStatusScreen() {
   const router = useRouter();
@@ -67,11 +70,12 @@ export default function CreateStatusScreen() {
   const [mediaAssets, setMediaAssets] = useState<MediaLibrary.Asset[]>([]);
   const [selectedGallery, setSelectedGallery] = useState<string>('Gallery');
   const [textStyle, setTextStyle] = useState<'classic' | 'neon' | 'typewriter'>('classic');
+  const [textBackgroundColor, setTextBackgroundColor] = useState<string>('#1A73E8');
   const [showMoreOptions, setShowMoreOptions] = useState(false);
   const [lastStatus, setLastStatus] = useState<any>(null);
   const [lastStatusMediaUrl, setLastStatusMediaUrl] = useState<string | null>(null);
+  const [selectedMedia, setSelectedMedia] = useState<MediaLibrary.Asset | null>(null);
 
-  // Load media assets
   useEffect(() => {
     loadMediaAssets();
     loadLastStatus();
@@ -80,13 +84,14 @@ export default function CreateStatusScreen() {
   const loadMediaAssets = async () => {
     const { status } = await MediaLibrary.requestPermissionsAsync();
     if (status !== 'granted') {
+      Alert.alert('Permission Required', 'We need access to your photos to create stories.');
       return;
     }
 
     const assets = await MediaLibrary.getAssetsAsync({
       mediaType: [MediaLibrary.MediaType.photo, MediaLibrary.MediaType.video],
-      sortBy: MediaLibrary.SortBy.creationTime,
-      first: 50,
+      sortBy: MediaLibrary.MediaType.video ? MediaLibrary.SortBy.creationTime : MediaLibrary.SortBy.creationTime,
+      first: 100,
     });
 
     setMediaAssets(assets.assets);
@@ -97,10 +102,9 @@ export default function CreateStatusScreen() {
     try {
       const statuses = await getUserStatuses(currentUser.id);
       if (statuses && statuses.length > 0) {
-        const latest = statuses[statuses.length - 1]; // Get most recent (sorted ascending)
+        const latest = statuses[statuses.length - 1];
         setLastStatus(latest);
         
-        // Load media URL if it's a media status
         if (latest.media_path && (latest.content_type === 'image' || latest.content_type === 'video')) {
           try {
             const url = await getSignedUrlForMedia(latest.media_path);
@@ -121,10 +125,31 @@ export default function CreateStatusScreen() {
       return;
     }
 
+    setSelectedMedia(asset);
     setMediaUri(asset.uri);
     setContentType(asset.mediaType === 'video' ? 'video' : 'image');
-    // Navigate to edit/preview screen (you can expand this later)
-    handlePost();
+    setScreenMode('preview');
+  };
+
+  const handleTakePhoto = async () => {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission Required', 'We need camera access to take photos.');
+      return;
+    }
+
+    const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [9, 16],
+      quality: 0.8,
+    });
+
+    if (!result.canceled && result.assets[0]) {
+      setMediaUri(result.assets[0].uri);
+      setContentType('image');
+      setScreenMode('preview');
+    }
   };
 
   const handlePost = async () => {
@@ -179,122 +204,165 @@ export default function CreateStatusScreen() {
     });
 
     if (!result.canceled && result.assets.length > 0) {
-      // For now, use the first selected item
       const asset = result.assets[0];
-      setMediaUri(asset.uri);
-      setContentType(asset.type === 'video' ? 'video' : 'image');
-      handlePost();
+      handleSelectMedia({
+        id: asset.uri,
+        uri: asset.uri,
+        mediaType: asset.type === 'video' ? 'video' : 'photo',
+        duration: asset.duration || 0,
+        width: asset.width || 0,
+        height: asset.height || 0,
+        creationTime: Date.now(),
+        modificationTime: Date.now(),
+        albumId: '',
+      } as MediaLibrary.Asset);
     }
   };
 
-  // Render Gallery Picker Screen
+  // Gallery Picker Screen
   if (screenMode === 'gallery') {
     return (
-      <View style={styles.container}>
+      <SafeAreaView style={[styles.container, { backgroundColor: '#000' }]}>
+        <StatusBar barStyle="light-content" />
+        
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()}>
-            <X size={24} color={colors.text.primary} />
+          <TouchableOpacity onPress={() => router.back()} style={styles.headerButton}>
+            <X size={24} color="#fff" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Create story</Text>
-          <TouchableOpacity onPress={() => setScreenMode('privacy')}>
-            <Settings size={24} color={colors.text.primary} />
+          <TouchableOpacity onPress={() => setScreenMode('privacy')} style={styles.headerButton}>
+            <Settings size={24} color="#fff" />
           </TouchableOpacity>
         </View>
 
-        {/* Story Creation Tools */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.toolsContainer}>
-          <TouchableOpacity style={styles.toolButton} onPress={handleTextOption}>
-            <View style={styles.toolIconContainer}>
-              <Type size={24} color={colors.text.primary} />
-            </View>
-            <Text style={styles.toolLabel}>Text</Text>
-          </TouchableOpacity>
+        {/* Story Creation Tools - Better Design */}
+        <View style={styles.toolsSection}>
+          <ScrollView 
+            horizontal 
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.toolsScrollContent}
+          >
+            <TouchableOpacity 
+              style={[styles.toolCard, styles.toolCardPrimary]} 
+              onPress={handleTextOption}
+              activeOpacity={0.8}
+            >
+              <View style={styles.toolIconWrapper}>
+                <Type size={28} color="#fff" />
+              </View>
+              <Text style={styles.toolLabel}>Text</Text>
+            </TouchableOpacity>
 
-          <TouchableOpacity style={styles.toolButton}>
-            <View style={styles.toolIconContainer}>
-              <Music size={24} color={colors.text.primary} />
-            </View>
-            <Text style={styles.toolLabel}>Music</Text>
-          </TouchableOpacity>
+            <TouchableOpacity style={styles.toolCard} activeOpacity={0.8}>
+              <View style={styles.toolIconWrapper}>
+                <Music size={28} color="#fff" />
+              </View>
+              <Text style={styles.toolLabel}>Music</Text>
+            </TouchableOpacity>
 
-          <TouchableOpacity style={styles.toolButton}>
-            <View style={styles.toolIconContainer}>
-              <ImageIcon size={24} color={colors.text.primary} />
-            </View>
-            <Text style={styles.toolLabel}>AI images</Text>
-          </TouchableOpacity>
+            <TouchableOpacity style={styles.toolCard} activeOpacity={0.8}>
+              <View style={styles.toolIconWrapper}>
+                <ImageIcon size={28} color="#fff" />
+              </View>
+              <Text style={styles.toolLabel}>AI images</Text>
+            </TouchableOpacity>
 
-          <TouchableOpacity style={styles.toolButton}>
-            <View style={styles.toolIconContainer}>
-              <Grid3x3 size={24} color={colors.text.primary} />
-            </View>
-            <Text style={styles.toolLabel}>Collage</Text>
-          </TouchableOpacity>
+            <TouchableOpacity style={styles.toolCard} activeOpacity={0.8}>
+              <View style={styles.toolIconWrapper}>
+                <Grid3x3 size={28} color="#fff" />
+              </View>
+              <Text style={styles.toolLabel}>Collage</Text>
+            </TouchableOpacity>
 
-          <TouchableOpacity style={styles.largeToolButton} onPress={handleSelectMultiple}>
-            <View style={styles.toolIconContainer}>
-              <ImageIcon size={28} color={colors.text.primary} />
-            </View>
-            <Text style={styles.toolLabel}>Select multiple</Text>
-          </TouchableOpacity>
-        </ScrollView>
+            <TouchableOpacity 
+              style={[styles.toolCard, styles.toolCardLarge]} 
+              onPress={handleSelectMultiple}
+              activeOpacity={0.8}
+            >
+              <View style={styles.toolIconWrapper}>
+                <ImageIcon size={32} color="#fff" />
+              </View>
+              <Text style={styles.toolLabel}>Select multiple</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={[styles.toolCard, styles.toolCardCamera]} 
+              onPress={handleTakePhoto}
+              activeOpacity={0.8}
+            >
+              <View style={styles.toolIconWrapper}>
+                <Camera size={28} color="#fff" />
+              </View>
+              <Text style={styles.toolLabel}>Camera</Text>
+            </TouchableOpacity>
+          </ScrollView>
+        </View>
 
         {/* Gallery Selector */}
-        <TouchableOpacity style={styles.gallerySelector}>
+        <TouchableOpacity 
+          style={styles.gallerySelector}
+          activeOpacity={0.7}
+        >
           <Text style={styles.gallerySelectorText}>{selectedGallery}</Text>
-          <ChevronDown size={16} color={colors.text.secondary} />
+          <ChevronDown size={18} color="#999" />
         </TouchableOpacity>
 
-        {/* Media Grid */}
+        {/* Media Grid - Better Design */}
         <FlatList
           data={mediaAssets}
           numColumns={3}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.gridContainer}
+          showsVerticalScrollIndicator={false}
           renderItem={({ item }) => (
             <TouchableOpacity
               style={styles.gridItem}
               onPress={() => handleSelectMedia(item)}
+              activeOpacity={0.8}
             >
               {item.mediaType === 'video' ? (
-                <Video
-                  source={{ uri: item.uri }}
-                  style={styles.gridMedia}
-                  resizeMode={ResizeMode.COVER}
-                  shouldPlay={false}
-                  useNativeControls={false}
-                />
+                <>
+                  <Video
+                    source={{ uri: item.uri }}
+                    style={styles.gridMedia}
+                    resizeMode={ResizeMode.COVER}
+                    shouldPlay={false}
+                    useNativeControls={false}
+                  />
+                  <View style={styles.videoOverlay}>
+                    <View style={styles.videoBadge}>
+                      <Text style={styles.videoDuration}>
+                        {Math.round(item.duration || 0)}s
+                      </Text>
+                    </View>
+                  </View>
+                </>
               ) : (
                 <Image source={{ uri: item.uri }} style={styles.gridMedia} contentFit="cover" />
-              )}
-              {item.mediaType === 'video' && (
-                <View style={styles.videoIndicator}>
-                  <Text style={styles.videoDuration}>
-                    {Math.round(item.duration || 0)}s
-                  </Text>
-                </View>
               )}
             </TouchableOpacity>
           )}
         />
-      </View>
+      </SafeAreaView>
     );
   }
 
-  // Render Privacy Settings Screen
+  // Privacy Settings Screen
   if (screenMode === 'privacy') {
     return (
-      <View style={styles.container}>
+      <SafeAreaView style={[styles.container, { backgroundColor: '#1a1a1a' }]}>
+        <StatusBar barStyle="light-content" />
+        
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => setScreenMode('gallery')}>
-            <Text style={styles.backArrow}>←</Text>
+          <TouchableOpacity onPress={() => setScreenMode('gallery')} style={styles.headerButton}>
+            <ChevronRight size={24} color="#fff" style={{ transform: [{ rotate: '180deg' }] }} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Story privacy</Text>
           <View style={{ width: 24 }} />
         </View>
 
-        <ScrollView style={styles.privacyContent}>
+        <ScrollView style={styles.privacyContent} showsVerticalScrollIndicator={false}>
           <View style={styles.privacySection}>
             <Text style={styles.sectionTitle}>Who can see your story?</Text>
             <Text style={styles.sectionSubtitle}>
@@ -309,13 +377,19 @@ export default function CreateStatusScreen() {
             ].map((option) => (
               <TouchableOpacity
                 key={option.value}
-                style={styles.privacyOption}
+                style={[
+                  styles.privacyOption,
+                  privacyLevel === option.value && styles.privacyOptionActive,
+                ]}
                 onPress={() => setPrivacyLevel(option.value as any)}
+                activeOpacity={0.7}
               >
-                <Text style={styles.privacyIcon}>{option.icon}</Text>
-                <View style={styles.privacyOptionContent}>
-                  <Text style={styles.privacyOptionLabel}>{option.label}</Text>
-                  <Text style={styles.privacyOptionSubtitle}>{option.subtitle}</Text>
+                <View style={styles.privacyOptionLeft}>
+                  <Text style={styles.privacyIcon}>{option.icon}</Text>
+                  <View style={styles.privacyOptionContent}>
+                    <Text style={styles.privacyOptionLabel}>{option.label}</Text>
+                    <Text style={styles.privacyOptionSubtitle}>{option.subtitle}</Text>
+                  </View>
                 </View>
                 <View
                   style={[
@@ -333,240 +407,366 @@ export default function CreateStatusScreen() {
 
           <View style={styles.privacySection}>
             <Text style={styles.sectionTitle}>Other settings</Text>
-            <TouchableOpacity style={styles.settingsOption}>
+            <TouchableOpacity style={styles.settingsOption} activeOpacity={0.7}>
               <Text style={styles.settingsIcon}>🔇</Text>
               <Text style={styles.settingsLabel}>Stories you've muted</Text>
-              <ChevronDown size={20} color={colors.text.secondary} style={{ transform: [{ rotate: '-90deg' }] }} />
+              <ChevronRight size={20} color="#999" />
             </TouchableOpacity>
           </View>
         </ScrollView>
-      </View>
+      </SafeAreaView>
     );
   }
 
-  // Render Text Creation Screen
-  return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={styles.container}
-    >
-      {/* Header */}
-      <View style={styles.textHeader}>
-        <View style={styles.textHeaderLeft}>
-          <TouchableOpacity style={styles.headerIconButton}>
-            <Text style={styles.headerIconText}>💬</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.headerIconButton}>
-            <View style={styles.rainbowIcon} />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.headerIconButton}>
-            <Type size={20} color={colors.text.primary} />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.headerIconButton}>
-            <MoreHorizontal size={20} color={colors.text.primary} />
-          </TouchableOpacity>
-        </View>
-        <TouchableOpacity
-          style={styles.doneButton}
-          onPress={handlePost}
-          disabled={isPosting}
-        >
-          <Text style={styles.doneButtonText}>Done</Text>
-        </TouchableOpacity>
-      </View>
-
-      <ScrollView style={styles.textContent} contentContainerStyle={styles.textContentContainer}>
-        {/* Text Input Area */}
-        <View style={[styles.textInputArea, { backgroundColor: getBackgroundColor() }]}>
-          <TextInput
-            style={[styles.textInput, getTextStyle()]}
-            placeholder="Type or @Tag"
-            placeholderTextColor={colors.text.tertiary}
-            value={textContent}
-            onChangeText={setTextContent}
-            multiline
-            autoFocus
-            textAlign={textStyle === 'classic' ? 'center' : 'left'}
-          />
-        </View>
-
-        {/* Text Style Options */}
-        <View style={styles.textStyleOptions}>
-          <TouchableOpacity
-            style={[styles.textStyleOption, textStyle === 'classic' && styles.textStyleOptionActive]}
-            onPress={() => setTextStyle('classic')}
+  // Preview Screen (for media)
+  if (screenMode === 'preview' && mediaUri) {
+    return (
+      <SafeAreaView style={[styles.container, { backgroundColor: '#000' }]}>
+        <StatusBar barStyle="light-content" />
+        
+        <View style={styles.previewHeader}>
+          <TouchableOpacity 
+            onPress={() => {
+              setScreenMode('gallery');
+              setMediaUri(null);
+              setSelectedMedia(null);
+            }} 
+            style={styles.headerButton}
           >
-            <Text style={[styles.textStyleOptionText, textStyle === 'classic' && styles.textStyleOptionTextActive]}>
-              Classic
-            </Text>
+            <ChevronRight size={24} color="#fff" style={{ transform: [{ rotate: '180deg' }] }} />
           </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.textStyleOption, textStyle === 'neon' && styles.textStyleOptionActive]}
-            onPress={() => setTextStyle('neon')}
+          <Text style={styles.headerTitle}>Preview</Text>
+          <TouchableOpacity 
+            onPress={handlePost} 
+            style={styles.postButton}
+            disabled={isPosting}
           >
-            <Text style={[styles.textStyleOptionText, textStyle === 'neon' && styles.textStyleOptionTextActive]}>
-              Neon
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.textStyleOption, textStyle === 'typewriter' && styles.textStyleOptionActive]}
-            onPress={() => setTextStyle('typewriter')}
-          >
-            <Text style={[styles.textStyleOptionText, textStyle === 'typewriter' && styles.textStyleOptionTextActive]}>
-              Typewriter
-            </Text>
+            {isPosting ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <Text style={styles.postButtonText}>Share</Text>
+            )}
           </TouchableOpacity>
         </View>
 
-        {/* Options Bar */}
-        <View style={styles.optionsBar}>
-          <TouchableOpacity style={styles.optionButton}>
-            <Music size={20} color={colors.text.primary} />
-            <Text style={styles.optionLabel}>Music</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.optionButton}>
-            <Palette size={20} color={colors.text.primary} />
-            <Text style={styles.optionLabel}>Background</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.optionButton}>
-            <Smile size={20} color={colors.text.primary} />
-            <Text style={styles.optionLabel}>Stickers</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.optionButton}>
-            <Type size={20} color={colors.text.primary} />
-            <Text style={styles.optionLabel}>Fonts</Text>
-          </TouchableOpacity>
-          {!showMoreOptions ? (
-            <TouchableOpacity style={styles.optionButton} onPress={() => setShowMoreOptions(true)}>
-              <Text style={styles.optionLabel}>See more</Text>
-            </TouchableOpacity>
+        <View style={styles.previewContent}>
+          {contentType === 'image' ? (
+            <Image source={{ uri: mediaUri }} style={styles.previewMediaFull} contentFit="contain" />
           ) : (
-            <>
-              <TouchableOpacity style={styles.optionButton}>
-                <AtSign size={20} color={colors.text.primary} />
-                <Text style={styles.optionLabel}>Mention</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.optionButton}>
-                <LinkIcon size={20} color={colors.text.primary} />
-                <Text style={styles.optionLabel}>Link</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.optionButton} onPress={() => setShowMoreOptions(false)}>
-                <Text style={styles.optionLabel}>See less</Text>
-              </TouchableOpacity>
-            </>
+            <Video
+              source={{ uri: mediaUri }}
+              style={styles.previewMediaFull}
+              resizeMode={ResizeMode.CONTAIN}
+              shouldPlay
+              isLooping
+              useNativeControls
+            />
           )}
         </View>
 
-        {/* Preview of Last Status */}
-        {lastStatus && (
-          <View style={styles.previewContainer}>
-            <View style={[styles.statusPreview, lastStatus.content_type === 'text' && styles.statusPreviewCentered]}>
-              {lastStatus.content_type === 'text' ? (
-                <Text style={styles.previewText}>{lastStatus.text_content || 'Your last status'}</Text>
-              ) : lastStatusMediaUrl ? (
-                lastStatus.content_type === 'video' ? (
-                  <Video
-                    source={{ uri: lastStatusMediaUrl }}
-                    style={styles.previewMedia}
-                    resizeMode={ResizeMode.COVER}
-                    shouldPlay={false}
-                    useNativeControls={false}
-                  />
-                ) : (
-                  <Image
-                    source={{ uri: lastStatusMediaUrl }}
-                    style={styles.previewMedia}
-                    contentFit="cover"
-                  />
-                )
-              ) : null}
-            </View>
-            <Text style={styles.previewUsername}>{currentUser?.fullName || 'You'}</Text>
+        {/* Privacy Badge */}
+        <TouchableOpacity 
+          style={styles.privacyBadge}
+          onPress={() => setScreenMode('privacy')}
+        >
+          <Text style={styles.privacyBadgeText}>
+            {privacyLevel === 'public' ? '🌐' : 
+             privacyLevel === 'friends' ? '👥' : 
+             privacyLevel === 'followers' ? '👤' : '🔒'} {privacyLevel.charAt(0).toUpperCase() + privacyLevel.slice(1)}
+          </Text>
+        </TouchableOpacity>
+      </SafeAreaView>
+    );
+  }
+
+  // Text Creation Screen
+  return (
+    <KeyboardAvoidingView
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      style={[styles.container, { backgroundColor: '#000' }]}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+    >
+      <StatusBar barStyle="light-content" />
+      <SafeAreaView style={styles.flex1}>
+        {/* Header */}
+        <View style={styles.textHeader}>
+          <View style={styles.textHeaderLeft}>
+            <TouchableOpacity 
+              style={styles.textHeaderIconButton}
+              onPress={() => setScreenMode('gallery')}
+            >
+              <ChevronRight size={20} color="#fff" style={{ transform: [{ rotate: '180deg' }] }} />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.textHeaderIconButton}>
+              <Text style={styles.emojiIcon}>💬</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={styles.textHeaderIconButton}
+              onPress={() => {
+                const colors = ['#1A73E8', '#1877F2', '#42A5F5', '#66BB6A', '#EF5350', '#FFA726', '#AB47BC', '#EC407A'];
+                const randomColor = colors[Math.floor(Math.random() * colors.length)];
+                setTextBackgroundColor(randomColor);
+              }}
+            >
+              <View style={[styles.colorDot, { backgroundColor: textBackgroundColor }]} />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.textHeaderIconButton}>
+              <Type size={20} color="#fff" />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.textHeaderIconButton}>
+              <MoreHorizontal size={20} color="#fff" />
+            </TouchableOpacity>
           </View>
-        )}
-      </ScrollView>
+          <TouchableOpacity
+            style={[styles.doneButton, isPosting && styles.doneButtonDisabled]}
+            onPress={handlePost}
+            disabled={isPosting || !textContent.trim()}
+          >
+            {isPosting ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <Text style={styles.doneButtonText}>Done</Text>
+            )}
+          </TouchableOpacity>
+        </View>
+
+        <ScrollView 
+          style={styles.textContent} 
+          contentContainerStyle={styles.textContentContainer}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          {/* Text Input Area - Better Design */}
+          <View style={[styles.textInputArea, { backgroundColor: textBackgroundColor }]}>
+            <TextInput
+              style={[styles.textInput, getTextStyle()]}
+              placeholder="Type or @Tag"
+              placeholderTextColor="rgba(255, 255, 255, 0.6)"
+              value={textContent}
+              onChangeText={setTextContent}
+              multiline
+              autoFocus
+              textAlign={textStyle === 'classic' ? 'center' : 'left'}
+            />
+          </View>
+
+          {/* Text Style Options - Better Design */}
+          <View style={styles.textStyleContainer}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.textStyleScroll}>
+              {(['classic', 'neon', 'typewriter'] as const).map((style) => (
+                <TouchableOpacity
+                  key={style}
+                  style={[
+                    styles.textStyleOption,
+                    textStyle === style && styles.textStyleOptionActive,
+                  ]}
+                  onPress={() => setTextStyle(style)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[
+                    styles.textStyleOptionText,
+                    textStyle === style && styles.textStyleOptionTextActive,
+                  ]}>
+                    {style.charAt(0).toUpperCase() + style.slice(1)}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+
+          {/* Options Bar - Better Layout */}
+          <View style={styles.optionsContainer}>
+            <ScrollView 
+              horizontal 
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.optionsScroll}
+            >
+              <OptionButton icon={<Music size={20} color="#fff" />} label="Music" />
+              <OptionButton 
+                icon={<Palette size={20} color="#fff" />} 
+                label="Background"
+                onPress={() => {
+                  const colors = ['#1A73E8', '#1877F2', '#42A5F5', '#66BB6A', '#EF5350', '#FFA726', '#AB47BC', '#EC407A', '#000', '#fff'];
+                  const randomColor = colors[Math.floor(Math.random() * colors.length)];
+                  setTextBackgroundColor(randomColor);
+                }}
+              />
+              <OptionButton icon={<Smile size={20} color="#fff" />} label="Stickers" />
+              <OptionButton icon={<Type size={20} color="#fff" />} label="Fonts" />
+              
+              {!showMoreOptions ? (
+                <TouchableOpacity 
+                  style={styles.optionButton}
+                  onPress={() => setShowMoreOptions(true)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.optionLabel}>See more</Text>
+                </TouchableOpacity>
+              ) : (
+                <>
+                  <OptionButton icon={<AtSign size={20} color="#fff" />} label="Mention" />
+                  <OptionButton icon={<LinkIcon size={20} color="#fff" />} label="Link" />
+                  <TouchableOpacity 
+                    style={styles.optionButton}
+                    onPress={() => setShowMoreOptions(false)}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={styles.optionLabel}>See less</Text>
+                  </TouchableOpacity>
+                </>
+              )}
+            </ScrollView>
+          </View>
+
+          {/* Preview of Last Status */}
+          {lastStatus && (
+            <View style={styles.previewContainer}>
+              <Text style={styles.previewSectionTitle}>Your last story</Text>
+              <View style={[styles.statusPreview, lastStatus.content_type === 'text' && styles.statusPreviewCentered]}>
+                {lastStatus.content_type === 'text' ? (
+                  <Text style={styles.previewText}>{lastStatus.text_content || 'Your last status'}</Text>
+                ) : lastStatusMediaUrl ? (
+                  lastStatus.content_type === 'video' ? (
+                    <Video
+                      source={{ uri: lastStatusMediaUrl }}
+                      style={styles.previewMedia}
+                      resizeMode={ResizeMode.COVER}
+                      shouldPlay={false}
+                      useNativeControls={false}
+                    />
+                  ) : (
+                    <Image
+                      source={{ uri: lastStatusMediaUrl }}
+                      style={styles.previewMedia}
+                      contentFit="cover"
+                    />
+                  )
+                ) : null}
+              </View>
+              <Text style={styles.previewUsername}>{currentUser?.fullName || 'You'}</Text>
+            </View>
+          )}
+        </ScrollView>
+      </SafeAreaView>
     </KeyboardAvoidingView>
   );
 
-  function getBackgroundColor() {
-    if (textStyle === 'neon') return '#000';
-    if (textStyle === 'typewriter') return '#1a1a1a';
-    return '#1A73E8';
-  }
-
   function getTextStyle() {
     const baseStyle: any = {
-      fontSize: 24,
+      fontSize: textStyle === 'typewriter' ? 20 : 28,
       color: textStyle === 'neon' ? '#00ffff' : '#fff',
       fontWeight: textStyle === 'typewriter' ? ('400' as const) : ('600' as const),
+      fontFamily: textStyle === 'typewriter' ? 'monospace' : undefined,
     };
     return baseStyle;
   }
 }
 
+// Option Button Component
+function OptionButton({ 
+  icon, 
+  label, 
+  onPress 
+}: { 
+  icon: React.ReactNode; 
+  label: string; 
+  onPress?: () => void;
+}) {
+  return (
+    <TouchableOpacity 
+      style={styles.optionButton}
+      onPress={onPress}
+      activeOpacity={0.7}
+    >
+      {icon}
+      <Text style={styles.optionLabel}>{label}</Text>
+    </TouchableOpacity>
+  );
+}
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000',
   },
+  flex1: {
+    flex: 1,
+  },
+  // Header Styles
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 16,
-    paddingTop: Platform.OS === 'ios' ? 50 : 16,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    paddingTop: Platform.OS === 'ios' ? 8 : 16,
+  },
+  headerButton: {
+    padding: 8,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
   },
   headerTitle: {
     fontSize: 18,
-    fontWeight: '600',
+    fontWeight: '700' as const,
     color: '#fff',
   },
-  backArrow: {
-    fontSize: 24,
-    color: '#fff',
-  },
-  toolsContainer: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+  // Tools Section
+  toolsSection: {
+    paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#333',
+    borderBottomColor: 'rgba(255, 255, 255, 0.1)',
   },
-  toolButton: {
+  toolsScrollContent: {
+    paddingHorizontal: 16,
+    gap: 12,
+  },
+  toolCard: {
+    width: 80,
     alignItems: 'center',
-    marginRight: 16,
-    width: 70,
+    marginRight: 12,
   },
-  largeToolButton: {
-    alignItems: 'center',
-    marginRight: 16,
-    width: 100,
+  toolCardPrimary: {
+    width: 90,
   },
-  toolIconContainer: {
-    width: 60,
-    height: 60,
-    borderRadius: 12,
-    backgroundColor: '#1a1a1a',
+  toolCardLarge: {
+    width: 110,
+  },
+  toolCardCamera: {
+    width: 85,
+  },
+  toolIconWrapper: {
+    width: 64,
+    height: 64,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 8,
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
   },
   toolLabel: {
     fontSize: 12,
     color: '#fff',
+    fontWeight: '500' as const,
     textAlign: 'center',
   },
+  // Gallery Selector
   gallerySelector: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 12,
     gap: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.1)',
   },
   gallerySelectorText: {
     fontSize: 16,
     color: '#fff',
-    fontWeight: '500',
+    fontWeight: '600' as const,
   },
+  // Grid Styles
   gridContainer: {
     padding: 16,
   },
@@ -582,11 +782,19 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
   },
-  videoIndicator: {
+  videoOverlay: {
     position: 'absolute',
-    bottom: 4,
-    right: 4,
-    backgroundColor: 'rgba(0,0,0,0.7)',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 24,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    alignItems: 'flex-end',
+    justifyContent: 'center',
+    paddingRight: 4,
+  },
+  videoBadge: {
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 4,
@@ -594,9 +802,9 @@ const styles = StyleSheet.create({
   videoDuration: {
     color: '#fff',
     fontSize: 10,
-    fontWeight: '600',
+    fontWeight: '600' as const,
   },
-  // Privacy Screen Styles
+  // Privacy Screen
   privacyContent: {
     flex: 1,
     padding: 16,
@@ -605,35 +813,47 @@ const styles = StyleSheet.create({
     marginBottom: 32,
   },
   sectionTitle: {
-    fontSize: 20,
-    fontWeight: '700',
+    fontSize: 22,
+    fontWeight: '700' as const,
     color: '#fff',
     marginBottom: 8,
   },
   sectionSubtitle: {
-    fontSize: 14,
+    fontSize: 15,
     color: '#aaa',
     marginBottom: 24,
+    lineHeight: 20,
   },
   privacyOption: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
     padding: 16,
     borderRadius: 12,
-    backgroundColor: '#1a1a1a',
+    backgroundColor: '#2a2a2a',
     marginBottom: 12,
   },
+  privacyOptionActive: {
+    backgroundColor: 'rgba(26, 115, 232, 0.2)',
+    borderWidth: 1,
+    borderColor: '#1A73E8',
+  },
+  privacyOptionLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
   privacyIcon: {
-    fontSize: 24,
+    fontSize: 28,
     marginRight: 16,
   },
   privacyOptionContent: {
     flex: 1,
   },
   privacyOptionLabel: {
-    fontSize: 16,
+    fontSize: 17,
     color: '#fff',
-    fontWeight: '600',
+    fontWeight: '600' as const,
     marginBottom: 4,
   },
   privacyOptionSubtitle: {
@@ -663,60 +883,108 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 16,
     borderRadius: 12,
-    backgroundColor: '#1a1a1a',
+    backgroundColor: '#2a2a2a',
     marginBottom: 12,
   },
   settingsIcon: {
-    fontSize: 24,
+    fontSize: 28,
     marginRight: 16,
   },
   settingsLabel: {
     flex: 1,
-    fontSize: 16,
+    fontSize: 17,
     color: '#fff',
-    fontWeight: '600',
+    fontWeight: '600' as const,
   },
-  // Text Creation Screen Styles
+  // Preview Screen
+  previewHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    paddingTop: Platform.OS === 'ios' ? 8 : 16,
+  },
+  previewContent: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  previewMediaFull: {
+    width: width,
+    height: height * 0.75,
+  },
+  privacyBadge: {
+    position: 'absolute',
+    bottom: 100,
+    alignSelf: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+  },
+  privacyBadgeText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600' as const,
+  },
+  postButton: {
+    paddingHorizontal: 20,
+    paddingVertical: 8,
+    backgroundColor: '#1A73E8',
+    borderRadius: 20,
+  },
+  postButtonText: {
+    color: '#fff',
+    fontWeight: '600' as const,
+    fontSize: 16,
+  },
+  // Text Creation Screen
   textHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: 16,
-    paddingTop: Platform.OS === 'ios' ? 50 : 16,
+    paddingTop: Platform.OS === 'ios' ? 8 : 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#333',
+    borderBottomColor: 'rgba(255, 255, 255, 0.1)',
   },
   textHeaderLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 8,
   },
-  headerIconButton: {
+  textHeaderIconButton: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#1a1a1a',
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  headerIconText: {
+  emojiIcon: {
     fontSize: 18,
   },
-  rainbowIcon: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: '#1A73E8',
+  colorDot: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: '#fff',
   },
   doneButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    backgroundColor: '#333',
-    borderRadius: 8,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    backgroundColor: '#1A73E8',
+    borderRadius: 20,
+  },
+  doneButtonDisabled: {
+    opacity: 0.5,
   },
   doneButtonText: {
     color: '#fff',
-    fontWeight: '600',
+    fontWeight: '600' as const,
+    fontSize: 16,
   },
   textContent: {
     flex: 1,
@@ -726,45 +994,58 @@ const styles = StyleSheet.create({
   },
   textInputArea: {
     minHeight: 300,
-    borderRadius: 12,
-    padding: 20,
-    marginBottom: 16,
+    borderRadius: 16,
+    padding: 24,
+    marginBottom: 20,
     alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 5,
   },
   textInput: {
     flex: 1,
     textAlignVertical: 'center',
     width: '100%',
+    minHeight: 200,
   },
-  textStyleOptions: {
-    flexDirection: 'row',
+  textStyleContainer: {
+    marginBottom: 20,
+  },
+  textStyleScroll: {
     gap: 12,
-    marginBottom: 16,
+    paddingRight: 16,
   },
   textStyleOption: {
-    flex: 1,
+    paddingHorizontal: 24,
     paddingVertical: 12,
-    borderRadius: 20,
-    backgroundColor: '#1a1a1a',
-    alignItems: 'center',
+    borderRadius: 24,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+    marginRight: 12,
   },
   textStyleOptionActive: {
     backgroundColor: '#1A73E8',
+    borderColor: '#1A73E8',
   },
   textStyleOptionText: {
     color: '#aaa',
-    fontWeight: '500',
+    fontWeight: '500' as const,
+    fontSize: 14,
   },
   textStyleOptionTextActive: {
     color: '#fff',
-    fontWeight: '600',
+    fontWeight: '600' as const,
   },
-  optionsBar: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
+  optionsContainer: {
     marginBottom: 24,
+  },
+  optionsScroll: {
+    gap: 12,
+    paddingRight: 16,
   },
   optionButton: {
     flexDirection: 'row',
@@ -772,25 +1053,37 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 20,
-    backgroundColor: '#1a1a1a',
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
     gap: 8,
+    marginRight: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
   },
   optionLabel: {
     color: '#fff',
     fontSize: 14,
-    fontWeight: '500',
+    fontWeight: '500' as const,
   },
   previewContainer: {
-    marginTop: 24,
+    marginTop: 32,
     alignItems: 'center',
+    paddingBottom: 40,
+  },
+  previewSectionTitle: {
+    fontSize: 16,
+    fontWeight: '600' as const,
+    color: '#aaa',
+    marginBottom: 12,
+    alignSelf: 'flex-start',
   },
   statusPreview: {
     width: '100%',
     minHeight: 200,
-    borderRadius: 12,
+    borderRadius: 16,
     backgroundColor: '#1a1a1a',
     padding: 20,
     marginBottom: 12,
+    overflow: 'hidden',
   },
   statusPreviewCentered: {
     alignItems: 'center',
@@ -804,10 +1097,11 @@ const styles = StyleSheet.create({
   previewMedia: {
     width: '100%',
     height: 200,
-    borderRadius: 8,
+    borderRadius: 12,
   },
   previewUsername: {
-    fontSize: 12,
-    color: '#aaa',
+    fontSize: 13,
+    color: '#999',
+    fontWeight: '500' as const,
   },
 });
