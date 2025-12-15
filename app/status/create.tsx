@@ -583,45 +583,29 @@ export default function CreateStatusScreen() {
             <View style={[styles.textInputArea, { backgroundColor: textBackgroundColor }]} />
           )}
           
-          {/* Text Input Area - Facebook Style with Independent Background Layer */}
+          {/* Text Input Area - Facebook Style with Dynamic Background */}
           <View style={styles.textInputWrapper}>
-            {/* Background Layer - Auto-sizing wrapper that hugs text with rounded corners and shadow */}
+            {/* Background Layer - Text component that auto-sizes to hug text content tightly */}
             {(textEffect === 'white-bg' || textEffect === 'black-bg') && textContent && (
-              <View 
+              <Text
                 style={[
-                  styles.textBackgroundWrapper,
+                  styles.textBackgroundDynamic,
+                  getTextStyle(),
                   {
+                    textAlign: textAlignment,
+                    backgroundColor: textEffect === 'white-bg' ? '#fff' : '#000',
+                    color: textEffect === 'white-bg' ? '#000' : '#fff',
+                    shadowColor: textEffect === 'white-bg' ? '#000' : '#fff',
                     alignSelf: textAlignment === 'left' ? 'flex-start' : 
                               textAlignment === 'right' ? 'flex-end' : 'center',
                   },
                 ]}
               >
-                <View
-                  style={[
-                    styles.textBackgroundContainer,
-                    {
-                      backgroundColor: textEffect === 'white-bg' ? '#fff' : '#000',
-                      shadowColor: textEffect === 'white-bg' ? '#000' : '#fff',
-                    },
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.textBackgroundShape,
-                      getTextStyle(),
-                      {
-                        textAlign: textAlignment,
-                        color: textEffect === 'white-bg' ? '#000' : '#fff',
-                      },
-                    ]}
-                  >
-                    {textContent}
-                  </Text>
-                </View>
-              </View>
+                {textContent}
+              </Text>
             )}
             
-            {/* Main text input - Independent text layer */}
+            {/* Main text input - Independent text layer positioned over background */}
             <TextInput
               style={[
                 styles.fullScreenTextInput,
@@ -635,7 +619,7 @@ export default function CreateStatusScreen() {
                 (textEffect === 'white-bg' || textEffect === 'black-bg') && {
                   backgroundColor: 'transparent',
                   color: textEffect === 'white-bg' ? '#000' : '#fff',
-                  // Match padding exactly with background container for perfect alignment
+                  // Match padding exactly with background for perfect overlay alignment
                   paddingHorizontal: 16,
                   paddingVertical: 12,
                 },
@@ -1223,24 +1207,22 @@ const styles = StyleSheet.create({
     padding: 24,
     position: 'relative',
   },
-  textBackgroundWrapper: {
+  textBackgroundDynamic: {
+    // Facebook-style: Text component with backgroundColor auto-sizes to hug content
+    // Width determined by longest line, tightly wraps text, no extra space
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
-    justifyContent: 'center',
-    alignItems: 'center',
     zIndex: 0,
     pointerEvents: 'none',
-    paddingHorizontal: 24,
-  },
-  textBackgroundContainer: {
-    // Auto-sizing container that hugs text content organically (Facebook-style)
-    borderRadius: 12,
+    textAlignVertical: 'center',
+    // Padding creates soft, rounded rectangle background
     paddingHorizontal: 16,
     paddingVertical: 12,
-    // Soft shadow for depth and realism
+    borderRadius: 12,
+    // Soft shadow for realistic depth (Facebook-style)
     shadowOffset: {
       width: 0,
       height: 2,
@@ -1248,12 +1230,9 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 8,
     elevation: 4,
-    maxWidth: '100%',
-  },
-  textBackgroundShape: {
-    textAlignVertical: 'center',
-    // Text naturally wraps and creates organic shape
-    maxWidth: '100%',
+    // Text naturally determines width based on longest line
+    maxWidth: '85%',
+    alignSelf: 'center',
   },
   fullScreenTextInput: {
     width: '85%',
