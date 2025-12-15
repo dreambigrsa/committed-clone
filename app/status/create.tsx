@@ -611,9 +611,9 @@ export default function CreateStatusScreen() {
                         {
                           alignSelf: textAlignment === 'left' ? 'flex-start' : 
                                     textAlignment === 'right' ? 'flex-end' : 'center',
-                          // Even spacing between lines for clean, soft appearance
-                          marginBottom: index < textLines.length - 1 ? 4 : 0, // Even 4px spacing
-                          marginTop: 0,
+                          // Slight vertical overlap to ensure no visible gaps and single connected silhouette
+                          marginBottom: 0,
+                          marginTop: isFirstLine ? 0 : -2, // Overlap by 2px for seamless connection
                         },
                       ]}
                     >
@@ -623,8 +623,13 @@ export default function CreateStatusScreen() {
                           {
                             backgroundColor: textEffect === 'white-bg' ? '#fff' : '#000',
                             shadowColor: textEffect === 'white-bg' ? '#000' : '#fff',
-                            // Soft rounded edges on all corners for clean, modern look
-                            borderRadius: 16, // Even, rounded edges throughout
+                            // Rounded corners only on outer edges for unified container feel
+                            borderTopLeftRadius: isFirstLine ? 16 : 0,
+                            borderTopRightRadius: isFirstLine ? 16 : 0,
+                            borderBottomLeftRadius: isLastLine ? 16 : 0,
+                            borderBottomRightRadius: isLastLine ? 16 : 0,
+                            // Single line = fully rounded pill
+                            borderRadius: isFirstLine && isLastLine ? 16 : undefined,
                             // Use Text inside View to determine width, but make it completely invisible
                             alignSelf: textAlignment === 'left' ? 'flex-start' : 
                                       textAlignment === 'right' ? 'flex-end' : 'center',
@@ -1250,8 +1255,11 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 24,
+    paddingHorizontal: 24,
+    paddingVertical: 0,
     position: 'relative',
+    width: '100%',
+    height: '100%',
   },
   // Container for stacked line backgrounds - seamlessly merged unified container
   textLinesContainer: {
@@ -1270,39 +1278,45 @@ const styles = StyleSheet.create({
   },
   // Wrapper for each line to handle alignment
   textLineWrapper: {
-    // Even spacing between lines for clean, soft appearance
+    // Slight overlap for seamless connection - creates single connected silhouette
+    marginBottom: 0,
     width: '100%',
   },
-  // Individual background per line - soft rounded edges with even spacing
+  // Individual connected background per line - seamlessly merged into one unified container
   textLineBackground: {
     // View container that wraps transparent Text for width calculation
-    // Variable width per line creates adaptive pill shapes with soft edges
+    // Variable width per line creates adaptive pill shapes that connect
     paddingHorizontal: 16,
     paddingVertical: 12,
-    // Soft rounded edges on all corners - clean, modern appearance
-    borderRadius: 16,
-    // Soft shadow creates gentle depth
+    // Border radius set dynamically: rounded only on outer edges (first/last line)
+    // Inner edges are square for seamless connection into single silhouette
+    // Soft shadow creates depth for the unified container
     shadowOffset: {
       width: 0,
-      height: 1,
+      height: 2,
     },
-    shadowOpacity: 0.12,
-    shadowRadius: 3,
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
     elevation: 2,
     // View wraps transparent Text that determines width - creates adaptive-width pills
     // Short lines = narrow backgrounds, long lines = wide backgrounds
     maxWidth: '100%',
+    // Ensure backgrounds overlap slightly to eliminate any visible gaps
+    overflow: 'hidden',
     // View sizes to its content (transparent Text inside)
     alignSelf: 'flex-start',
   },
   fullScreenTextInput: {
-    width: '85%',
+    width: '100%',
+    height: '100%',
     textAlignVertical: 'center',
-    minHeight: 100,
     paddingHorizontal: 24,
-    paddingVertical: 16,
+    paddingVertical: 0,
     zIndex: 1,
     backgroundColor: 'transparent',
+    // Remove any visible box constraints
+    borderWidth: 0,
+    outlineWidth: 0,
   },
   textInputWithBg: {
     position: 'relative',
