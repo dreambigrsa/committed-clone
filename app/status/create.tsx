@@ -589,15 +589,19 @@ export default function CreateStatusScreen() {
           
           {/* Text Input Area - Facebook Style with Per-Line Background Bubbles */}
           <View style={styles.textInputWrapper}>
-            {/* Background Layer - Individual pill-shaped backgrounds per line */}
+            {/* Background Layer - Connected bubbles with seamless merging */}
             {(textEffect === 'white-bg' || textEffect === 'black-bg') && textContent && (
               <View style={styles.textLinesContainer}>
                 {textLines.map((line, index) => {
                   // Skip completely empty lines (but preserve intentional line breaks)
                   if (!line.trim() && textLines.length > 1) {
-                    // Only skip if it's not the only line or last line
                     if (index < textLines.length - 1) return null;
                   }
+                  
+                  const isFirstLine = index === 0;
+                  const isLastLine = index === textLines.length - 1;
+                  const isMiddleLine = !isFirstLine && !isLastLine;
+                  const totalLines = textLines.filter(l => l.trim() || textLines.length === 1).length;
                   
                   return (
                     <View
@@ -607,6 +611,9 @@ export default function CreateStatusScreen() {
                         {
                           alignSelf: textAlignment === 'left' ? 'flex-start' : 
                                     textAlignment === 'right' ? 'flex-end' : 'center',
+                          // Remove spacing for seamless connection
+                          marginBottom: 0,
+                          marginTop: isFirstLine ? 0 : -1, // Slight overlap for seamless merge
                         },
                       ]}
                     >
@@ -619,6 +626,13 @@ export default function CreateStatusScreen() {
                             backgroundColor: textEffect === 'white-bg' ? '#fff' : '#000',
                             color: textEffect === 'white-bg' ? '#000' : '#fff',
                             shadowColor: textEffect === 'white-bg' ? '#000' : '#fff',
+                            // Rounded corners only on outer edges
+                            borderTopLeftRadius: isFirstLine ? 20 : 0,
+                            borderTopRightRadius: isFirstLine ? 20 : 0,
+                            borderBottomLeftRadius: isLastLine ? 20 : 0,
+                            borderBottomRightRadius: isLastLine ? 20 : 0,
+                            // Inner edges squared (no rounding for middle lines)
+                            borderRadius: isFirstLine && isLastLine ? 20 : 0, // Single line = fully rounded
                           },
                         ]}
                       >
@@ -644,9 +658,9 @@ export default function CreateStatusScreen() {
                 (textEffect === 'white-bg' || textEffect === 'black-bg') && {
                   backgroundColor: 'transparent',
                   color: textEffect === 'white-bg' ? '#000' : '#fff',
-                  // Match padding exactly with background bubbles for perfect overlay alignment
+                  // Match padding exactly with connected background bubbles for perfect overlay alignment
                   paddingHorizontal: 16,
-                  paddingVertical: 10, // Match textLineBackground paddingVertical
+                  paddingVertical: 12, // Match textLineBackground paddingVertical
                 },
               ]}
               placeholder="Type or @Tag"
@@ -1232,7 +1246,7 @@ const styles = StyleSheet.create({
     padding: 24,
     position: 'relative',
   },
-  // Container for stacked line backgrounds
+  // Container for stacked line backgrounds - connected bubbles
   textLinesContainer: {
     position: 'absolute',
     top: 0,
@@ -1244,18 +1258,22 @@ const styles = StyleSheet.create({
     zIndex: 0,
     pointerEvents: 'none',
     paddingHorizontal: 24,
+    // Ensure seamless stacking
+    flexDirection: 'column',
   },
   // Wrapper for each line to handle alignment
   textLineWrapper: {
-    marginBottom: 6, // Consistent spacing between line bubbles
+    // No margin - backgrounds connect seamlessly
+    marginBottom: 0,
+    width: '100%',
   },
-  // Individual pill-shaped background per line
+  // Individual connected background per line - seamless merging
   textLineBackground: {
     // Each line gets its own background that auto-sizes to text width
     paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 20, // Pill shape (larger radius for more rounded)
-    // Soft shadow for realistic depth (Facebook-style)
+    paddingVertical: 12,
+    // Border radius will be set dynamically (rounded only on outer edges)
+    // Soft shadow applied to entire connected container (only on first/last)
     shadowOffset: {
       width: 0,
       height: 1,
@@ -1265,6 +1283,8 @@ const styles = StyleSheet.create({
     elevation: 3,
     // Text naturally determines width - short lines = small bubbles, long lines = wide bubbles
     maxWidth: '100%',
+    // Ensure seamless connection - no gaps
+    overflow: 'hidden',
   },
   fullScreenTextInput: {
     width: '85%',
