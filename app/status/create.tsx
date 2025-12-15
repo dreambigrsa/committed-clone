@@ -79,6 +79,10 @@ export default function CreateStatusScreen() {
   const [textStyle, setTextStyle] = useState<FontStyle>('classic');
   const [textEffect, setTextEffect] = useState<TextEffect>('default');
   const [textAlignment, setTextAlignment] = useState<TextAlignment>('center');
+  
+  // Split text into lines for per-line background rendering
+  // Each line gets its own independent pill-shaped background
+  const textLines = textContent.split('\n');
 
   // Cycle through text effects when Aa button is clicked
   const cycleTextEffect = () => {
@@ -583,29 +587,50 @@ export default function CreateStatusScreen() {
             <View style={[styles.textInputArea, { backgroundColor: textBackgroundColor }]} />
           )}
           
-          {/* Text Input Area - Facebook Style with Dynamic Background */}
+          {/* Text Input Area - Facebook Style with Per-Line Background Bubbles */}
           <View style={styles.textInputWrapper}>
-            {/* Background Layer - Text component that auto-sizes to hug text content tightly */}
+            {/* Background Layer - Individual pill-shaped backgrounds per line */}
             {(textEffect === 'white-bg' || textEffect === 'black-bg') && textContent && (
-              <Text
-                style={[
-                  styles.textBackgroundDynamic,
-                  getTextStyle(),
-                  {
-                    textAlign: textAlignment,
-                    backgroundColor: textEffect === 'white-bg' ? '#fff' : '#000',
-                    color: textEffect === 'white-bg' ? '#000' : '#fff',
-                    shadowColor: textEffect === 'white-bg' ? '#000' : '#fff',
-                    alignSelf: textAlignment === 'left' ? 'flex-start' : 
-                              textAlignment === 'right' ? 'flex-end' : 'center',
-                  },
-                ]}
-              >
-                {textContent}
-              </Text>
+              <View style={styles.textLinesContainer}>
+                {textLines.map((line, index) => {
+                  // Skip completely empty lines (but preserve intentional line breaks)
+                  if (!line.trim() && textLines.length > 1) {
+                    // Only skip if it's not the only line or last line
+                    if (index < textLines.length - 1) return null;
+                  }
+                  
+                  return (
+                    <View
+                      key={index}
+                      style={[
+                        styles.textLineWrapper,
+                        {
+                          alignSelf: textAlignment === 'left' ? 'flex-start' : 
+                                    textAlignment === 'right' ? 'flex-end' : 'center',
+                        },
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.textLineBackground,
+                          getTextStyle(),
+                          {
+                            textAlign: textAlignment,
+                            backgroundColor: textEffect === 'white-bg' ? '#fff' : '#000',
+                            color: textEffect === 'white-bg' ? '#000' : '#fff',
+                            shadowColor: textEffect === 'white-bg' ? '#000' : '#fff',
+                          },
+                        ]}
+                      >
+                        {line.trim() || '\u00A0'} {/* Use non-breaking space for empty lines */}
+                      </Text>
+                    </View>
+                  );
+                })}
+              </View>
             )}
             
-            {/* Main text input - Independent text layer positioned over background */}
+            {/* Main text input - Independent text layer positioned over backgrounds */}
             <TextInput
               style={[
                 styles.fullScreenTextInput,
@@ -619,9 +644,9 @@ export default function CreateStatusScreen() {
                 (textEffect === 'white-bg' || textEffect === 'black-bg') && {
                   backgroundColor: 'transparent',
                   color: textEffect === 'white-bg' ? '#000' : '#fff',
-                  // Match padding exactly with background for perfect overlay alignment
+                  // Match padding exactly with background bubbles for perfect overlay alignment
                   paddingHorizontal: 16,
-                  paddingVertical: 12,
+                  paddingVertical: 10, // Match textLineBackground paddingVertical
                 },
               ]}
               placeholder="Type or @Tag"
@@ -1207,32 +1232,39 @@ const styles = StyleSheet.create({
     padding: 24,
     position: 'relative',
   },
-  textBackgroundDynamic: {
-    // Facebook-style: Text component with backgroundColor auto-sizes to hug content
-    // Width determined by longest line, tightly wraps text, no extra space
+  // Container for stacked line backgrounds
+  textLinesContainer: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
     zIndex: 0,
     pointerEvents: 'none',
-    textAlignVertical: 'center',
-    // Padding creates soft, rounded rectangle background
+    paddingHorizontal: 24,
+  },
+  // Wrapper for each line to handle alignment
+  textLineWrapper: {
+    marginBottom: 6, // Consistent spacing between line bubbles
+  },
+  // Individual pill-shaped background per line
+  textLineBackground: {
+    // Each line gets its own background that auto-sizes to text width
     paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 12,
+    paddingVertical: 10,
+    borderRadius: 20, // Pill shape (larger radius for more rounded)
     // Soft shadow for realistic depth (Facebook-style)
     shadowOffset: {
       width: 0,
-      height: 2,
+      height: 1,
     },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    elevation: 4,
-    // Text naturally determines width based on longest line
-    maxWidth: '85%',
-    alignSelf: 'center',
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
+    // Text naturally determines width - short lines = small bubbles, long lines = wide bubbles
+    maxWidth: '100%',
   },
   fullScreenTextInput: {
     width: '85%',
