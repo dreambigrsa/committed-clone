@@ -567,27 +567,51 @@ export default function CreateStatusScreen() {
             <View style={[styles.textInputArea, { backgroundColor: textBackgroundColor }]} />
           )}
           
-          {/* Text Container with Effect Background */}
-          <View 
-            style={[
-              styles.textWrapper,
-              getTextEffectWrapperStyle(),
-            ]}
-          >
-            <TextInput
-              style={[
-                styles.fullScreenTextInput,
-                getTextStyle(),
-                getTextEffectStyle(),
-                { textAlign: textAlignment },
-              ]}
-              placeholder="Type or @Tag"
-              placeholderTextColor="rgba(255, 255, 255, 0.6)"
-              value={textContent}
-              onChangeText={setTextContent}
-              multiline
-              autoFocus
-            />
+          {/* Text Input Area */}
+          <View style={styles.textInputWrapper}>
+            {/* Text Container with Background (only for white-bg and black-bg) */}
+            {textEffect === 'white-bg' || textEffect === 'black-bg' ? (
+              <View 
+                style={[
+                  styles.textContainerWithBg,
+                  getTextEffectWrapperStyle(),
+                  { 
+                    alignItems: textAlignment === 'left' ? 'flex-start' : 
+                               textAlignment === 'right' ? 'flex-end' : 'center' 
+                  },
+                ]}
+              >
+                <TextInput
+                  style={[
+                    styles.textInputWithBg,
+                    getTextStyle(),
+                    getTextEffectStyle(),
+                    { textAlign: textAlignment },
+                  ]}
+                  placeholder="Type or @Tag"
+                  placeholderTextColor={textEffect === 'white-bg' ? 'rgba(0, 0, 0, 0.4)' : 'rgba(255, 255, 255, 0.6)'}
+                  value={textContent}
+                  onChangeText={setTextContent}
+                  multiline
+                  autoFocus
+                />
+              </View>
+            ) : (
+              <TextInput
+                style={[
+                  styles.fullScreenTextInput,
+                  getTextStyle(),
+                  getTextEffectStyle(),
+                  { textAlign: textAlignment },
+                ]}
+                placeholder="Type or @Tag"
+                placeholderTextColor="rgba(255, 255, 255, 0.6)"
+                value={textContent}
+                onChangeText={setTextContent}
+                multiline
+                autoFocus
+              />
+            )}
           </View>
         </View>
 
@@ -892,31 +916,14 @@ export default function CreateStatusScreen() {
   }
 
   function getTextEffectWrapperStyle() {
-    const wrapperStyles: any = {
-      alignSelf: 'flex-start',
-      maxWidth: '90%',
-    };
+    const wrapperStyles: any = {};
     
     switch (textEffect) {
       case 'white-bg':
         wrapperStyles.backgroundColor = 'rgba(255, 255, 255, 0.95)';
-        wrapperStyles.paddingHorizontal = 16;
-        wrapperStyles.paddingVertical = 12;
-        wrapperStyles.borderRadius = 12;
-        wrapperStyles.marginHorizontal = 24;
         break;
       case 'black-bg':
         wrapperStyles.backgroundColor = 'rgba(0, 0, 0, 0.8)';
-        wrapperStyles.paddingHorizontal = 16;
-        wrapperStyles.paddingVertical = 12;
-        wrapperStyles.borderRadius = 12;
-        wrapperStyles.marginHorizontal = 24;
-        break;
-      default:
-        // No background wrapper for other effects
-        wrapperStyles.backgroundColor = 'transparent';
-        wrapperStyles.paddingHorizontal = 0;
-        wrapperStyles.paddingVertical = 0;
         break;
     }
     
@@ -1280,16 +1287,33 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
   },
-  textWrapper: {
+  textInputWrapper: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     padding: 24,
+    position: 'relative',
+  },
+  textContainerWithBg: {
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    maxWidth: '90%',
+    minWidth: 100,
+    alignSelf: 'center',
+  },
+  textInputWithBg: {
+    textAlignVertical: 'center',
+    minWidth: 100,
+    maxWidth: width - 100,
+    minHeight: 50,
   },
   fullScreenTextInput: {
     width: '100%',
     textAlignVertical: 'center',
     minHeight: 100,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
   },
   verticalOptionsContainer: {
     position: 'absolute',
