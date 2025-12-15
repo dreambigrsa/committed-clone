@@ -79,10 +79,24 @@ export default function CreateStatusScreen() {
   const [textStyle, setTextStyle] = useState<FontStyle>('classic');
   const [textEffect, setTextEffect] = useState<TextEffect>('default');
   const [textAlignment, setTextAlignment] = useState<TextAlignment>('center');
+
+  // Cycle through text effects when Aa button is clicked
+  const cycleTextEffect = () => {
+    const effects: TextEffect[] = ['default', 'white-bg', 'black-bg', 'outline-white', 'outline-black', 'glow'];
+    const currentIndex = effects.indexOf(textEffect);
+    const nextIndex = (currentIndex + 1) % effects.length;
+    setTextEffect(effects[nextIndex]);
+  };
+
+  // Cycle through text alignment when alignment button is clicked
+  const cycleTextAlignment = () => {
+    const alignments: TextAlignment[] = ['left', 'center', 'right'];
+    const currentIndex = alignments.indexOf(textAlignment);
+    const nextIndex = (currentIndex + 1) % alignments.length;
+    setTextAlignment(alignments[nextIndex]);
+  };
   const [textBackgroundColor, setTextBackgroundColor] = useState<string>('#1A73E8');
   const [showColorPicker, setShowColorPicker] = useState(false);
-  const [showFontPicker, setShowFontPicker] = useState(false);
-  const [showAlignmentPicker, setShowAlignmentPicker] = useState(false);
   const [lastStatus, setLastStatus] = useState<any>(null);
   const [lastStatusMediaUrl, setLastStatusMediaUrl] = useState<string | null>(null);
   const [selectedMedia, setSelectedMedia] = useState<MediaLibrary.Asset | null>(null);
@@ -618,19 +632,19 @@ export default function CreateStatusScreen() {
             <View style={[styles.colorPreviewCircle, { backgroundColor: textBackgroundColor }]} />
           </TouchableOpacity>
 
-          {/* Text Effect (Aa) */}
+          {/* Text Effect (Aa) - Cycles through effects */}
           <TouchableOpacity
             style={[styles.verticalOptionButton, { backgroundColor: 'rgba(0, 0, 0, 0.5)' }]}
-            onPress={() => setShowFontPicker(!showFontPicker)}
+            onPress={cycleTextEffect}
             activeOpacity={0.7}
           >
             <Text style={styles.aaButton}>Aa</Text>
           </TouchableOpacity>
 
-          {/* Alignment */}
+          {/* Alignment - Cycles through left/center/right */}
           <TouchableOpacity
             style={[styles.verticalOptionButton, { backgroundColor: 'rgba(0, 0, 0, 0.5)' }]}
-            onPress={() => setShowAlignmentPicker(!showAlignmentPicker)}
+            onPress={cycleTextAlignment}
             activeOpacity={0.7}
           >
             {textAlignment === 'left' ? (
@@ -752,137 +766,6 @@ export default function CreateStatusScreen() {
           </Modal>
         )}
 
-        {/* Font/Effect Picker Modal */}
-        {showFontPicker && (
-          <Modal
-            visible={showFontPicker}
-            transparent
-            animationType="slide"
-            onRequestClose={() => setShowFontPicker(false)}
-          >
-            <TouchableOpacity
-              style={styles.modalOverlay}
-              activeOpacity={1}
-              onPress={() => setShowFontPicker(false)}
-            >
-              <View style={[styles.fontPickerContainer, { backgroundColor: cardBg }]}>
-                <View style={styles.fontPickerHeader}>
-                  <Text style={[styles.fontPickerTitle, { color: textColor }]}>Font & Effect</Text>
-                  <TouchableOpacity onPress={() => setShowFontPicker(false)}>
-                    <X size={24} color={textColor} />
-                  </TouchableOpacity>
-                </View>
-
-                {/* Text Effects */}
-                <View style={styles.effectSection}>
-                  <Text style={[styles.sectionLabel, { color: textColor }]}>Effects</Text>
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.effectOptions}>
-                    {([
-                      { value: 'default', label: 'Default', preview: 'Aa' },
-                      { value: 'white-bg', label: 'White BG', preview: 'Aa' },
-                      { value: 'black-bg', label: 'Black BG', preview: 'Aa' },
-                      { value: 'outline-white', label: 'Outline', preview: 'Aa' },
-                      { value: 'outline-black', label: 'Outline B', preview: 'Aa' },
-                      { value: 'glow', label: 'Glow', preview: 'Aa' },
-                    ] as const).map((effect) => (
-                      <TouchableOpacity
-                        key={effect.value}
-                        style={[
-                          styles.effectOption,
-                          { backgroundColor: cardBg },
-                          textEffect === effect.value && { borderColor: colors.primary, borderWidth: 2 },
-                        ]}
-                        onPress={() => setTextEffect(effect.value)}
-                        activeOpacity={0.7}
-                      >
-                        <Text style={[styles.effectPreview, getEffectPreviewStyle(effect.value)]}>
-                          {effect.preview}
-                        </Text>
-                        <Text style={[styles.effectLabel, { color: textColor }]}>{effect.label}</Text>
-                      </TouchableOpacity>
-                    ))}
-                  </ScrollView>
-                </View>
-
-                {/* Font Styles */}
-                <View style={styles.fontSection}>
-                  <Text style={[styles.sectionLabel, { color: textColor }]}>Fonts</Text>
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.fontOptions}>
-                    {(['classic', 'neon', 'typewriter', 'elegant', 'bold', 'italic'] as const).map((font) => (
-                      <TouchableOpacity
-                        key={font}
-                        style={[
-                          styles.fontOption,
-                          { backgroundColor: cardBg },
-                          textStyle === font && { borderColor: colors.primary, borderWidth: 2 },
-                        ]}
-                        onPress={() => setTextStyle(font)}
-                        activeOpacity={0.7}
-                      >
-                        <Text style={[styles.fontPreview, getFontPreviewStyle(font)]}>
-                          {font.charAt(0).toUpperCase() + font.slice(1)}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </ScrollView>
-                </View>
-              </View>
-            </TouchableOpacity>
-          </Modal>
-        )}
-
-        {/* Alignment Picker Modal */}
-        {showAlignmentPicker && (
-          <Modal
-            visible={showAlignmentPicker}
-            transparent
-            animationType="slide"
-            onRequestClose={() => setShowAlignmentPicker(false)}
-          >
-            <TouchableOpacity
-              style={styles.modalOverlay}
-              activeOpacity={1}
-              onPress={() => setShowAlignmentPicker(false)}
-            >
-              <View style={[styles.alignmentPickerContainer, { backgroundColor: cardBg }]}>
-                <View style={styles.alignmentPickerHeader}>
-                  <Text style={[styles.alignmentPickerTitle, { color: textColor }]}>Alignment</Text>
-                  <TouchableOpacity onPress={() => setShowAlignmentPicker(false)}>
-                    <X size={24} color={textColor} />
-                  </TouchableOpacity>
-                </View>
-
-                <View style={styles.alignmentOptions}>
-                  {([
-                    { value: 'left', icon: AlignLeft, label: 'Left' },
-                    { value: 'center', icon: AlignCenter, label: 'Center' },
-                    { value: 'right', icon: AlignRight, label: 'Right' },
-                  ] as const).map((align) => {
-                    const Icon = align.icon;
-                    return (
-                      <TouchableOpacity
-                        key={align.value}
-                        style={[
-                          styles.alignmentOption,
-                          { backgroundColor: cardBg },
-                          textAlignment === align.value && { borderColor: colors.primary, borderWidth: 2 },
-                        ]}
-                        onPress={() => {
-                          setTextAlignment(align.value);
-                          setShowAlignmentPicker(false);
-                        }}
-                        activeOpacity={0.7}
-                      >
-                        <Icon size={32} color={textAlignment === align.value ? colors.primary : textColor} />
-                        <Text style={[styles.alignmentLabel, { color: textColor }]}>{align.label}</Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
-              </View>
-            </TouchableOpacity>
-          </Modal>
-        )}
       </SafeAreaView>
     </KeyboardAvoidingView>
   );
