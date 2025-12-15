@@ -585,8 +585,8 @@ export default function CreateStatusScreen() {
           
           {/* Text Input Area */}
           <View style={styles.textInputWrapper}>
-            {/* Background Text Layer - follows text shape when white-bg or black-bg is selected */}
-            {(textEffect === 'white-bg' || textEffect === 'black-bg') && (
+            {/* Background Text Layer - follows text shape organically when white-bg or black-bg is selected */}
+            {(textEffect === 'white-bg' || textEffect === 'black-bg') && textContent && (
               <Text
                 style={[
                   styles.textBackgroundShape,
@@ -595,17 +595,21 @@ export default function CreateStatusScreen() {
                     textAlign: textAlignment,
                     backgroundColor: textEffect === 'white-bg' ? '#fff' : '#000',
                     color: textEffect === 'white-bg' ? '#000' : '#fff',
-                    // Make background wrap tightly around text by using same content
-                    paddingHorizontal: textContent ? 8 : 0,
-                    paddingVertical: textContent ? 6 : 0,
+                    // Minimal padding to make background wrap tightly to text shape
+                    paddingHorizontal: 12,
+                    paddingVertical: 8,
+                    // Text component with backgroundColor naturally follows text shape
+                    alignSelf: textAlignment === 'left' ? 'flex-start' : 
+                              textAlignment === 'right' ? 'flex-end' : 'center',
+                    borderRadius: 8,
                   },
                 ]}
               >
-                {textContent || ' '}
+                {textContent}
               </Text>
             )}
             
-            {/* Main text input - transparent when background effect is active */}
+            {/* Main text input - overlays on background text layer for shape-following effect */}
             <TextInput
               style={[
                 styles.fullScreenTextInput,
@@ -620,6 +624,12 @@ export default function CreateStatusScreen() {
                   bottom: 0,
                   backgroundColor: 'transparent',
                   color: textEffect === 'white-bg' ? '#000' : '#fff',
+                  // Match padding with background layer for perfect alignment
+                  paddingHorizontal: 10,
+                  paddingVertical: 6,
+                  maxWidth: '85%',
+                  alignSelf: textAlignment === 'left' ? 'flex-start' : 
+                            textAlignment === 'right' ? 'flex-end' : 'center',
                 },
               ]}
               placeholder="Type or @Tag"
@@ -1216,13 +1226,11 @@ const styles = StyleSheet.create({
   },
   textBackgroundShape: {
     position: 'absolute',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
     textAlignVertical: 'center',
     zIndex: 0,
-    borderRadius: 8,
-    alignSelf: 'center',
-    maxWidth: '90%',
+    // Text component with backgroundColor will naturally wrap around text content
+    // making it follow the text shape organically rather than being a perfect rectangle
+    maxWidth: '85%',
   },
   fullScreenTextInput: {
     width: '100%',
