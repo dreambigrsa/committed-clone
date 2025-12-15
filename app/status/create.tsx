@@ -583,42 +583,61 @@ export default function CreateStatusScreen() {
             <View style={[styles.textInputArea, { backgroundColor: textBackgroundColor }]} />
           )}
           
-          {/* Text Input Area */}
+          {/* Text Input Area - Facebook Style with Independent Background Layer */}
           <View style={styles.textInputWrapper}>
-            {/* Background Text Layer - follows text shape organically when white-bg or black-bg is selected */}
-            {(textEffect === 'white-bg' || textEffect === 'black-bg') && (
-              <View style={styles.textBackgroundWrapper}>
-                <Text
+            {/* Background Layer - Auto-sizing wrapper that hugs text with rounded corners and shadow */}
+            {(textEffect === 'white-bg' || textEffect === 'black-bg') && textContent && (
+              <View 
+                style={[
+                  styles.textBackgroundWrapper,
+                  {
+                    alignSelf: textAlignment === 'left' ? 'flex-start' : 
+                              textAlignment === 'right' ? 'flex-end' : 'center',
+                  },
+                ]}
+              >
+                <View
                   style={[
-                    styles.textBackgroundShape,
-                    getTextStyle(),
+                    styles.textBackgroundContainer,
                     {
-                      textAlign: textAlignment,
                       backgroundColor: textEffect === 'white-bg' ? '#fff' : '#000',
-                      color: textEffect === 'white-bg' ? '#000' : '#fff',
-                      paddingHorizontal: 10,
-                      paddingVertical: 8,
-                      borderRadius: 8,
+                      shadowColor: textEffect === 'white-bg' ? '#000' : '#fff',
                     },
                   ]}
                 >
-                  {textContent || ' '}
-                </Text>
+                  <Text
+                    style={[
+                      styles.textBackgroundShape,
+                      getTextStyle(),
+                      {
+                        textAlign: textAlignment,
+                        color: textEffect === 'white-bg' ? '#000' : '#fff',
+                      },
+                    ]}
+                  >
+                    {textContent}
+                  </Text>
+                </View>
               </View>
             )}
             
-            {/* Main text input */}
+            {/* Main text input - Independent text layer */}
             <TextInput
               style={[
                 styles.fullScreenTextInput,
                 getTextStyle(),
                 getTextEffectStyle(),
-                { textAlign: textAlignment },
+                { 
+                  textAlign: textAlignment,
+                  alignSelf: textAlignment === 'left' ? 'flex-start' : 
+                            textAlignment === 'right' ? 'flex-end' : 'center',
+                },
                 (textEffect === 'white-bg' || textEffect === 'black-bg') && {
                   backgroundColor: 'transparent',
                   color: textEffect === 'white-bg' ? '#000' : '#fff',
-                  paddingHorizontal: 10,
-                  paddingVertical: 8,
+                  // Match padding exactly with background container for perfect alignment
+                  paddingHorizontal: 16,
+                  paddingVertical: 12,
                 },
               ]}
               placeholder="Type or @Tag"
@@ -1214,20 +1233,34 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     zIndex: 0,
     pointerEvents: 'none',
+    paddingHorizontal: 24,
+  },
+  textBackgroundContainer: {
+    // Auto-sizing container that hugs text content organically (Facebook-style)
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    // Soft shadow for depth and realism
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 4,
+    maxWidth: '100%',
   },
   textBackgroundShape: {
     textAlignVertical: 'center',
-    // Text component with backgroundColor naturally wraps around text content
-    // creating an organic shape that follows the text (wider for longer lines, narrower for shorter)
-    // This matches the irregular, shape-following background from Facebook
-    maxWidth: '85%',
+    // Text naturally wraps and creates organic shape
+    maxWidth: '100%',
   },
   fullScreenTextInput: {
-    width: '100%',
+    width: '85%',
     textAlignVertical: 'center',
     minHeight: 100,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingHorizontal: 24,
+    paddingVertical: 16,
     zIndex: 1,
     backgroundColor: 'transparent',
   },
