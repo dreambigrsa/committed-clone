@@ -567,20 +567,28 @@ export default function CreateStatusScreen() {
             <View style={[styles.textInputArea, { backgroundColor: textBackgroundColor }]} />
           )}
           
-          <TextInput
+          {/* Text Container with Effect Background */}
+          <View 
             style={[
-              styles.fullScreenTextInput,
-              getTextStyle(),
-              getTextEffectStyle(),
-              { textAlign: textAlignment },
+              styles.textWrapper,
+              getTextEffectWrapperStyle(),
             ]}
-            placeholder="Type or @Tag"
-            placeholderTextColor="rgba(255, 255, 255, 0.6)"
-            value={textContent}
-            onChangeText={setTextContent}
-            multiline
-            autoFocus
-          />
+          >
+            <TextInput
+              style={[
+                styles.fullScreenTextInput,
+                getTextStyle(),
+                getTextEffectStyle(),
+                { textAlign: textAlignment },
+              ]}
+              placeholder="Type or @Tag"
+              placeholderTextColor="rgba(255, 255, 255, 0.6)"
+              value={textContent}
+              onChangeText={setTextContent}
+              multiline
+              autoFocus
+            />
+          </View>
         </View>
 
         {/* Vertical Options on Right Side */}
@@ -883,23 +891,47 @@ export default function CreateStatusScreen() {
     return baseStyle;
   }
 
+  function getTextEffectWrapperStyle() {
+    const wrapperStyles: any = {
+      alignSelf: 'flex-start',
+      maxWidth: '90%',
+    };
+    
+    switch (textEffect) {
+      case 'white-bg':
+        wrapperStyles.backgroundColor = 'rgba(255, 255, 255, 0.95)';
+        wrapperStyles.paddingHorizontal = 16;
+        wrapperStyles.paddingVertical = 12;
+        wrapperStyles.borderRadius = 12;
+        wrapperStyles.marginHorizontal = 24;
+        break;
+      case 'black-bg':
+        wrapperStyles.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+        wrapperStyles.paddingHorizontal = 16;
+        wrapperStyles.paddingVertical = 12;
+        wrapperStyles.borderRadius = 12;
+        wrapperStyles.marginHorizontal = 24;
+        break;
+      default:
+        // No background wrapper for other effects
+        wrapperStyles.backgroundColor = 'transparent';
+        wrapperStyles.paddingHorizontal = 0;
+        wrapperStyles.paddingVertical = 0;
+        break;
+    }
+    
+    return wrapperStyles;
+  }
+
   function getTextEffectStyle() {
     const styles: any = {};
     
     switch (textEffect) {
       case 'white-bg':
-        styles.backgroundColor = 'rgba(255, 255, 255, 0.9)';
         styles.color = '#000';
-        styles.paddingHorizontal = 12;
-        styles.paddingVertical = 6;
-        styles.borderRadius = 8;
         break;
       case 'black-bg':
-        styles.backgroundColor = 'rgba(0, 0, 0, 0.7)';
         styles.color = '#fff';
-        styles.paddingHorizontal = 12;
-        styles.paddingVertical = 6;
-        styles.borderRadius = 8;
         break;
       case 'outline-white':
         styles.textShadowColor = '#fff';
@@ -1248,12 +1280,16 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
   },
-  fullScreenTextInput: {
+  textWrapper: {
     flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
     padding: 24,
-    textAlignVertical: 'center',
+  },
+  fullScreenTextInput: {
     width: '100%',
-    minHeight: '100%',
+    textAlignVertical: 'center',
+    minHeight: 100,
   },
   verticalOptionsContainer: {
     position: 'absolute',
