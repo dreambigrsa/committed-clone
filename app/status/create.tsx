@@ -621,6 +621,30 @@ export default function CreateStatusScreen() {
           </View>
         </View>
 
+        {/* Text Style Selector at Bottom (Classic, Neon, Typewriter) */}
+        <View style={styles.textStyleSelectorContainer}>
+          {(['classic', 'neon', 'typewriter'] as const).map((style) => (
+            <TouchableOpacity
+              key={style}
+              style={[
+                styles.textStyleButton,
+                { backgroundColor: cardBg },
+                textStyle === style && styles.textStyleButtonActive,
+              ]}
+              onPress={() => setTextStyle(style)}
+              activeOpacity={0.7}
+            >
+              <Text style={[
+                styles.textStyleButtonText,
+                { color: textColor },
+                textStyle === style && styles.textStyleButtonTextActive,
+              ]}>
+                {style.charAt(0).toUpperCase() + style.slice(1)}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
         {/* Vertical Options on Right Side */}
         <View style={styles.verticalOptionsContainer}>
           {/* Color Picker */}
@@ -1186,7 +1210,9 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     textAlignVertical: 'center',
     zIndex: 0,
-    opacity: 0.9,
+    opacity: 0.95,
+    // Make background layer thicker to create the shape-following effect
+    fontWeight: '700' as const,
   },
   fullScreenTextInput: {
     width: '100%',
@@ -1402,5 +1428,39 @@ const styles = StyleSheet.create({
     marginTop: 8,
     fontSize: 14,
     fontWeight: '500' as const,
+  },
+  // Text Style Selector at Bottom
+  textStyleSelectorContainer: {
+    position: 'absolute',
+    bottom: Platform.OS === 'ios' ? 100 : 80,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  textStyleButton: {
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'transparent',
+    minWidth: 80,
+    alignItems: 'center',
+  },
+  textStyleButtonActive: {
+    backgroundColor: '#fff',
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+  },
+  textStyleButtonText: {
+    fontSize: 14,
+    fontWeight: '600' as const,
+  },
+  textStyleButtonTextActive: {
+    color: '#000',
+    fontWeight: '700' as const,
   },
 });
