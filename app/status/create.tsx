@@ -611,33 +611,45 @@ export default function CreateStatusScreen() {
                         {
                           alignSelf: textAlignment === 'left' ? 'flex-start' : 
                                     textAlignment === 'right' ? 'flex-end' : 'center',
-                          // Remove spacing for seamless connection
+                          // Slight vertical overlap to ensure no visible gaps and single connected silhouette
                           marginBottom: 0,
-                          marginTop: isFirstLine ? 0 : -1, // Slight overlap for seamless merge
+                          marginTop: isFirstLine ? 0 : -2, // Overlap by 2px for seamless connection
                         },
                       ]}
                     >
-                      <Text
+                      <View
                         style={[
                           styles.textLineBackground,
-                          getTextStyle(),
                           {
-                            textAlign: textAlignment,
                             backgroundColor: textEffect === 'white-bg' ? '#fff' : '#000',
-                            color: textEffect === 'white-bg' ? '#000' : '#fff',
                             shadowColor: textEffect === 'white-bg' ? '#000' : '#fff',
-                            // Rounded corners only on outer edges
+                            // Rounded corners only on outer edges for unified container feel
                             borderTopLeftRadius: isFirstLine ? 20 : 0,
                             borderTopRightRadius: isFirstLine ? 20 : 0,
                             borderBottomLeftRadius: isLastLine ? 20 : 0,
                             borderBottomRightRadius: isLastLine ? 20 : 0,
-                            // Inner edges squared (no rounding for middle lines)
-                            borderRadius: isFirstLine && isLastLine ? 20 : 0, // Single line = fully rounded
+                            // Single line = fully rounded pill
+                            borderRadius: isFirstLine && isLastLine ? 20 : undefined,
+                            // Use Text inside View to determine width, but make it completely invisible
+                            alignSelf: textAlignment === 'left' ? 'flex-start' : 
+                                      textAlignment === 'right' ? 'flex-end' : 'center',
                           },
                         ]}
+                        pointerEvents="none"
                       >
-                        {line.trim() || '\u00A0'} {/* Use non-breaking space for empty lines */}
-                      </Text>
+                        <Text
+                          style={[
+                            getTextStyle(),
+                            {
+                              textAlign: textAlignment,
+                              color: 'transparent', // Completely transparent - only used for width calculation
+                              opacity: 0, // Ensure absolutely no visibility
+                            },
+                          ]}
+                        >
+                          {line.trim() || '\u00A0'} {/* Invisible text for width sizing only */}
+                        </Text>
+                      </View>
                     </View>
                   );
                 })}
@@ -1246,7 +1258,7 @@ const styles = StyleSheet.create({
     padding: 24,
     position: 'relative',
   },
-  // Container for stacked line backgrounds - connected bubbles
+  // Container for stacked line backgrounds - seamlessly merged unified container
   textLinesContainer: {
     position: 'absolute',
     top: 0,
@@ -1258,33 +1270,38 @@ const styles = StyleSheet.create({
     zIndex: 0,
     pointerEvents: 'none',
     paddingHorizontal: 24,
-    // Ensure seamless stacking
+    // Stack backgrounds vertically with zero spacing for seamless merge
     flexDirection: 'column',
   },
   // Wrapper for each line to handle alignment
   textLineWrapper: {
-    // No margin - backgrounds connect seamlessly
+    // Slight overlap for seamless connection - creates single connected silhouette
     marginBottom: 0,
     width: '100%',
   },
-  // Individual connected background per line - seamless merging
+  // Individual connected background per line - seamlessly merged into one unified container
   textLineBackground: {
-    // Each line gets its own background that auto-sizes to text width
+    // View container that wraps transparent Text for width calculation
+    // Variable width per line creates adaptive pill shapes that connect
     paddingHorizontal: 16,
     paddingVertical: 12,
-    // Border radius will be set dynamically (rounded only on outer edges)
-    // Soft shadow applied to entire connected container (only on first/last)
+    // Border radius set dynamically: rounded only on outer edges (first/last line)
+    // Inner edges are square for seamless connection
+    // Soft shadow creates depth for the unified container
     shadowOffset: {
       width: 0,
-      height: 1,
+      height: 2,
     },
-    shadowOpacity: 0.2,
+    shadowOpacity: 0.15,
     shadowRadius: 4,
-    elevation: 3,
-    // Text naturally determines width - short lines = small bubbles, long lines = wide bubbles
+    elevation: 2,
+    // View wraps transparent Text that determines width - creates adaptive-width pills
+    // Short lines = narrow backgrounds, long lines = wide backgrounds
     maxWidth: '100%',
-    // Ensure seamless connection - no gaps
+    // Ensure backgrounds overlap slightly to eliminate any visible gaps
     overflow: 'hidden',
+    // View sizes to its content (transparent Text inside)
+    alignSelf: 'flex-start',
   },
   fullScreenTextInput: {
     width: '85%',
