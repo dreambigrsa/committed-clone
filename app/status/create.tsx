@@ -586,30 +586,28 @@ export default function CreateStatusScreen() {
           {/* Text Input Area */}
           <View style={styles.textInputWrapper}>
             {/* Background Text Layer - follows text shape organically when white-bg or black-bg is selected */}
-            {(textEffect === 'white-bg' || textEffect === 'black-bg') && textContent && (
-              <Text
-                style={[
-                  styles.textBackgroundShape,
-                  getTextStyle(),
-                  {
-                    textAlign: textAlignment,
-                    backgroundColor: textEffect === 'white-bg' ? '#fff' : '#000',
-                    color: textEffect === 'white-bg' ? '#000' : '#fff',
-                    // Minimal padding to make background wrap tightly to text shape
-                    paddingHorizontal: 12,
-                    paddingVertical: 8,
-                    // Text component with backgroundColor naturally follows text shape
-                    alignSelf: textAlignment === 'left' ? 'flex-start' : 
-                              textAlignment === 'right' ? 'flex-end' : 'center',
-                    borderRadius: 8,
-                  },
-                ]}
-              >
-                {textContent}
-              </Text>
+            {(textEffect === 'white-bg' || textEffect === 'black-bg') && (
+              <View style={styles.textBackgroundWrapper}>
+                <Text
+                  style={[
+                    styles.textBackgroundShape,
+                    getTextStyle(),
+                    {
+                      textAlign: textAlignment,
+                      backgroundColor: textEffect === 'white-bg' ? '#fff' : '#000',
+                      color: textEffect === 'white-bg' ? '#000' : '#fff',
+                      paddingHorizontal: 10,
+                      paddingVertical: 8,
+                      borderRadius: 8,
+                    },
+                  ]}
+                >
+                  {textContent || ' '}
+                </Text>
+              </View>
             )}
             
-            {/* Main text input - overlays on background text layer for shape-following effect */}
+            {/* Main text input */}
             <TextInput
               style={[
                 styles.fullScreenTextInput,
@@ -617,19 +615,10 @@ export default function CreateStatusScreen() {
                 getTextEffectStyle(),
                 { textAlign: textAlignment },
                 (textEffect === 'white-bg' || textEffect === 'black-bg') && {
-                  position: 'absolute',
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
                   backgroundColor: 'transparent',
                   color: textEffect === 'white-bg' ? '#000' : '#fff',
-                  // Match padding with background layer for perfect alignment
                   paddingHorizontal: 10,
-                  paddingVertical: 6,
-                  maxWidth: '85%',
-                  alignSelf: textAlignment === 'left' ? 'flex-start' : 
-                            textAlignment === 'right' ? 'flex-end' : 'center',
+                  paddingVertical: 8,
                 },
               ]}
               placeholder="Type or @Tag"
@@ -851,21 +840,14 @@ export default function CreateStatusScreen() {
     
     switch (textEffect) {
       case 'white-bg':
-        // White background that follows text shape - using thick text shadow as outline
-        styles.color = '#000';
-        // Use a large blur radius and offset to create a thick background/highlight effect
-        styles.textShadowColor = '#fff';
-        styles.textShadowOffset = { width: 0, height: 0 };
-        styles.textShadowRadius = 10; // Large radius creates a background-like effect
-        // Since React Native doesn't support multiple shadows, we render the effect
-        // as a background layer behind the text using a large blur radius
+        // Text color handled by inline style override
+        // Background is rendered by Text component layer behind
+        // No text shadow needed
         break;
       case 'black-bg':
-        // Black background that follows text shape
-        styles.color = '#fff';
-        styles.textShadowColor = '#000';
-        styles.textShadowOffset = { width: 0, height: 0 };
-        styles.textShadowRadius = 10; // Large radius creates background effect
+        // Text color handled by inline style override
+        // Background is rendered by Text component layer behind
+        // No text shadow needed
         break;
       case 'outline-white':
         // Thin white outline
@@ -1224,12 +1206,22 @@ const styles = StyleSheet.create({
     padding: 24,
     position: 'relative',
   },
-  textBackgroundShape: {
+  textBackgroundWrapper: {
     position: 'absolute',
-    textAlignVertical: 'center',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
     zIndex: 0,
-    // Text component with backgroundColor will naturally wrap around text content
-    // making it follow the text shape organically rather than being a perfect rectangle
+    pointerEvents: 'none',
+  },
+  textBackgroundShape: {
+    textAlignVertical: 'center',
+    // Text component with backgroundColor naturally wraps around text content
+    // creating an organic shape that follows the text (wider for longer lines, narrower for shorter)
+    // This matches the irregular, shape-following background from Facebook
     maxWidth: '85%',
   },
   fullScreenTextInput: {
