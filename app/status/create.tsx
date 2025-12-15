@@ -569,49 +569,41 @@ export default function CreateStatusScreen() {
           
           {/* Text Input Area */}
           <View style={styles.textInputWrapper}>
-            {/* Text Container with Background (only for white-bg and black-bg) */}
-            {textEffect === 'white-bg' || textEffect === 'black-bg' ? (
-              <View 
+            {/* Background layer for white-bg and black-bg - renders behind text to create shape-following effect */}
+            {(textEffect === 'white-bg' || textEffect === 'black-bg') && textContent ? (
+              <Text
                 style={[
-                  styles.textContainerWithBg,
-                  getTextEffectWrapperStyle(),
-                  { 
-                    alignItems: textAlignment === 'left' ? 'flex-start' : 
-                               textAlignment === 'right' ? 'flex-end' : 'center' 
+                  styles.textBackgroundLayer,
+                  getTextStyle(),
+                  {
+                    textAlign: textAlignment,
+                    color: textEffect === 'white-bg' ? '#fff' : '#000',
+                    textShadowColor: 'transparent',
+                    textShadowRadius: 0,
+                    textShadowOffset: { width: 0, height: 0 },
                   },
                 ]}
               >
-                <TextInput
-                  style={[
-                    styles.textInputWithBg,
-                    getTextStyle(),
-                    getTextEffectStyle(),
-                    { textAlign: textAlignment },
-                  ]}
-                  placeholder="Type or @Tag"
-                  placeholderTextColor={textEffect === 'white-bg' ? 'rgba(0, 0, 0, 0.4)' : 'rgba(255, 255, 255, 0.6)'}
-                  value={textContent}
-                  onChangeText={setTextContent}
-                  multiline
-                  autoFocus
-                />
-              </View>
-            ) : (
-              <TextInput
-                style={[
-                  styles.fullScreenTextInput,
-                  getTextStyle(),
-                  getTextEffectStyle(),
-                  { textAlign: textAlignment },
-                ]}
-                placeholder="Type or @Tag"
-                placeholderTextColor="rgba(255, 255, 255, 0.6)"
-                value={textContent}
-                onChangeText={setTextContent}
-                multiline
-                autoFocus
-              />
-            )}
+                {textContent}
+              </Text>
+            ) : null}
+            
+            {/* Main text input */}
+            <TextInput
+              style={[
+                styles.fullScreenTextInput,
+                getTextStyle(),
+                getTextEffectStyle(),
+                { textAlign: textAlignment },
+                (textEffect === 'white-bg' || textEffect === 'black-bg') && styles.textInputWithBg,
+              ]}
+              placeholder="Type or @Tag"
+              placeholderTextColor={getPlaceholderColor()}
+              value={textContent}
+              onChangeText={setTextContent}
+              multiline
+              autoFocus
+            />
           </View>
         </View>
 
@@ -915,19 +907,15 @@ export default function CreateStatusScreen() {
     return baseStyle;
   }
 
-  function getTextEffectWrapperStyle() {
-    const wrapperStyles: any = {};
-    
+  function getPlaceholderColor() {
     switch (textEffect) {
       case 'white-bg':
-        wrapperStyles.backgroundColor = 'rgba(255, 255, 255, 0.95)';
-        break;
+        return 'rgba(0, 0, 0, 0.4)';
       case 'black-bg':
-        wrapperStyles.backgroundColor = 'rgba(0, 0, 0, 0.8)';
-        break;
+        return 'rgba(255, 255, 255, 0.5)';
+      default:
+        return 'rgba(255, 255, 255, 0.6)';
     }
-    
-    return wrapperStyles;
   }
 
   function getTextEffectStyle() {
@@ -935,22 +923,36 @@ export default function CreateStatusScreen() {
     
     switch (textEffect) {
       case 'white-bg':
+        // White background that follows text shape - using thick text shadow as outline
         styles.color = '#000';
+        // Use a large blur radius and offset to create a thick background/highlight effect
+        styles.textShadowColor = '#fff';
+        styles.textShadowOffset = { width: 0, height: 0 };
+        styles.textShadowRadius = 10; // Large radius creates a background-like effect
+        // Since React Native doesn't support multiple shadows, we render the effect
+        // as a background layer behind the text using a large blur radius
         break;
       case 'black-bg':
+        // Black background that follows text shape
         styles.color = '#fff';
+        styles.textShadowColor = '#000';
+        styles.textShadowOffset = { width: 0, height: 0 };
+        styles.textShadowRadius = 10; // Large radius creates background effect
         break;
       case 'outline-white':
+        // Thin white outline
         styles.textShadowColor = '#fff';
-        styles.textShadowOffset = { width: -2, height: 2 };
-        styles.textShadowRadius = 4;
+        styles.textShadowOffset = { width: -1, height: 1 };
+        styles.textShadowRadius = 2;
         break;
       case 'outline-black':
+        // Thin black outline
         styles.textShadowColor = '#000';
-        styles.textShadowOffset = { width: -2, height: 2 };
-        styles.textShadowRadius = 4;
+        styles.textShadowOffset = { width: -1, height: 1 };
+        styles.textShadowRadius = 2;
         break;
       case 'glow':
+        // Glowing effect
         styles.textShadowColor = textBackgroundColor;
         styles.textShadowOffset = { width: 0, height: 0 };
         styles.textShadowRadius = 20;
@@ -1294,19 +1296,14 @@ const styles = StyleSheet.create({
     padding: 24,
     position: 'relative',
   },
-  textContainerWithBg: {
-    borderRadius: 12,
+  textBackgroundLayer: {
+    position: 'absolute',
+    width: '100%',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    maxWidth: '90%',
-    minWidth: 100,
-    alignSelf: 'center',
-  },
-  textInputWithBg: {
     textAlignVertical: 'center',
-    minWidth: 100,
-    maxWidth: width - 100,
-    minHeight: 50,
+    zIndex: 0,
+    opacity: 0.9,
   },
   fullScreenTextInput: {
     width: '100%',
@@ -1314,6 +1311,11 @@ const styles = StyleSheet.create({
     minHeight: 100,
     paddingHorizontal: 16,
     paddingVertical: 12,
+    zIndex: 1,
+    backgroundColor: 'transparent',
+  },
+  textInputWithBg: {
+    position: 'relative',
   },
   verticalOptionsContainer: {
     position: 'absolute',
