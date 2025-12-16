@@ -581,99 +581,72 @@ export default function CreateStatusScreen() {
                            textAlignment === 'right' ? 'flex-end' : 'center',
               }]}>
                 {/* Per-line Backgrounds */}
+                {/* Single Unified Background Wrapper - One shape wrapping all text */}
                 {(textEffect === 'white-bg' || textEffect === 'black-bg') && textContent && (
                   <View 
-                    style={[styles.adaptiveBackgroundContainer, {
-                      alignItems: textAlignment === 'left' ? 'flex-start' : 
-                                 textAlignment === 'right' ? 'flex-end' : 'center',
-                    }]} 
+                    style={[
+                      styles.unifiedBackgroundWrapper,
+                      {
+                        backgroundColor: textEffect === 'white-bg' ? '#fff' : '#000',
+                        alignItems: textAlignment === 'left' ? 'flex-start' : 
+                                   textAlignment === 'right' ? 'flex-end' : 'center',
+                        // Border radius based on alignment
+                        ...(textAlignment === 'left' ? {
+                          borderTopLeftRadius: 0,
+                          borderBottomLeftRadius: 0,
+                          borderTopRightRadius: 20,
+                          borderBottomRightRadius: 20,
+                        } : textAlignment === 'right' ? {
+                          borderTopRightRadius: 0,
+                          borderBottomRightRadius: 0,
+                          borderTopLeftRadius: 20,
+                          borderBottomLeftRadius: 20,
+                        } : {
+                          borderRadius: 15, // Center: reduced radius
+                        }),
+                      },
+                    ]} 
                     pointerEvents="none"
                   >
-                    {textContent.split('\n').map((line, index) => {
-                      const trimmedLine = line.trim();
-                      if (!trimmedLine) return null;
-                      
-                      return (
-                        <View
-                          key={index}
-                          style={[
-                            styles.adaptiveLineBackground,
-                            {
-                              backgroundColor: textEffect === 'white-bg' ? '#fff' : '#000',
-                              // Border radius based on alignment
-                              ...(textAlignment === 'left' ? {
-                                borderTopLeftRadius: 0,
-                                borderBottomLeftRadius: 0,
-                                borderTopRightRadius: 20,
-                                borderBottomRightRadius: 20,
-                              } : textAlignment === 'right' ? {
-                                borderTopRightRadius: 0,
-                                borderBottomRightRadius: 0,
-                                borderTopLeftRadius: 20,
-                                borderBottomLeftRadius: 20,
-                              } : {
-                                borderRadius: 15, // Center: reduced radius
-                              }),
-                              marginTop: index > 0 ? -4 : 0, // Increased overlap for seamless merging
-                              alignSelf: textAlignment === 'center' ? 'center' : 
-                                        textAlignment === 'right' ? 'flex-end' : 'flex-start',
-                              overflow: 'hidden',
-                              maxWidth: '85%', // Ensure wrapper doesn't overflow
-                            },
-                          ]}
-                          pointerEvents="none"
-                        >
-                          {/* Invisible text for sizing - completely hidden */}
-                          <Text
-                            style={[
-                              getTextStyle(),
-                              {
-                                textAlign: textAlignment,
-                                color: 'transparent',
-                                opacity: 0,
-                              },
-                            ]}
-                          >
-                            {trimmedLine}
-                          </Text>
-                        </View>
-                      );
-                    })}
+                    {/* Invisible text for sizing - measures the full text block */}
+                    <Text
+                      style={[
+                        getTextStyle(),
+                        {
+                          textAlign: textAlignment,
+                          color: 'transparent',
+                          opacity: 0,
+                          maxWidth: '85%',
+                        },
+                      ]}
+                    >
+                      {textContent}
+                    </Text>
                   </View>
                 )}
                 
-                {/* Actual Visible Text - Render per-line to match backgrounds exactly */}
+                {/* Actual Visible Text - Single text block inside unified wrapper */}
                 {(textEffect === 'white-bg' || textEffect === 'black-bg') && (
                   <View style={[styles.textPreviewTextOverlay, {
                     alignItems: textAlignment === 'left' ? 'flex-start' : 
                                textAlignment === 'right' ? 'flex-end' : 'center',
                   }]}>
-                    {textContent.split('\n').map((line, index) => {
-                      const trimmedLine = line.trim();
-                      if (!trimmedLine) return null;
-                      
-                      return (
-                        <Text
-                          key={index}
-                          style={[
-                            getTextStyle(),
-                            getTextEffectStyle(),
-                            {
-                              textAlign: textAlignment,
-                              color: textEffect === 'white-bg' ? '#000' : '#fff',
-                              paddingHorizontal: 12,
-                              paddingVertical: 8,
-                              maxWidth: '85%', // Ensure text stays within wrapper
-                              flexShrink: 1, // Allow shrinking to fit
-                            },
-                          ]}
-                          numberOfLines={0} // Allow multiple lines but constrain width
-                          ellipsizeMode="clip" // Clip text instead of ellipsis
-                        >
-                          {trimmedLine}
-                        </Text>
-                      );
-                    })}
+                    <Text
+                      style={[
+                        getTextStyle(),
+                        getTextEffectStyle(),
+                        {
+                          textAlign: textAlignment,
+                          color: textEffect === 'white-bg' ? '#000' : '#fff',
+                          paddingHorizontal: 12,
+                          paddingVertical: 8,
+                          maxWidth: '85%', // Ensure text stays within wrapper
+                          flexShrink: 1, // Allow shrinking to fit
+                        },
+                      ]}
+                    >
+                      {textContent}
+                    </Text>
                   </View>
                 )}
               </View>
@@ -771,115 +744,47 @@ export default function CreateStatusScreen() {
           
           {/* Text Input Area - Per-line Adaptive Backgrounds, Each with Rounded Corners */}
           <View style={styles.textInputWrapper}>
-            {/* Per-line Backgrounds - Each line has own width, all corners rounded, merged seamlessly */}
+            {/* Single Unified Background Wrapper - One shape wrapping all text */}
             {(textEffect === 'white-bg' || textEffect === 'black-bg') && textContent && (
               <View 
                 style={[
-                  styles.adaptiveBackgroundContainer,
+                  styles.unifiedBackgroundWrapper,
                   {
+                    backgroundColor: textEffect === 'white-bg' ? '#fff' : '#000',
                     alignItems: textAlignment === 'left' ? 'flex-start' : 
                                textAlignment === 'right' ? 'flex-end' : 'center',
+                    // Border radius based on alignment
+                    ...(textAlignment === 'left' ? {
+                      borderTopLeftRadius: 0,
+                      borderBottomLeftRadius: 0,
+                      borderTopRightRadius: 20,
+                      borderBottomRightRadius: 20,
+                    } : textAlignment === 'right' ? {
+                      borderTopRightRadius: 0,
+                      borderBottomRightRadius: 0,
+                      borderTopLeftRadius: 20,
+                      borderBottomLeftRadius: 20,
+                    } : {
+                      borderRadius: 15, // Center: reduced radius
+                    }),
                   },
                 ]} 
                 pointerEvents="none"
               >
-                {textContent.split('\n').map((line, index, lines) => {
-                  const trimmedLine = line.trim();
-                  if (!trimmedLine && index === lines.length - 1 && lines.length === 1) {
-                    // Show background for empty first line
-                    return (
-                    <View
-                      key={index}
-                      style={[
-                        styles.adaptiveLineBackground,
-                        {
-                          backgroundColor: textEffect === 'white-bg' ? '#fff' : '#000',
-                          // Border radius based on alignment
-                          ...(textAlignment === 'left' ? {
-                            borderTopLeftRadius: 0,
-                            borderBottomLeftRadius: 0,
-                            borderTopRightRadius: 20,
-                            borderBottomRightRadius: 20,
-                          } : textAlignment === 'right' ? {
-                            borderTopRightRadius: 0,
-                            borderBottomRightRadius: 0,
-                            borderTopLeftRadius: 20,
-                            borderBottomLeftRadius: 20,
-                          } : {
-                            borderRadius: 15, // Center: reduced radius
-                          }),
-                          marginTop: index > 0 ? -4 : 0, // Increased overlap for seamless merging
-                          alignSelf: textAlignment === 'center' ? 'center' : 
-                                    textAlignment === 'right' ? 'flex-end' : 'flex-start',
-                          overflow: 'hidden',
-                          maxWidth: '85%', // Ensure wrapper doesn't overflow
-                        },
-                      ]}
-                      pointerEvents="none"
-                    >
-                      <Text
-                        style={[
-                          getTextStyle(),
-                          {
-                            textAlign: textAlignment,
-                            color: 'transparent',
-                            opacity: 0,
-                          },
-                        ]}
-                      >
-                        {' '}
-                      </Text>
-                    </View>
-                    );
-                  }
-                  if (!trimmedLine) return null;
-                  
-                  return (
-                    <View
-                      key={index}
-                      style={[
-                        styles.adaptiveLineBackground,
-                        {
-                          backgroundColor: textEffect === 'white-bg' ? '#fff' : '#000',
-                          // Border radius based on alignment
-                          ...(textAlignment === 'left' ? {
-                            borderTopLeftRadius: 0,
-                            borderBottomLeftRadius: 0,
-                            borderTopRightRadius: 20,
-                            borderBottomRightRadius: 20,
-                          } : textAlignment === 'right' ? {
-                            borderTopRightRadius: 0,
-                            borderBottomRightRadius: 0,
-                            borderTopLeftRadius: 20,
-                            borderBottomLeftRadius: 20,
-                          } : {
-                            borderRadius: 15, // Center: reduced radius
-                          }),
-                          marginTop: index > 0 ? -4 : 0, // Increased overlap for seamless merging
-                          alignSelf: textAlignment === 'center' ? 'center' : 
-                                    textAlignment === 'right' ? 'flex-end' : 'flex-start',
-                          overflow: 'hidden',
-                          maxWidth: '85%', // Ensure wrapper doesn't overflow
-                        },
-                      ]}
-                      pointerEvents="none"
-                    >
-                          {/* Hidden text for background sizing - completely invisible but still measures width */}
-                          <View style={{ position: 'absolute', opacity: 0, width: 0, height: 0, overflow: 'hidden' }}>
-                            <Text
-                              style={[
-                                getTextStyle(),
-                                {
-                                  textAlign: textAlignment,
-                                },
-                              ]}
-                            >
-                              {trimmedLine}
-                            </Text>
-                          </View>
-                    </View>
-                  );
-                })}
+                {/* Invisible text for sizing - measures the full text block */}
+                <Text
+                  style={[
+                    getTextStyle(),
+                    {
+                      textAlign: textAlignment,
+                      color: 'transparent',
+                      opacity: 0,
+                      maxWidth: '85%',
+                    },
+                  ]}
+                >
+                  {textContent}
+                </Text>
               </View>
             )}
             
@@ -910,6 +815,8 @@ export default function CreateStatusScreen() {
                     width: '100%',
                     maxWidth: '85%', // Ensure text stays within wrapper
                     flexShrink: 1, // Allow shrinking to fit
+                    alignSelf: textAlignment === 'center' ? 'center' : 
+                              textAlignment === 'right' ? 'flex-end' : 'flex-start',
                   },
                 ]}
                 placeholder="Type or @Tag"
@@ -1698,7 +1605,36 @@ const styles = StyleSheet.create({
     pointerEvents: 'none',
     // alignItems will be set dynamically based on textAlignment
   },
-  // Adaptive Line Background - Each line has own width, all corners rounded
+  // Unified Background Wrapper - Single shape wrapping all text
+  unifiedBackgroundWrapper: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    zIndex: 1, // Below TextInput
+    pointerEvents: 'none',
+    // Padding hugs text closely
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    // Max width to prevent overflow - ensures text stays within wrapper
+    maxWidth: '85%',
+    // Shadow for depth
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 2,
+    // View wraps invisible text to determine width - critical for preventing overflow
+    overflow: 'hidden',
+    // Flex shrink to prevent overflow
+    flexShrink: 1,
+    // alignSelf will be set dynamically based on textAlignment
+  },
+  // Adaptive Line Background - Each line has own width, all corners rounded (kept for backward compatibility)
   adaptiveLineBackground: {
     // Tight padding - hugs text closely (each line has its own padding)
     paddingHorizontal: 12,
