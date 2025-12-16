@@ -614,11 +614,13 @@ export default function CreateStatusScreen() {
                           {
                             textAlign: textAlignment,
                             backgroundColor: textEffect === 'white-bg' ? '#fff' : '#000',
-                            color: 'transparent', // Invisible - only background shows
+                            color: 'transparent', // Completely invisible
+                            opacity: 0, // Ensure it's invisible
                             borderRadius: 20, // All corners rounded
                             marginTop: index > 0 ? -2 : 0, // Merge seamlessly
                           },
                         ]}
+                        pointerEvents="none"
                       >
                         {' '}
                       </Text>
@@ -635,11 +637,13 @@ export default function CreateStatusScreen() {
                         {
                           textAlign: textAlignment,
                           backgroundColor: textEffect === 'white-bg' ? '#fff' : '#000',
-                          color: 'transparent', // Invisible - only background shows
+                          color: 'transparent', // Completely invisible
+                          opacity: 0, // Ensure it's invisible
                           borderRadius: 20, // All corners rounded on each line
                           marginTop: index > 0 ? -2 : 0, // Merge seamlessly with slight overlap
                         },
                       ]}
+                      pointerEvents="none"
                     >
                       {trimmedLine}
                     </Text>
