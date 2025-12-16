@@ -1615,13 +1615,12 @@ export default function FeedScreen() {
         </View>
       </View>
 
-      {/* Facebook-Style Stories Bar with "What's on your mind?" */}
-      <FacebookStyleStoriesBar context="feed" />
-
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
+        {/* Facebook-Style Stories Bar with "What's on your mind?" - Inside ScrollView (static, scrolls with content) */}
+        <FacebookStyleStoriesBar context="feed" />
         {posts.length === 0 ? (
           <Animated.View style={[styles.emptyState, { opacity: fadeAnim }]}>
             <Heart size={80} color={colors.text.tertiary} strokeWidth={1.5} />
