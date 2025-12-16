@@ -587,64 +587,54 @@ export default function CreateStatusScreen() {
             <View style={[styles.textInputArea, { backgroundColor: textBackgroundColor }]} />
           )}
           
-          {/* Text Input Area - Single Unified Background Container */}
+          {/* Text Input Area - Single Unified Background Wrapper (Like Second Image) */}
           <View style={styles.textInputWrapper}>
-            {/* Single Unified Background Container - wraps all text together like second image */}
-            {(textEffect === 'white-bg' || textEffect === 'black-bg') && textContent && (
-              <View
-                style={[
-                  styles.unifiedTextBackground,
-                  {
-                    backgroundColor: textEffect === 'white-bg' ? '#fff' : '#000',
-                    shadowColor: textEffect === 'white-bg' ? '#000' : '#fff',
-                    alignSelf: textAlignment === 'left' ? 'flex-start' : 
-                              textAlignment === 'right' ? 'flex-end' : 'center',
-                  },
-                ]}
-                pointerEvents="none"
-              >
-                {/* Invisible text for sizing - TextInput handles actual display */}
+            {/* Single Unified Background Wrapper - Follows text width, hugs tightly with smooth edges (Like Second Image) */}
+            {(textEffect === 'white-bg' || textEffect === 'black-bg') && (
+              <View style={styles.unifiedTextWrapper} pointerEvents="none">
+                {/* Background Text - Uses backgroundColor to create background, naturally wraps text width */}
                 <Text
                   style={[
                     getTextStyle(),
+                    styles.measurerText,
                     {
                       textAlign: textAlignment,
-                      color: 'transparent',
-                      opacity: 0,
+                      backgroundColor: textEffect === 'white-bg' ? '#fff' : '#000',
+                      color: 'transparent', // Invisible text, background shows through
                     },
                   ]}
                 >
-                  {textContent}
+                  {textContent || ' '}
                 </Text>
               </View>
             )}
             
-            {/* Main text input - Independent text layer positioned over unified background */}
-            <TextInput
-              style={[
-                styles.fullScreenTextInput,
-                getTextStyle(),
-                getTextEffectStyle(),
-                { 
-                  textAlign: textAlignment,
-                  alignSelf: textAlignment === 'left' ? 'flex-start' : 
-                            textAlignment === 'right' ? 'flex-end' : 'center',
-                },
-                (textEffect === 'white-bg' || textEffect === 'black-bg') && {
-                  backgroundColor: 'transparent',
-                  color: textEffect === 'white-bg' ? '#000' : '#fff',
-                  // Match padding exactly with unified background for perfect overlay alignment
-                  paddingHorizontal: 14,
-                  paddingVertical: 10,
-                },
-              ]}
-              placeholder="Type or @Tag"
-              placeholderTextColor={getPlaceholderColor()}
-              value={textContent}
-              onChangeText={setTextContent}
-              multiline
-              autoFocus
-            />
+            {/* TextInput - Positioned to overlay on wrapper */}
+            <View style={styles.textInputOverlay}>
+              <TextInput
+                style={[
+                  getTextStyle(),
+                  getTextEffectStyle(),
+                  { 
+                    textAlign: textAlignment,
+                    color: (textEffect === 'white-bg' || textEffect === 'black-bg') 
+                      ? (textEffect === 'white-bg' ? '#000' : '#fff')
+                      : '#fff',
+                    backgroundColor: 'transparent',
+                    borderWidth: 0,
+                    outlineWidth: 0,
+                    paddingHorizontal: 0,
+                    paddingVertical: 0,
+                  },
+                ]}
+                placeholder="Type or @Tag"
+                placeholderTextColor={getPlaceholderColor()}
+                value={textContent}
+                onChangeText={setTextContent}
+                multiline
+                autoFocus
+              />
+            </View>
           </View>
         </View>
 
@@ -1282,14 +1272,12 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 24,
-    paddingVertical: 0,
     position: 'relative',
     width: '100%',
     height: '100%',
   },
-  // Single Unified Background Container - wraps all text together (like second image)
-  unifiedTextBackground: {
+  // Single Unified Background Wrapper - Follows text width, hugs tightly (like second image)
+  unifiedTextWrapper: {
     position: 'absolute',
     top: 0,
     left: 0,
@@ -1297,34 +1285,44 @@ const styles = StyleSheet.create({
     bottom: 0,
     justifyContent: 'center',
     alignItems: 'center',
-    zIndex: 1, // Below TextInput (zIndex: 2) but above background
-    pointerEvents: 'none', // Cannot block clicks
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 16, // Round and soft edges
-    // Soft shadow creates depth
+    zIndex: 1, // Below TextInput
+    pointerEvents: 'none',
+  },
+  // Measurer Text - Uses backgroundColor to create background, naturally wraps text width
+  measurerText: {
+    // Tight padding - hugs text closely
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    // Smooth rounded edges - pill shape
+    borderRadius: 20,
+    // Max width to prevent overflow
+    maxWidth: '85%',
+    // Shadow for depth
     shadowOffset: {
       width: 0,
-      height: 2,
+      height: 1,
     },
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
     elevation: 2,
-    // View wraps transparent Text that determines width - single unified container
-    maxWidth: '85%',
-    alignSelf: 'center',
-  },
-  fullScreenTextInput: {
-    width: '100%',
-    height: '100%',
+    // Text styling - text is transparent, background shows
+    includeFontPadding: false,
     textAlignVertical: 'center',
-    paddingHorizontal: 24,
-    paddingVertical: 0,
-    zIndex: 2, // Above background layer
-    backgroundColor: 'transparent',
-    // Remove any visible box constraints
-    borderWidth: 0,
-    outlineWidth: 0,
+  },
+  // TextInput overlay container - positioned on top of wrapper
+  textInputOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 2, // Above wrapper
+    // Match wrapper padding for perfect alignment
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    maxWidth: '85%',
   },
   textInputWithBg: {
     position: 'relative',
