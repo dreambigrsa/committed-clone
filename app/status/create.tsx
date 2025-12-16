@@ -623,13 +623,8 @@ export default function CreateStatusScreen() {
                           {
                             backgroundColor: textEffect === 'white-bg' ? '#fff' : '#000',
                             shadowColor: textEffect === 'white-bg' ? '#000' : '#fff',
-                            // Rounded corners only on outer edges for unified container feel
-                            borderTopLeftRadius: isFirstLine ? 16 : 0,
-                            borderTopRightRadius: isFirstLine ? 16 : 0,
-                            borderBottomLeftRadius: isLastLine ? 16 : 0,
-                            borderBottomRightRadius: isLastLine ? 16 : 0,
-                            // Single line = fully rounded pill
-                            borderRadius: isFirstLine && isLastLine ? 16 : undefined,
+                            // Round and soft edges on all corners for clean appearance
+                            borderRadius: 12, // Soft rounded edges throughout
                             // Use Text inside View to determine width, but make it completely invisible
                             alignSelf: textAlignment === 'left' ? 'flex-start' : 
                                       textAlignment === 'right' ? 'flex-end' : 'center',
@@ -670,9 +665,9 @@ export default function CreateStatusScreen() {
                 (textEffect === 'white-bg' || textEffect === 'black-bg') && {
                   backgroundColor: 'transparent',
                   color: textEffect === 'white-bg' ? '#000' : '#fff',
-                  // Match padding exactly with connected background bubbles for perfect overlay alignment
-                  paddingHorizontal: 16,
-                  paddingVertical: 12, // Match textLineBackground paddingVertical
+                  // Match padding exactly with background bubbles for perfect overlay alignment (tightly hugging text)
+                  paddingHorizontal: 10, // Match textLineBackground paddingHorizontal
+                  paddingVertical: 8, // Match textLineBackground paddingVertical
                 },
               ]}
               placeholder="Type or @Tag"
@@ -1286,10 +1281,11 @@ const styles = StyleSheet.create({
   textLineBackground: {
     // View container that wraps transparent Text for width calculation
     // Variable width per line creates adaptive pill shapes that connect
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    // Border radius set dynamically: rounded only on outer edges (first/last line)
-    // Inner edges are square for seamless connection into single silhouette
+    // Minimal padding to tightly hug text - no unnecessary space
+    paddingHorizontal: 10, // Reduced from 16 to tightly hug text
+    paddingVertical: 8, // Reduced from 12 to tightly hug text
+    // Round and soft edges on all corners
+    borderRadius: 12, // Soft rounded edges throughout
     // Soft shadow creates depth for the unified container
     shadowOffset: {
       width: 0,
