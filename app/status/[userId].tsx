@@ -84,6 +84,8 @@ export default function StatusViewerScreen() {
       paddingHorizontal: 16,
       paddingVertical: 12,
       paddingTop: 16,
+      zIndex: 100,
+      position: 'relative',
     },
     userInfo: {
       flex: 1,
@@ -652,7 +654,13 @@ export default function StatusViewerScreen() {
     // TODO: Save reaction to database if you have a reactions system
   };
 
-  const handleDelete = async () => {
+  const handleDelete = async (e?: any) => {
+    // Stop event propagation to prevent triggering navigation
+    if (e) {
+      e.stopPropagation?.();
+      e.preventDefault?.();
+    }
+
     const status = statuses[currentIndex];
     if (!status) {
       console.warn('⚠️ [handleDelete] No status at current index');
@@ -807,13 +815,17 @@ export default function StatusViewerScreen() {
               </View>
             </View>
           </View>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, zIndex: 100 }}>
             {/* Delete button - only show for own statuses */}
             {currentUser?.id === status.user_id && (
               <TouchableOpacity 
-                style={styles.closeButton} 
-                onPress={handleDelete}
+                style={[styles.closeButton, { zIndex: 101 }]} 
+                onPress={(e) => {
+                  e?.stopPropagation?.();
+                  handleDelete(e);
+                }}
                 disabled={isDeleting}
+                activeOpacity={0.7}
               >
                 {isDeleting ? (
                   <ActivityIndicator size="small" color="#fff" />
@@ -822,7 +834,14 @@ export default function StatusViewerScreen() {
                 )}
               </TouchableOpacity>
             )}
-            <TouchableOpacity style={styles.closeButton} onPress={handleClose}>
+            <TouchableOpacity 
+              style={[styles.closeButton, { zIndex: 101 }]} 
+              onPress={(e) => {
+                e?.stopPropagation?.();
+                handleClose();
+              }}
+              activeOpacity={0.7}
+            >
               <X size={24} color="#fff" />
             </TouchableOpacity>
           </View>
