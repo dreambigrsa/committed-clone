@@ -11,6 +11,17 @@ import { supabase } from './supabase';
 // TYPE DEFINITIONS
 // ============================================
 
+export interface StatusSticker {
+  id: string;
+  status_id: string;
+  sticker_id: string;
+  sticker_image_url: string;
+  position_x: number;
+  position_y: number;
+  scale: number;
+  rotation: number;
+}
+
 export interface Status {
   id: string;
   user_id: string;
@@ -22,12 +33,19 @@ export interface Status {
   expires_at: string;
   archived: boolean;
   archived_at: string | null;
+  // Customization fields
+  background_color?: string | null;
+  text_style?: 'classic' | 'neon' | 'typewriter' | 'elegant' | 'bold' | 'italic' | null;
+  text_effect?: 'default' | 'white-bg' | 'black-bg' | 'outline-white' | 'outline-black' | 'glow' | null;
+  text_alignment?: 'left' | 'center' | 'right' | null;
+  background_image_path?: string | null;
   user?: {
     id: string;
     full_name: string;
     profile_picture: string | null;
   };
   has_unviewed?: boolean;
+  stickers?: StatusSticker[];
 }
 
 export interface StatusFeedItem {
@@ -76,7 +94,12 @@ export async function getStatusFeedForFeed(): Promise<StatusFeedItem[]> {
       created_at,
       expires_at,
       archived,
-      archived_at
+      archived_at,
+      background_color,
+      text_style,
+      text_effect,
+      text_alignment,
+      background_image_path
     `)
     .order('created_at', { ascending: false });
 
@@ -302,7 +325,12 @@ export async function getUserStatuses(userId: string): Promise<Status[]> {
       created_at,
       expires_at,
       archived,
-      archived_at
+      archived_at,
+      background_color,
+      text_style,
+      text_effect,
+      text_alignment,
+      background_image_path
     `)
     .eq('user_id', userId);
 
@@ -357,14 +385,42 @@ export async function getUserStatuses(userId: string): Promise<Status[]> {
     console.error('❌ [getUserStatuses] Error fetching user data:', userError);
   }
 
+  // Fetch stickers for all statuses
+  const statusIds = statuses.map(s => s.id);
+  const { data: stickersData } = await supabase
+    .from('status_stickers')
+    .select('*')
+    .in('status_id', statusIds);
+
+  const stickersByStatusId = new Map<string, StatusSticker[]>();
+  if (stickersData) {
+    stickersData.forEach((sticker: any) => {
+      if (!stickersByStatusId.has(sticker.status_id)) {
+        stickersByStatusId.set(sticker.status_id, []);
+      }
+      stickersByStatusId.get(sticker.status_id)!.push({
+        id: sticker.id,
+        status_id: sticker.status_id,
+        sticker_id: sticker.sticker_id,
+        sticker_image_url: sticker.sticker_image_url,
+        position_x: sticker.position_x,
+        position_y: sticker.position_y,
+        scale: sticker.scale,
+        rotation: sticker.rotation,
+      });
+    });
+  }
+
   const result = statuses.map((status: Status) => ({
     ...status,
     user: userData || undefined,
+    stickers: stickersByStatusId.get(status.id) || [],
   }));
 
   console.log('✅ [getUserStatuses] Returning:', {
     count: result.length,
     userData: !!userData,
+    stickersCount: stickersData?.length || 0,
   });
 
   return result;
@@ -452,7 +508,12 @@ export async function getStatusFeedForMessenger(): Promise<StatusFeedItem[]> {
       created_at,
       expires_at,
       archived,
-      archived_at
+      archived_at,
+      background_color,
+      text_style,
+      text_effect,
+      text_alignment,
+      background_image_path
     `)
     .eq('archived', false)
     .gt('expires_at', new Date().toISOString())
@@ -599,7 +660,15 @@ export async function createStatus(
   textContent: string | null,
   mediaUri: string | null,
   privacyLevel: 'public' | 'friends' | 'followers' | 'only_me' | 'custom',
-  allowedUserIds?: string[]
+  allowedUserIds?: string[],
+  customization?: {
+    backgroundColor?: string;
+    textStyle?: 'classic' | 'neon' | 'typewriter' | 'elegant' | 'bold' | 'italic';
+    textEffect?: 'default' | 'white-bg' | 'black-bg' | 'outline-white' | 'outline-black' | 'glow';
+    textAlignment?: 'left' | 'center' | 'right';
+    backgroundImageUri?: string | null;
+    stickers?: Array<{ id: string; imageUrl: string; positionX?: number; positionY?: number; scale?: number; rotation?: number }>;
+  }
 ): Promise<Status | null> {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) {
@@ -615,6 +684,7 @@ export async function createStatus(
   }
 
   let mediaPath: string | null = null;
+  let backgroundImagePath: string | null = null;
 
   // Upload media if provided
   if (mediaUri && (contentType === 'image' || contentType === 'video')) {
@@ -644,6 +714,33 @@ export async function createStatus(
     }
   }
 
+  // Upload background image if provided (for text statuses)
+  if (customization?.backgroundImageUri && contentType === 'text') {
+    try {
+      const response = await fetch(customization.backgroundImageUri);
+      const blob = await response.blob();
+      const fileName = `bg-${Date.now()}.jpg`;
+      const filePath = `${user.id}/${fileName}`;
+
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('status-media')
+        .upload(filePath, blob, {
+          contentType: 'image/jpeg',
+          upsert: false,
+        });
+
+      if (uploadError) {
+        console.error('Error uploading background image:', uploadError);
+        // Don't fail the whole status creation if background image fails
+      } else {
+        backgroundImagePath = `status-media/${filePath}`;
+      }
+    } catch (error) {
+      console.error('Error processing background image:', error);
+      // Don't fail the whole status creation if background image fails
+    }
+  }
+
   // Create status record
   const expiresAt = new Date();
   expiresAt.setHours(expiresAt.getHours() + 24);
@@ -655,6 +752,12 @@ export async function createStatus(
     media_path: mediaPath,
     privacy_level: privacyLevel,
     expires_at: expiresAt.toISOString(),
+    // Customization fields
+    background_color: customization?.backgroundColor || null,
+    text_style: customization?.textStyle || 'classic',
+    text_effect: customization?.textEffect || 'default',
+    text_alignment: customization?.textAlignment || 'center',
+    background_image_path: backgroundImagePath,
   };
 
   const { data: status, error: statusError } = await supabase
@@ -676,6 +779,28 @@ export async function createStatus(
     }));
 
     await supabase.from('status_visibility').insert(visibilityRecords);
+  }
+
+  // Handle stickers (upload and store references)
+  if (customization?.stickers && customization.stickers.length > 0) {
+    const stickerRecords = customization.stickers.map((sticker) => ({
+      status_id: status.id,
+      sticker_id: sticker.id,
+      sticker_image_url: sticker.imageUrl,
+      position_x: sticker.positionX || 0.5,
+      position_y: sticker.positionY || 0.5,
+      scale: sticker.scale || 1.0,
+      rotation: sticker.rotation || 0,
+    }));
+
+    const { error: stickersError } = await supabase
+      .from('status_stickers')
+      .insert(stickerRecords);
+
+    if (stickersError) {
+      console.error('Error saving stickers:', stickersError);
+      // Don't fail the whole status creation if stickers fail
+    }
   }
 
   return status;
