@@ -600,7 +600,20 @@ export default function CreateStatusScreen() {
                             styles.adaptiveLineBackground,
                             {
                               backgroundColor: textEffect === 'white-bg' ? '#fff' : '#000',
-                              borderRadius: 20,
+                              // Border radius based on alignment
+                              ...(textAlignment === 'left' ? {
+                                borderTopLeftRadius: 0,
+                                borderBottomLeftRadius: 0,
+                                borderTopRightRadius: 20,
+                                borderBottomRightRadius: 20,
+                              } : textAlignment === 'right' ? {
+                                borderTopRightRadius: 0,
+                                borderBottomRightRadius: 0,
+                                borderTopLeftRadius: 20,
+                                borderBottomLeftRadius: 20,
+                              } : {
+                                borderRadius: 15, // Center: reduced radius
+                              }),
                               marginTop: index > 0 ? -2 : 0,
                               alignSelf: textAlignment === 'center' ? 'center' : 
                                         textAlignment === 'right' ? 'flex-end' : 'flex-start',
@@ -614,6 +627,7 @@ export default function CreateStatusScreen() {
                               {
                                 textAlign: textAlignment,
                                 color: 'transparent',
+                                opacity: 0,
                               },
                             ]}
                           >
@@ -762,7 +776,20 @@ export default function CreateStatusScreen() {
                         styles.adaptiveLineBackground,
                         {
                           backgroundColor: textEffect === 'white-bg' ? '#fff' : '#000',
-                          borderRadius: 20, // All corners rounded
+                          // Border radius based on alignment
+                          ...(textAlignment === 'left' ? {
+                            borderTopLeftRadius: 0,
+                            borderBottomLeftRadius: 0,
+                            borderTopRightRadius: 20,
+                            borderBottomRightRadius: 20,
+                          } : textAlignment === 'right' ? {
+                            borderTopRightRadius: 0,
+                            borderBottomRightRadius: 0,
+                            borderTopLeftRadius: 20,
+                            borderBottomLeftRadius: 20,
+                          } : {
+                            borderRadius: 15, // Center: reduced radius
+                          }),
                           marginTop: index > 0 ? -2 : 0, // Merge seamlessly
                           alignSelf: textAlignment === 'center' ? 'center' : 
                                     textAlignment === 'right' ? 'flex-end' : 'flex-start',
@@ -794,7 +821,20 @@ export default function CreateStatusScreen() {
                         styles.adaptiveLineBackground,
                         {
                           backgroundColor: textEffect === 'white-bg' ? '#fff' : '#000',
-                          borderRadius: 20, // All corners rounded on each line
+                          // Border radius based on alignment
+                          ...(textAlignment === 'left' ? {
+                            borderTopLeftRadius: 0,
+                            borderBottomLeftRadius: 0,
+                            borderTopRightRadius: 20,
+                            borderBottomRightRadius: 20,
+                          } : textAlignment === 'right' ? {
+                            borderTopRightRadius: 0,
+                            borderBottomRightRadius: 0,
+                            borderTopLeftRadius: 20,
+                            borderBottomLeftRadius: 20,
+                          } : {
+                            borderRadius: 15, // Center: reduced radius
+                          }),
                           marginTop: index > 0 ? -2 : 0, // Merge seamlessly with slight overlap
                           alignSelf: textAlignment === 'center' ? 'center' : 
                                     textAlignment === 'right' ? 'flex-end' : 'flex-start',
@@ -1633,8 +1673,7 @@ const styles = StyleSheet.create({
     // Tight padding - hugs text closely (each line has its own padding)
     paddingHorizontal: 12,
     paddingVertical: 8,
-    // All corners rounded on each line (like the image)
-    borderRadius: 20,
+    // Border radius is set dynamically based on text alignment
     // Max width to prevent overflow
     maxWidth: '85%',
     // Shadow for depth
