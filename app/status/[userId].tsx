@@ -37,7 +37,7 @@ export default function StatusViewerScreen() {
   const { userId } = useLocalSearchParams<{ userId: string }>();
   const router = useRouter();
   const { colors } = useTheme();
-  const { currentUser } = useApp();
+  const { currentUser, createOrGetConversation } = useApp();
   const [statuses, setStatuses] = useState<Status[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [mediaUrl, setMediaUrl] = useState<string | null>(null);
@@ -621,18 +621,35 @@ export default function StatusViewerScreen() {
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   };
 
-  const handleSendMessage = () => {
-    if (messageText.trim()) {
-      // TODO: Implement send message to status
-      console.log('Sending message:', messageText);
-      setMessageText('');
-      // You can navigate to conversation or show a toast
+  const handleSendMessage = async () => {
+    if (!messageText.trim() || !currentUser) return;
+    
+    const status = statuses[currentIndex];
+    if (!status) return;
+    
+    try {
+      // Navigate to conversation with the status owner
+      const conversation = await createOrGetConversation(status.user_id);
+      
+      if (conversation) {
+        // Navigate to the conversation screen
+        router.push(`/messages/${conversation.id}` as any);
+        // Clear the input
+        setMessageText('');
+      } else {
+        Alert.alert('Error', 'Could not start conversation. Please try again.');
+      }
+    } catch (error) {
+      console.error('Error sending message:', error);
+      Alert.alert('Error', 'Failed to send message. Please try again.');
     }
   };
 
   const handleReaction = (reaction: string) => {
-    // TODO: Implement reaction
-    console.log('Reaction:', reaction);
+    // Show visual feedback
+    Alert.alert('Reaction', `You reacted with ${reaction}!`, [{ text: 'OK' }], { cancelable: true });
+    console.log('Reaction:', reaction, 'to status:', statuses[currentIndex]?.id);
+    // TODO: Save reaction to database if you have a reactions system
   };
 
   const handleDelete = async () => {
@@ -954,20 +971,20 @@ export default function StatusViewerScreen() {
         <View style={styles.bottomBar}>
           {/* Quick Reactions (small emojis) */}
           <View style={styles.quickReactions}>
-            <TouchableOpacity onPress={() => handleReaction('heart-eyes')}>
+            <TouchableOpacity onPress={() => handleReaction('heart-eyes')} activeOpacity={0.7}>
               <Text style={styles.quickReactionEmoji}>😍</Text>
             </TouchableOpacity>
-            <TouchableOpacity onPress={() => handleReaction('heart-eyes')}>
-              <Text style={styles.quickReactionEmoji}>😍</Text>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => handleReaction('heart-eyes')}>
-              <Text style={styles.quickReactionEmoji}>😍</Text>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => handleReaction('heart')}>
+            <TouchableOpacity onPress={() => handleReaction('heart')} activeOpacity={0.7}>
               <Text style={styles.quickReactionEmoji}>❤️</Text>
             </TouchableOpacity>
-            <TouchableOpacity onPress={() => handleReaction('wink')}>
+            <TouchableOpacity onPress={() => handleReaction('wink')} activeOpacity={0.7}>
               <Text style={styles.quickReactionEmoji}>😉</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => handleReaction('like')} activeOpacity={0.7}>
+              <Text style={styles.quickReactionEmoji}>👍</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => handleReaction('laugh')} activeOpacity={0.7}>
+              <Text style={styles.quickReactionEmoji}>😂</Text>
             </TouchableOpacity>
           </View>
 
@@ -1040,8 +1057,9 @@ export default function StatusViewerScreen() {
                 style={styles.plusMenuOption}
                 onPress={() => {
                   setShowPlusMenu(false);
-                  // TODO: Navigate to create with music
+                  Alert.alert('Coming Soon', 'Create story with music feature is coming soon!');
                 }}
+                activeOpacity={0.7}
               >
                 <View style={styles.plusMenuIcon}>
                   <Music size={24} color="#fff" />
@@ -1052,8 +1070,9 @@ export default function StatusViewerScreen() {
                 style={styles.plusMenuOption}
                 onPress={() => {
                   setShowPlusMenu(false);
-                  // TODO: Navigate to Imagine
+                  Alert.alert('Coming Soon', 'AI image generation feature is coming soon!');
                 }}
+                activeOpacity={0.7}
               >
                 <View style={styles.plusMenuIcon}>
                   <ImageIcon size={24} color="#fff" />
@@ -1064,8 +1083,9 @@ export default function StatusViewerScreen() {
                 style={styles.plusMenuOption}
                 onPress={() => {
                   setShowPlusMenu(false);
-                  // TODO: Implement reshare
+                  Alert.alert('Reshare Story', 'Resharing stories feature is coming soon!');
                 }}
+                activeOpacity={0.7}
               >
                 <View style={styles.plusMenuIcon}>
                   <RefreshCw size={24} color="#fff" />
@@ -1076,8 +1096,9 @@ export default function StatusViewerScreen() {
                 style={styles.plusMenuOption}
                 onPress={() => {
                   setShowPlusMenu(false);
-                  // TODO: Implement share
+                  Alert.alert('Share Story', 'Sharing stories feature is coming soon!');
                 }}
+                activeOpacity={0.7}
               >
                 <View style={styles.plusMenuIcon}>
                   <Share2 size={24} color="#fff" />
