@@ -637,12 +637,20 @@ export default function StatusViewerScreen() {
 
   const handleDelete = async () => {
     const status = statuses[currentIndex];
-    if (!status) return;
+    if (!status) {
+      console.warn('⚠️ [handleDelete] No status at current index');
+      return;
+    }
 
     const isOwnStatus = currentUser?.id === status.user_id;
 
     if (!isOwnStatus) {
       Alert.alert('Error', 'You can only delete your own statuses.');
+      return;
+    }
+
+    if (!currentUser?.id) {
+      Alert.alert('Error', 'You must be logged in to delete a status.');
       return;
     }
 
@@ -657,25 +665,34 @@ export default function StatusViewerScreen() {
           onPress: async () => {
             setIsDeleting(true);
             try {
+              console.log('🗑️ [handleDelete] Deleting status:', status.id);
               const success = await deleteStatus(status.id);
+              console.log('🗑️ [handleDelete] Delete result:', success);
+              
               if (success) {
+                // Remove deleted status from list
                 const newStatuses = statuses.filter((s) => s.id !== status.id);
                 setStatuses(newStatuses);
 
+                // Navigate appropriately
                 if (newStatuses.length === 0) {
+                  console.log('✅ [handleDelete] No more statuses, going back');
                   router.back();
                 } else {
+                  // Adjust index if needed
                   const newIndex = currentIndex >= newStatuses.length 
                     ? newStatuses.length - 1 
                     : currentIndex;
+                  console.log('✅ [handleDelete] Updated index to:', newIndex);
                   setCurrentIndex(newIndex);
                 }
               } else {
+                console.error('❌ [handleDelete] Delete failed');
                 Alert.alert('Error', 'Failed to delete status. Please try again.');
               }
             } catch (error) {
-              console.error('Error deleting status:', error);
-              Alert.alert('Error', 'Failed to delete status. Please try again.');
+              console.error('❌ [handleDelete] Exception:', error);
+              Alert.alert('Error', `Failed to delete status: ${error instanceof Error ? error.message : 'Unknown error'}`);
             } finally {
               setIsDeleting(false);
             }
