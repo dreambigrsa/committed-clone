@@ -19,6 +19,7 @@ import {
   Alert,
   TextInput,
   ScrollView,
+  Platform,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { Video, ResizeMode } from 'expo-av';
@@ -40,6 +41,8 @@ export default function StatusViewerScreen() {
   const [statuses, setStatuses] = useState<Status[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [mediaUrl, setMediaUrl] = useState<string | null>(null);
+  const [backgroundImageUrl, setBackgroundImageUrl] = useState<string | null>(null);
+  const [stickerUrls, setStickerUrls] = useState<Map<string, string>>(new Map());
   const [isLoading, setIsLoading] = useState(true);
   const [isDeleting, setIsDeleting] = useState(false);
   const [showPlusMenu, setShowPlusMenu] = useState(false);
@@ -137,6 +140,58 @@ export default function StatusViewerScreen() {
       justifyContent: 'center',
       alignItems: 'center',
       paddingHorizontal: 20,
+    },
+    textStatusContainer: {
+      flex: 1,
+      width: '100%',
+      position: 'relative',
+    },
+    textBackgroundImage: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      width: '100%',
+      height: '100%',
+    },
+    textWrapper: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingHorizontal: 20,
+    },
+    adaptiveBackgroundContainer: {
+      position: 'absolute',
+      width: '100%',
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    adaptiveLineBackground: {
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      marginBottom: 2,
+    },
+    textOverlay: {
+      position: 'relative',
+      width: '100%',
+      maxWidth: '85%',
+    },
+    stickersContainer: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      width: '100%',
+      height: '100%',
+    },
+    sticker: {
+      position: 'absolute',
+      width: 80,
+      height: 80,
+      marginLeft: -40,
+      marginTop: -40,
     },
     textContent: {
       color: '#fff',
@@ -280,6 +335,8 @@ export default function StatusViewerScreen() {
   useEffect(() => {
     if (statuses.length > 0 && currentIndex < statuses.length) {
       loadMedia();
+      loadBackgroundImage();
+      loadStickers();
       startProgress();
       markAsViewed();
       // Load view count after a short delay to ensure status is set
@@ -398,11 +455,102 @@ export default function StatusViewerScreen() {
     }
   };
 
+  const loadBackgroundImage = async () => {
+    const status = statuses[currentIndex];
+    if (!status || !status.background_image_path) {
+      setBackgroundImageUrl(null);
+      return;
+    }
+
+    try {
+      const url = await getSignedUrlForMedia(status.background_image_path);
+      setBackgroundImageUrl(url);
+    } catch (error) {
+      console.error('Error loading background image:', error);
+      setBackgroundImageUrl(null);
+    }
+  };
+
+  const loadStickers = async () => {
+    const status = statuses[currentIndex];
+    if (!status || !status.stickers || status.stickers.length === 0) {
+      setStickerUrls(new Map());
+      return;
+    }
+
+    try {
+      const stickerUrlMap = new Map<string, string>();
+      for (const sticker of status.stickers) {
+        // If sticker_image_url is a storage path, get signed URL
+        // Otherwise, use it directly (if it's already a URL)
+        if (sticker.sticker_image_url.startsWith('status-media/')) {
+          const url = await getSignedUrlForMedia(sticker.sticker_image_url);
+          if (url) {
+            stickerUrlMap.set(sticker.id, url);
+          }
+        } else {
+          stickerUrlMap.set(sticker.id, sticker.sticker_image_url);
+        }
+      }
+      setStickerUrls(stickerUrlMap);
+    } catch (error) {
+      console.error('Error loading stickers:', error);
+      setStickerUrls(new Map());
+    }
+  };
+
   const markAsViewed = async () => {
     const status = statuses[currentIndex];
     if (!status) return;
 
     await markStatusAsViewed(status.id);
+  };
+
+  // Helper functions for text styling (matching create screen)
+  const getTextStyle = (textStyle: 'classic' | 'neon' | 'typewriter' | 'elegant' | 'bold' | 'italic' = 'classic') => {
+    const baseStyle: any = {
+      fontSize: textStyle === 'typewriter' ? 20 : textStyle === 'elegant' ? 24 : 32,
+      fontWeight: textStyle === 'bold' ? ('700' as const) : textStyle === 'typewriter' ? ('400' as const) : ('600' as const),
+      fontStyle: textStyle === 'italic' ? ('italic' as const) : ('normal' as const),
+    };
+
+    // Font family
+    if (textStyle === 'typewriter') {
+      baseStyle.fontFamily = 'monospace';
+    } else if (textStyle === 'elegant') {
+      baseStyle.fontFamily = Platform.OS === 'ios' ? 'Georgia' : 'serif';
+    } else if (textStyle === 'neon') {
+      baseStyle.fontFamily = Platform.OS === 'ios' ? 'Arial' : 'sans-serif-medium';
+    }
+
+    return baseStyle;
+  };
+
+  const getTextEffectStyle = (
+    textEffect: 'default' | 'white-bg' | 'black-bg' | 'outline-white' | 'outline-black' | 'glow' = 'default',
+    backgroundColor: string = '#1A73E8'
+  ) => {
+    const styles: any = {};
+    
+    switch (textEffect) {
+      case 'outline-white':
+        styles.textShadowColor = '#fff';
+        styles.textShadowOffset = { width: -1, height: 1 };
+        styles.textShadowRadius = 2;
+        break;
+      case 'outline-black':
+        styles.textShadowColor = '#000';
+        styles.textShadowOffset = { width: -1, height: 1 };
+        styles.textShadowRadius = 2;
+        break;
+      case 'glow':
+        styles.textShadowColor = backgroundColor;
+        styles.textShadowOffset = { width: 0, height: 0 };
+        styles.textShadowRadius = 20;
+        break;
+    }
+    
+    return styles;
   };
 
   const startProgress = () => {
@@ -649,7 +797,115 @@ export default function StatusViewerScreen() {
         {/* Content */}
         <View style={styles.content}>
           {status.content_type === 'text' ? (
-            <Text style={styles.textContent}>{status.text_content}</Text>
+            <View style={[styles.textStatusContainer, {
+              backgroundColor: status.background_color || '#1A73E8',
+            }]}>
+              {/* Background Image */}
+              {backgroundImageUrl && (
+                <Image 
+                  source={{ uri: backgroundImageUrl }} 
+                  style={styles.textBackgroundImage} 
+                  contentFit="cover" 
+                />
+              )}
+              
+              {/* Text Content with Customization */}
+              <View style={[styles.textWrapper, {
+                alignItems: status.text_alignment === 'left' ? 'flex-start' : 
+                           status.text_alignment === 'right' ? 'flex-end' : 'center',
+              }]}>
+                {/* Per-line Backgrounds for white-bg/black-bg effects */}
+                {(status.text_effect === 'white-bg' || status.text_effect === 'black-bg') && status.text_content && (
+                  <View 
+                    style={[styles.adaptiveBackgroundContainer, {
+                      alignItems: status.text_alignment === 'left' ? 'flex-start' : 
+                                 status.text_alignment === 'right' ? 'flex-end' : 'center',
+                    }]} 
+                    pointerEvents="none"
+                  >
+                    {status.text_content.split('\n').map((line, index) => {
+                      const trimmedLine = line.trim();
+                      if (!trimmedLine) return null;
+                      
+                      return (
+                        <View
+                          key={index}
+                          style={[
+                            styles.adaptiveLineBackground,
+                            {
+                              backgroundColor: status.text_effect === 'white-bg' ? '#fff' : '#000',
+                              borderRadius: 20,
+                              marginTop: index > 0 ? -2 : 0,
+                              alignSelf: status.text_alignment === 'center' ? 'center' : 
+                                        status.text_alignment === 'right' ? 'flex-end' : 'flex-start',
+                            },
+                          ]}
+                          pointerEvents="none"
+                        >
+                          <Text
+                            style={[
+                              getTextStyle(status.text_style || 'classic'),
+                              {
+                                textAlign: status.text_alignment || 'center',
+                                color: 'transparent',
+                              },
+                            ]}
+                          >
+                            {trimmedLine}
+                          </Text>
+                        </View>
+                      );
+                    })}
+                  </View>
+                )}
+                
+                {/* Actual Text */}
+                <View style={styles.textOverlay}>
+                  <Text
+                    style={[
+                      getTextStyle(status.text_style || 'classic'),
+                      getTextEffectStyle(status.text_effect || 'default', status.background_color || '#1A73E8'),
+                      {
+                        textAlign: status.text_alignment || 'center',
+                        color: (status.text_effect === 'white-bg' || status.text_effect === 'black-bg')
+                          ? (status.text_effect === 'white-bg' ? '#000' : '#fff')
+                          : '#fff',
+                        paddingHorizontal: 12,
+                        paddingVertical: 8,
+                      },
+                    ]}
+                  >
+                    {status.text_content}
+                  </Text>
+                </View>
+              </View>
+              
+              {/* Stickers */}
+              {status.stickers && status.stickers.length > 0 && (
+                <View style={styles.stickersContainer} pointerEvents="none">
+                  {status.stickers.map((sticker) => {
+                    const stickerUrl = stickerUrls.get(sticker.id);
+                    if (!stickerUrl) return null;
+                    
+                    return (
+                      <Image
+                        key={sticker.id}
+                        source={{ uri: stickerUrl }}
+                        style={[styles.sticker, {
+                          left: `${sticker.position_x * 100}%`,
+                          top: `${sticker.position_y * 100}%`,
+                          transform: [
+                            { scale: sticker.scale || 1.0 },
+                            { rotate: `${sticker.rotation || 0}deg` },
+                          ],
+                        }]}
+                        contentFit="contain"
+                      />
+                    );
+                  })}
+                </View>
+              )}
+            </View>
           ) : status.content_type === 'image' && mediaUrl ? (
             <Image source={{ uri: mediaUrl }} style={styles.media} contentFit="contain" />
           ) : status.content_type === 'video' && mediaUrl ? (
