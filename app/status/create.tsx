@@ -587,29 +587,90 @@ export default function CreateStatusScreen() {
             <View style={[styles.textInputArea, { backgroundColor: textBackgroundColor }]} />
           )}
           
-          {/* Text Input Area - Single Unified Background Wrapper (Like Second Image) */}
+          {/* Text Input Area - Facebook-style Multi-line with Connected Background Bubbles */}
           <View style={styles.textInputWrapper}>
-            {/* Single Unified Background Wrapper - Follows text width, hugs tightly with smooth edges (Like Second Image) */}
-            {(textEffect === 'white-bg' || textEffect === 'black-bg') && (
-              <View style={styles.unifiedTextWrapper} pointerEvents="none">
-                {/* Background Text - Uses backgroundColor to create background, naturally wraps text width */}
-                <Text
-                  style={[
-                    getTextStyle(),
-                    styles.measurerText,
-                    {
-                      textAlign: textAlignment,
-                      backgroundColor: textEffect === 'white-bg' ? '#fff' : '#000',
-                      color: 'transparent', // Invisible text, background shows through
-                    },
-                  ]}
-                >
-                  {textContent || ' '}
-                </Text>
+            {/* Per-line Background Bubbles - Merged seamlessly, rounded only on outer edges */}
+            {(textEffect === 'white-bg' || textEffect === 'black-bg') && textContent && (
+              <View style={styles.connectedBackgroundContainer} pointerEvents="none">
+                {textContent.split('\n').map((line, index, lines) => {
+                  const trimmedLine = line.trim();
+                  if (!trimmedLine && index === lines.length - 1 && lines.length === 1) {
+                    // Show background for empty first line
+                    return (
+                      <View
+                        key={index}
+                        style={[
+                          styles.lineBackgroundBubble,
+                          {
+                            backgroundColor: textEffect === 'white-bg' ? '#fff' : '#000',
+                            // Rounded only on outer edges
+                            borderTopLeftRadius: index === 0 ? 20 : 0,
+                            borderTopRightRadius: index === 0 ? 20 : 0,
+                            borderBottomLeftRadius: index === lines.length - 1 ? 20 : 0,
+                            borderBottomRightRadius: index === lines.length - 1 ? 20 : 0,
+                            // Overlap slightly to merge seamlessly (no gaps)
+                            marginTop: index > 0 ? -2 : 0,
+                            // Adaptive width based on text length - align center
+                            alignSelf: 'center',
+                          },
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            getTextStyle(),
+                            styles.lineBackgroundText,
+                            {
+                              textAlign: textAlignment,
+                              color: 'transparent', // Invisible - only background shows
+                            },
+                          ]}
+                        >
+                          {' '}
+                        </Text>
+                      </View>
+                    );
+                  }
+                  if (!trimmedLine) return null;
+                  
+                  return (
+                    <View
+                      key={index}
+                      style={[
+                        styles.lineBackgroundBubble,
+                        {
+                          backgroundColor: textEffect === 'white-bg' ? '#fff' : '#000',
+                          // Rounded only on outer edges
+                          borderTopLeftRadius: index === 0 ? 20 : 0,
+                          borderTopRightRadius: index === 0 ? 20 : 0,
+                          borderBottomLeftRadius: index === lines.length - 1 ? 20 : 0,
+                          borderBottomRightRadius: index === lines.length - 1 ? 20 : 0,
+                          // Overlap slightly to merge seamlessly (no gaps)
+                          marginTop: index > 0 ? -2 : 0,
+                          // Adaptive width based on text length - align center
+                          alignSelf: 'center',
+                        },
+                      ]}
+                    >
+                      {/* Invisible text for width measurement */}
+                      <Text
+                        style={[
+                          getTextStyle(),
+                          styles.lineBackgroundText,
+                          {
+                            textAlign: textAlignment,
+                            color: 'transparent', // Invisible - only background shows
+                          },
+                        ]}
+                      >
+                        {trimmedLine}
+                      </Text>
+                    </View>
+                  );
+                })}
               </View>
             )}
             
-            {/* TextInput - Positioned to overlay on wrapper */}
+            {/* TextInput - Positioned to overlay on background bubbles */}
             <View style={styles.textInputOverlay}>
               <TextInput
                 style={[
@@ -623,8 +684,8 @@ export default function CreateStatusScreen() {
                     backgroundColor: 'transparent',
                     borderWidth: 0,
                     outlineWidth: 0,
-                    paddingHorizontal: 0,
-                    paddingVertical: 0,
+                    paddingHorizontal: 12, // Match background padding
+                    paddingVertical: 8, // Match background padding
                   },
                 ]}
                 placeholder="Type or @Tag"
@@ -1276,8 +1337,8 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
   },
-  // Single Unified Background Wrapper - Follows text width, hugs tightly (like second image)
-  unifiedTextWrapper: {
+  // Connected Background Container - Holds all line background bubbles
+  connectedBackgroundContainer: {
     position: 'absolute',
     top: 0,
     left: 0,
@@ -1288,13 +1349,13 @@ const styles = StyleSheet.create({
     zIndex: 1, // Below TextInput
     pointerEvents: 'none',
   },
-  // Measurer Text - Uses backgroundColor to create background, naturally wraps text width
-  measurerText: {
+  // Individual Line Background Bubble - Adaptive width, merged seamlessly
+  lineBackgroundBubble: {
     // Tight padding - hugs text closely
     paddingHorizontal: 12,
     paddingVertical: 8,
-    // Smooth rounded edges - pill shape
-    borderRadius: 20,
+    // No default border radius (set per-line for outer edges only)
+    borderRadius: 0,
     // Max width to prevent overflow
     maxWidth: '85%',
     // Shadow for depth
@@ -1305,11 +1366,13 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 3,
     elevation: 2,
-    // Text styling - text is transparent, background shows
+  },
+  // Text inside background bubble - invisible, only for width measurement
+  lineBackgroundText: {
     includeFontPadding: false,
     textAlignVertical: 'center',
   },
-  // TextInput overlay container - positioned on top of wrapper
+  // TextInput overlay container - positioned on top of background bubbles
   textInputOverlay: {
     position: 'absolute',
     top: 0,
@@ -1318,10 +1381,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     justifyContent: 'center',
     alignItems: 'center',
-    zIndex: 2, // Above wrapper
-    // Match wrapper padding for perfect alignment
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    zIndex: 2, // Above background bubbles
     maxWidth: '85%',
   },
   textInputWithBg: {
