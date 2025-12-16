@@ -855,16 +855,16 @@ export default function CreateStatusScreen() {
                       pointerEvents="none"
                     >
                       {/* Invisible Text for width measurement only - completely hidden */}
+                      {/* CRITICAL: This Text must match TextInput font properties EXACTLY */}
                       <Text
                         style={[
-                          getTextStyle(),
+                          getTextStyle(), // This already includes fontSize, fontWeight, fontStyle, fontFamily, lineHeight
                           {
                             textAlign: textAlignment,
                             color: 'transparent', // Transparent text
-                            opacity: 0.001, // Essentially invisible but still measurable (0 breaks measurement on some platforms)
+                            opacity: 0.001, // Essentially invisible but still measurable
                             includeFontPadding: false,
-                            lineHeight: getTextStyle().lineHeight,
-                            // Keep in normal flow for width measurement
+                            // All font properties come from getTextStyle() - no need to duplicate
                           },
                         ]}
                         numberOfLines={1}
@@ -896,7 +896,7 @@ export default function CreateStatusScreen() {
                   getTextEffectStyle(),
                   { 
                     textAlign: textAlignment,
-                    textAlignVertical: 'center', // Center vertically to match background Views
+                    textAlignVertical: 'top', // Top align to match line-by-line background positioning
                     lineHeight: getTextStyle().lineHeight, // MUST match background Text exactly
                     color: (textEffect === 'white-bg' || textEffect === 'black-bg') 
                       ? (textEffect === 'white-bg' ? '#000' : '#fff')
@@ -904,17 +904,19 @@ export default function CreateStatusScreen() {
                     backgroundColor: 'transparent',
                     borderWidth: 0,
                     outlineWidth: 0,
-                    paddingHorizontal: 12, // MUST match adaptiveLineBackground paddingHorizontal
-                    paddingVertical: 8, // MUST match adaptiveLineBackground paddingVertical
+                    paddingHorizontal: 12, // MUST match adaptiveLineBackground paddingHorizontal exactly
+                    paddingVertical: 8, // MUST match adaptiveLineBackground paddingVertical exactly
                     maxWidth: '85%',
                     includeFontPadding: false,
                     // CRITICAL: Match background Views' alignSelf behavior
                     alignSelf: textAlignment === 'center' ? 'center' : 
                               textAlignment === 'right' ? 'flex-end' : 'flex-start',
                     // CRITICAL: TextInput must align exactly with background Text
-                    // Both use same lineHeight, paddingHorizontal, paddingVertical
-                    // Both containers use same justifyContent and alignItems
+                    // Both use same fontSize, fontWeight, fontStyle, fontFamily, lineHeight
+                    // Both use same paddingHorizontal, paddingVertical
+                    // Both containers use same justifyContent: 'center' and alignItems
                     // Both use same alignSelf based on textAlignment
+                    // TextInput uses textAlignVertical: 'top' to match line-by-line background positioning
                   },
                 ]}
                 placeholder="Type or @Tag"
@@ -1747,6 +1749,7 @@ const styles = StyleSheet.create({
   // Adaptive Line Background - Each line has own width, wraps text tightly
   adaptiveLineBackground: {
     // Tight padding - hugs text closely (each line has its own padding)
+    // CRITICAL: Must match TextInput padding exactly
     paddingHorizontal: 12,
     paddingVertical: 8,
     // Center content vertically and horizontally within the wrapper
