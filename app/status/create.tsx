@@ -1378,8 +1378,7 @@ const styles = StyleSheet.create({
     elevation: 2,
     // View wraps invisible text to determine width
     overflow: 'hidden',
-    // Allow View to shrink-wrap around Text content
-    alignSelf: 'flex-start',
+    // alignSelf will be set dynamically based on textAlignment
   },
   // TextInput overlay container - positioned on top of background bubbles
   textInputOverlay: {
