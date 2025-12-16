@@ -772,11 +772,6 @@ export default function CreateStatusScreen() {
                 ]} 
                 pointerEvents="none"
               >
-                <View style={{ 
-                  alignSelf: textAlignment === 'left' ? 'flex-start' : 
-                           textAlignment === 'right' ? 'flex-end' : 'center',
-                  maxWidth: '85%',
-                }}>
                 {textContent.split('\n').map((line, index, lines) => {
                   const trimmedLine = line.trim();
                   if (!trimmedLine && index === lines.length - 1 && lines.length === 1) {
@@ -871,7 +866,6 @@ export default function CreateStatusScreen() {
                     </View>
                   );
                 })}
-                </View>
               </View>
             )}
             
@@ -885,12 +879,6 @@ export default function CreateStatusScreen() {
                 },
               ]}
             >
-              <View style={{ 
-                alignSelf: textAlignment === 'left' ? 'flex-start' : 
-                         textAlignment === 'right' ? 'flex-end' : 'center',
-                maxWidth: '85%',
-                width: '100%',
-              }}>
               <TextInput
                 style={[
                   getTextStyle(),
@@ -918,7 +906,6 @@ export default function CreateStatusScreen() {
                 multiline
                 autoFocus
               />
-              </View>
             </View>
           </View>
         </View>
@@ -1708,8 +1695,6 @@ const styles = StyleSheet.create({
     // Center content vertically and horizontally within the wrapper
     justifyContent: 'center',
     alignItems: 'center',
-    // Ensure minimum height for proper vertical centering
-    minHeight: 'auto',
     // Border radius is set dynamically based on text alignment
     // Max width to prevent overflow
     maxWidth: '85%',
