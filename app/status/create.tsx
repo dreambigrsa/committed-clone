@@ -804,15 +804,17 @@ export default function CreateStatusScreen() {
                       ]}
                       pointerEvents="none"
                     >
+                      {/* Invisible Text for empty line measurement */}
                       <Text
                         style={[
                           getTextStyle(),
                           {
                             textAlign: textAlignment,
                             color: 'transparent',
-                            opacity: 0,
+                            opacity: 0.01, // Nearly invisible but still measurable
                           },
                         ]}
+                        pointerEvents="none"
                       >
                         {' '}
                       </Text>
@@ -852,19 +854,21 @@ export default function CreateStatusScreen() {
                       ]}
                       pointerEvents="none"
                     >
+                      {/* Invisible Text for width measurement only - completely hidden */}
                       <Text
                         style={[
                           getTextStyle(),
                           {
                             textAlign: textAlignment,
-                            color: 'transparent', // Hide text, but keep background visible
+                            color: 'transparent', // Transparent text
+                            opacity: 0.001, // Essentially invisible but still measurable (0 breaks measurement on some platforms)
                             includeFontPadding: false,
-                            lineHeight: getTextStyle().lineHeight, // MUST match TextInput exactly
-                            // Text has no padding - padding is on the parent View
-                            // This matches how TextInput works - text inside has padding from TextInput itself
+                            lineHeight: getTextStyle().lineHeight,
+                            // Keep in normal flow for width measurement
                           },
                         ]}
                         numberOfLines={1}
+                        pointerEvents="none"
                       >
                         {trimmedLine}
                       </Text>
