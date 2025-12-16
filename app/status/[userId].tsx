@@ -848,7 +848,6 @@ export default function StatusViewerScreen() {
                               {
                                 textAlign: status.text_alignment || 'center',
                                 color: 'transparent',
-                                opacity: 0,
                               },
                             ]}
                           >
