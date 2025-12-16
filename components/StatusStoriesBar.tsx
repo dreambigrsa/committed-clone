@@ -174,7 +174,98 @@ function OtherUserStoryCard({
       width: '100%',
       height: '100%',
     },
+    textPreviewContainer: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      justifyContent: 'center',
+      alignItems: 'center',
+      padding: 8,
+    },
+    textBackgroundWrapper: {
+      position: 'absolute',
+      width: '100%',
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingHorizontal: 8,
+    },
+    textLineBackground: {
+      paddingHorizontal: 6,
+      paddingVertical: 4,
+      marginBottom: 2,
+    },
+    textPreviewOverlay: {
+      position: 'relative',
+      width: '100%',
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingHorizontal: 8,
+    },
+    stickersPreview: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      width: '100%',
+      height: '100%',
+    },
+    stickerPreview: {
+      position: 'absolute',
+      width: 24,
+      height: 24,
+      marginLeft: -12,
+      marginTop: -12,
+    },
   });
+
+  // Helper functions for text styling
+  const getTextStyle = (textStyle: string = 'classic') => {
+    const baseStyle: any = {
+      fontSize: textStyle === 'typewriter' ? 10 : textStyle === 'elegant' ? 12 : 11,
+      fontWeight: textStyle === 'bold' ? ('700' as const) : textStyle === 'typewriter' ? ('400' as const) : ('600' as const),
+      fontStyle: textStyle === 'italic' ? ('italic' as const) : ('normal' as const),
+    };
+
+    if (textStyle === 'typewriter') {
+      baseStyle.fontFamily = 'monospace';
+    } else if (textStyle === 'elegant') {
+      baseStyle.fontFamily = 'serif';
+    } else if (textStyle === 'neon') {
+      baseStyle.fontFamily = 'sans-serif-medium';
+    }
+
+    return baseStyle;
+  };
+
+  const getTextEffectStyle = (
+    textEffect: string = 'default',
+    backgroundColor: string = '#1A73E8'
+  ) => {
+    const styles: any = {};
+    
+    switch (textEffect) {
+      case 'outline-white':
+        styles.textShadowColor = '#fff';
+        styles.textShadowOffset = { width: -0.5, height: 0.5 };
+        styles.textShadowRadius = 1;
+        break;
+      case 'outline-black':
+        styles.textShadowColor = '#000';
+        styles.textShadowOffset = { width: -0.5, height: 0.5 };
+        styles.textShadowRadius = 1;
+        break;
+      case 'glow':
+        styles.textShadowColor = backgroundColor;
+        styles.textShadowOffset = { width: 0, height: 0 };
+        styles.textShadowRadius = 8;
+        break;
+    }
+    
+    return styles;
+  };
 
   // Get preview image or use gradient background
   const hasMedia = status.media_path && (status.content_type === 'image' || status.content_type === 'video');
@@ -252,11 +343,14 @@ function YourStoryCard({
   const { colors } = useTheme();
   const status = statusItem.latest_status;
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [backgroundImageUrl, setBackgroundImageUrl] = useState<string | null>(null);
+  const [stickerUrls, setStickerUrls] = useState<Map<string, string>>(new Map());
 
   useEffect(() => {
     let isMounted = true;
 
     const loadPreview = async () => {
+      // Load media preview
       if (status.media_path) {
         try {
           const url = await getSignedUrlForMedia(status.media_path);
@@ -267,6 +361,40 @@ function YourStoryCard({
           console.error('Error loading your story preview:', error);
         }
       }
+
+      // Load background image for text statuses
+      if (status.content_type === 'text' && status.background_image_path) {
+        try {
+          const url = await getSignedUrlForMedia(status.background_image_path);
+          if (isMounted) {
+            setBackgroundImageUrl(url);
+          }
+        } catch (error) {
+          console.error('Error loading background image:', error);
+        }
+      }
+
+      // Load stickers
+      if (status.stickers && status.stickers.length > 0) {
+        try {
+          const stickerUrlMap = new Map<string, string>();
+          for (const sticker of status.stickers) {
+            if (sticker.sticker_image_url.startsWith('status-media/')) {
+              const url = await getSignedUrlForMedia(sticker.sticker_image_url);
+              if (url) {
+                stickerUrlMap.set(sticker.id, url);
+              }
+            } else {
+              stickerUrlMap.set(sticker.id, sticker.sticker_image_url);
+            }
+          }
+          if (isMounted) {
+            setStickerUrls(stickerUrlMap);
+          }
+        } catch (error) {
+          console.error('Error loading stickers:', error);
+        }
+      }
     };
 
     loadPreview();
@@ -274,7 +402,7 @@ function YourStoryCard({
     return () => {
       isMounted = false;
     };
-  }, [status.media_path]);
+  }, [status.media_path, status.background_image_path, status.stickers]);
 
   const cardStyles = StyleSheet.create({
     yourCard: {
@@ -372,19 +500,115 @@ function YourStoryCard({
       width: '100%',
       height: '100%',
     },
+    textPreviewContainer: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      justifyContent: 'center',
+      alignItems: 'center',
+      padding: 8,
+    },
+    textBackgroundWrapper: {
+      position: 'absolute',
+      width: '100%',
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingHorizontal: 8,
+    },
+    textLineBackground: {
+      paddingHorizontal: 6,
+      paddingVertical: 4,
+      marginBottom: 2,
+    },
+    textPreviewOverlay: {
+      position: 'relative',
+      width: '100%',
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingHorizontal: 8,
+    },
+    stickersPreview: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      width: '100%',
+      height: '100%',
+    },
+    stickerPreview: {
+      position: 'absolute',
+      width: 24,
+      height: 24,
+      marginLeft: -12,
+      marginTop: -12,
+    },
   });
+
+  // Helper functions for text styling
+  const getTextStyle = (textStyle: string = 'classic') => {
+    const baseStyle: any = {
+      fontSize: textStyle === 'typewriter' ? 10 : textStyle === 'elegant' ? 12 : 11,
+      fontWeight: textStyle === 'bold' ? ('700' as const) : textStyle === 'typewriter' ? ('400' as const) : ('600' as const),
+      fontStyle: textStyle === 'italic' ? ('italic' as const) : ('normal' as const),
+    };
+
+    if (textStyle === 'typewriter') {
+      baseStyle.fontFamily = 'monospace';
+    } else if (textStyle === 'elegant') {
+      baseStyle.fontFamily = 'serif';
+    } else if (textStyle === 'neon') {
+      baseStyle.fontFamily = 'sans-serif-medium';
+    }
+
+    return baseStyle;
+  };
+
+  const getTextEffectStyle = (
+    textEffect: string = 'default',
+    backgroundColor: string = '#1A73E8'
+  ) => {
+    const styles: any = {};
+    
+    switch (textEffect) {
+      case 'outline-white':
+        styles.textShadowColor = '#fff';
+        styles.textShadowOffset = { width: -0.5, height: 0.5 };
+        styles.textShadowRadius = 1;
+        break;
+      case 'outline-black':
+        styles.textShadowColor = '#000';
+        styles.textShadowOffset = { width: -0.5, height: 0.5 };
+        styles.textShadowRadius = 1;
+        break;
+      case 'glow':
+        styles.textShadowColor = backgroundColor;
+        styles.textShadowOffset = { width: 0, height: 0 };
+        styles.textShadowRadius = 8;
+        break;
+    }
+    
+    return styles;
+  };
 
   // Get preview image or use gradient background
   const hasMedia = status.media_path && (status.content_type === 'image' || status.content_type === 'video');
+  const isTextStatus = status.content_type === 'text';
   const displayText = status.text_content || 'Your Story';
   const truncatedText = displayText.length > 30 ? displayText.substring(0, 30) + '...' : displayText;
 
   return (
     <TouchableOpacity style={{ marginHorizontal: CARD_MARGIN, width: CARD_WIDTH }} onPress={onPress} activeOpacity={0.8}>
       <View style={cardStyles.yourCard}>
-        {/* Background - media preview or gradient */}
-        {previewUrl ? (
+        {/* Background - media preview, background image, or gradient/color */}
+        {previewUrl && hasMedia ? (
           <Image source={{ uri: previewUrl }} style={cardStyles.yourCardImage} contentFit="cover" />
+        ) : isTextStatus && backgroundImageUrl ? (
+          <Image source={{ uri: backgroundImageUrl }} style={cardStyles.yourCardImage} contentFit="cover" />
+        ) : isTextStatus && status.background_color ? (
+          <View style={[cardStyles.yourCardImage, { backgroundColor: status.background_color }]} />
         ) : (
           <LinearGradient
             colors={[colors.primary, colors.primary + 'DD', colors.primary + 'AA']}
@@ -392,11 +616,113 @@ function YourStoryCard({
           />
         )}
 
-        {/* Gradient overlay for text readability */}
-        <LinearGradient
-          colors={['transparent', 'rgba(0,0,0,0.3)', 'rgba(0,0,0,0.7)']}
-          style={cardStyles.gradientOverlay}
-        />
+        {/* Text status content with customization */}
+        {isTextStatus && status.text_content && (
+          <View style={cardStyles.textPreviewContainer}>
+            {/* Per-line backgrounds for white-bg/black-bg effects */}
+            {(status.text_effect === 'white-bg' || status.text_effect === 'black-bg') && (
+              <View 
+                style={[cardStyles.textBackgroundWrapper, {
+                  alignItems: status.text_alignment === 'left' ? 'flex-start' : 
+                             status.text_alignment === 'right' ? 'flex-end' : 'center',
+                }]} 
+                pointerEvents="none"
+              >
+                {status.text_content.split('\n').slice(0, 2).map((line, index) => {
+                  const trimmedLine = line.trim();
+                  if (!trimmedLine) return null;
+                  const displayLine = trimmedLine.length > 20 ? trimmedLine.substring(0, 20) + '...' : trimmedLine;
+                  
+                  return (
+                    <View
+                      key={index}
+                      style={[
+                        cardStyles.textLineBackground,
+                        {
+                          backgroundColor: status.text_effect === 'white-bg' ? 'rgba(255, 255, 255, 0.9)' : 'rgba(0, 0, 0, 0.7)',
+                          borderRadius: 10,
+                          marginTop: index > 0 ? -2 : 0,
+                          alignSelf: status.text_alignment === 'center' ? 'center' : 
+                                    status.text_alignment === 'right' ? 'flex-end' : 'flex-start',
+                        },
+                      ]}
+                      pointerEvents="none"
+                    >
+                      <Text
+                        style={[
+                          getTextStyle(status.text_style || 'classic'),
+                          {
+                            textAlign: status.text_alignment || 'center',
+                            color: 'transparent',
+                            fontSize: 9,
+                          },
+                        ]}
+                      >
+                        {displayLine}
+                      </Text>
+                    </View>
+                  );
+                })}
+              </View>
+            )}
+            
+            {/* Actual text */}
+            <View style={[cardStyles.textPreviewOverlay, {
+              alignItems: status.text_alignment === 'left' ? 'flex-start' : 
+                         status.text_alignment === 'right' ? 'flex-end' : 'center',
+            }]}>
+              <Text
+                style={[
+                  getTextStyle(status.text_style || 'classic'),
+                  getTextEffectStyle(status.text_effect || 'default', status.background_color || '#1A73E8'),
+                  {
+                    textAlign: status.text_alignment || 'center',
+                    color: (status.text_effect === 'white-bg' || status.text_effect === 'black-bg')
+                      ? (status.text_effect === 'white-bg' ? '#000' : '#fff')
+                      : '#fff',
+                    fontSize: 10,
+                    paddingHorizontal: 6,
+                    paddingVertical: 4,
+                    maxWidth: '90%',
+                  },
+                ]}
+                numberOfLines={2}
+              >
+                {truncatedText}
+              </Text>
+            </View>
+
+            {/* Stickers (small preview) */}
+            {status.stickers && status.stickers.length > 0 && stickerUrls.size > 0 && (
+              <View style={cardStyles.stickersPreview} pointerEvents="none">
+                {status.stickers.slice(0, 2).map((sticker) => {
+                  const stickerUrl = stickerUrls.get(sticker.id);
+                  if (!stickerUrl) return null;
+                  
+                  return (
+                    <Image
+                      key={sticker.id}
+                      source={{ uri: stickerUrl }}
+                      style={[cardStyles.stickerPreview, {
+                        left: `${Math.min(sticker.position_x * 100, 70)}%`,
+                        top: `${Math.min(sticker.position_y * 100, 60)}%`,
+                      }]}
+                      contentFit="contain"
+                    />
+                  );
+                })}
+              </View>
+            )}
+          </View>
+        )}
+
+        {/* Gradient overlay for text readability (only if not text status with background) */}
+        {(!isTextStatus || (!status.background_color && !backgroundImageUrl)) && (
+          <LinearGradient
+            colors={['transparent', 'rgba(0,0,0,0.3)', 'rgba(0,0,0,0.7)']}
+            style={cardStyles.gradientOverlay}
+          />
+        )}
 
         {/* Profile picture badge at top */}
         <View style={cardStyles.profileBadge}>
@@ -426,14 +752,14 @@ function YourStoryCard({
             {formatTimeAgo(status.created_at)}
           </Text>
           
-          {/* Status text preview */}
-          {status.text_content && (
+          {/* Status text preview (if not text status with customization) */}
+          {!isTextStatus && status.text_content && (
             <Text style={cardStyles.cardText} numberOfLines={2}>
               {truncatedText}
             </Text>
           )}
 
-          {/* Stats (if you want to add view count, etc.) */}
+          {/* Stats */}
           {status.text_content && (
             <View style={cardStyles.cardStats}>
               <Text style={cardStyles.cardStat}>•</Text>
