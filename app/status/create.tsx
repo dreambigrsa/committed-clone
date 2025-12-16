@@ -928,9 +928,14 @@ export default function CreateStatusScreen() {
           </View>
         </View>
 
-        {/* Text Style Selector at Bottom (Classic, Neon, Typewriter) - Facebook Style */}
-        <View style={styles.textStyleSelectorContainer}>
-          {(['classic', 'neon', 'typewriter'] as const).map((style) => (
+        {/* Text Style Selector at Bottom - All Fonts - Scrollable */}
+        <ScrollView 
+          horizontal 
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.textStyleSelectorContainer}
+          style={styles.textStyleSelectorScrollView}
+        >
+          {(['classic', 'neon', 'typewriter', 'elegant', 'bold', 'italic'] as FontStyle[]).map((style) => (
             <TouchableOpacity
               key={style}
               style={[
@@ -943,12 +948,19 @@ export default function CreateStatusScreen() {
               <Text style={[
                 styles.textStyleButtonText,
                 textStyle === style && styles.textStyleButtonTextActive,
+                // Apply font preview style to button text
+                getFontPreviewStyle(style),
               ]}>
-                {style.charAt(0).toUpperCase() + style.slice(1)}
+                {style === 'classic' ? 'Classic' : 
+                 style === 'neon' ? 'Neon' : 
+                 style === 'typewriter' ? 'Typewriter' : 
+                 style === 'elegant' ? 'Elegant' : 
+                 style === 'bold' ? 'Bold' : 
+                 'Italic'}
               </Text>
             </TouchableOpacity>
           ))}
-        </View>
+        </ScrollView>
 
         {/* Vertical Options on Right Side - ABOVE background layer for clickability */}
         <View style={styles.verticalOptionsContainer}>
@@ -1184,23 +1196,37 @@ export default function CreateStatusScreen() {
   );
 
   function getTextStyle() {
-    const fontSize = textStyle === 'typewriter' ? 20 : textStyle === 'elegant' ? 24 : 32;
+    // Font size based on style
+    let fontSize = 32;
+    if (textStyle === 'typewriter') {
+      fontSize = 20;
+    } else if (textStyle === 'elegant') {
+      fontSize = 24;
+    } else if (textStyle === 'bold' || textStyle === 'italic') {
+      fontSize = 32; // Same as classic
+    }
     const lineHeight = fontSize * 1.2; // Consistent line height multiplier
     const baseStyle: any = {
       fontSize: fontSize,
       lineHeight: lineHeight,
       color: textEffect === 'black-bg' ? '#fff' : textEffect === 'white-bg' ? '#000' : '#fff',
-      fontWeight: textStyle === 'bold' ? ('700' as const) : textStyle === 'typewriter' ? ('400' as const) : ('600' as const),
+      fontWeight: textStyle === 'bold' ? ('700' as const) : textStyle === 'typewriter' ? ('400' as const) : textStyle === 'italic' ? ('400' as const) : ('600' as const),
       fontStyle: textStyle === 'italic' ? ('italic' as const) : ('normal' as const),
     };
 
-    // Font family
+    // Font family - handle all font styles
     if (textStyle === 'typewriter') {
       baseStyle.fontFamily = 'monospace';
     } else if (textStyle === 'elegant') {
       baseStyle.fontFamily = Platform.OS === 'ios' ? 'Georgia' : 'serif';
     } else if (textStyle === 'neon') {
       baseStyle.fontFamily = Platform.OS === 'ios' ? 'Arial' : 'sans-serif-medium';
+    } else if (textStyle === 'classic') {
+      baseStyle.fontFamily = Platform.OS === 'ios' ? 'SF Pro Display' : 'Roboto';
+    } else if (textStyle === 'bold') {
+      baseStyle.fontFamily = Platform.OS === 'ios' ? 'SF Pro Display' : 'Roboto';
+    } else if (textStyle === 'italic') {
+      baseStyle.fontFamily = Platform.OS === 'ios' ? 'Georgia' : 'serif';
     }
 
     return baseStyle;
@@ -1296,25 +1322,32 @@ export default function CreateStatusScreen() {
 
   function getFontPreviewStyle(font: FontStyle) {
     const styles: any = {
-      fontSize: 18,
-      color: textColor,
+      fontSize: 14, // Match button text size
+      color: textStyle === font ? '#000' : '#fff', // Active state handled by textStyleButtonTextActive
     };
     
     switch (font) {
       case 'bold':
         styles.fontWeight = '700' as const;
+        styles.fontFamily = Platform.OS === 'ios' ? 'SF Pro Display' : 'Roboto';
         break;
       case 'italic':
         styles.fontStyle = 'italic' as const;
+        styles.fontFamily = Platform.OS === 'ios' ? 'Georgia' : 'serif';
         break;
       case 'neon':
-        styles.color = '#00ffff';
+        styles.color = textStyle === font ? '#000' : '#00ffff';
+        styles.fontFamily = Platform.OS === 'ios' ? 'Arial' : 'sans-serif-medium';
         break;
       case 'elegant':
         styles.fontFamily = Platform.OS === 'ios' ? 'Georgia' : 'serif';
         break;
       case 'typewriter':
         styles.fontFamily = 'monospace';
+        break;
+      case 'classic':
+        styles.fontFamily = Platform.OS === 'ios' ? 'SF Pro Display' : 'Roboto';
+        styles.fontWeight = '600' as const;
         break;
     }
     
@@ -1954,20 +1987,23 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500' as const,
   },
-  // Text Style Selector at Bottom - Facebook Style
-  textStyleSelectorContainer: {
+  // Text Style Selector at Bottom - Facebook Style - Scrollable
+  textStyleSelectorScrollView: {
     position: 'absolute',
     bottom: Platform.OS === 'ios' ? 100 : 80,
     left: 0,
     right: 0,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
     zIndex: 10, // Above everything - buttons must be clickable
     elevation: 10, // Android elevation
+    maxHeight: 60,
+  },
+  textStyleSelectorContainer: {
+    flexDirection: 'row',
+    justifyContent: 'flex-start',
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
   },
   textStyleButton: {
     paddingHorizontal: 18,
