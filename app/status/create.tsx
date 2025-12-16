@@ -581,52 +581,66 @@ export default function CreateStatusScreen() {
                            textAlignment === 'right' ? 'flex-end' : 'center',
               }]}>
                 {/* Per-line Backgrounds */}
-                {/* Single Unified Background Wrapper - One shape wrapping all text */}
                 {(textEffect === 'white-bg' || textEffect === 'black-bg') && textContent && (
                   <View 
-                    style={[
-                      styles.unifiedBackgroundWrapper,
-                      {
-                        backgroundColor: textEffect === 'white-bg' ? '#fff' : '#000',
-                        alignItems: textAlignment === 'left' ? 'flex-start' : 
-                                   textAlignment === 'right' ? 'flex-end' : 'center',
-                        // Border radius based on alignment
-                        ...(textAlignment === 'left' ? {
-                          borderTopLeftRadius: 0,
-                          borderBottomLeftRadius: 0,
-                          borderTopRightRadius: 20,
-                          borderBottomRightRadius: 20,
-                        } : textAlignment === 'right' ? {
-                          borderTopRightRadius: 0,
-                          borderBottomRightRadius: 0,
-                          borderTopLeftRadius: 20,
-                          borderBottomLeftRadius: 20,
-                        } : {
-                          borderRadius: 15, // Center: reduced radius
-                        }),
-                      },
-                    ]} 
+                    style={[styles.adaptiveBackgroundContainer, {
+                      alignItems: textAlignment === 'left' ? 'flex-start' : 
+                                 textAlignment === 'right' ? 'flex-end' : 'center',
+                    }]} 
                     pointerEvents="none"
                   >
-                    {/* Invisible text for sizing - measures the full text block */}
-                    <Text
-                      style={[
-                        getTextStyle(),
-                        {
-                          textAlign: textAlignment,
-                          color: 'transparent',
-                          opacity: 0,
-                          maxWidth: '85%',
-                        },
-                      ]}
-                    >
-                      {textContent}
-                    </Text>
+                    {textContent.split('\n').map((line, index) => {
+                      const trimmedLine = line.trim();
+                      if (!trimmedLine) return null;
+                      
+                      return (
+                        <View
+                          key={index}
+                          style={[
+                            styles.adaptiveLineBackground,
+                            {
+                              backgroundColor: textEffect === 'white-bg' ? '#fff' : '#000',
+                              // Border radius based on alignment
+                              ...(textAlignment === 'left' ? {
+                                borderTopLeftRadius: 0,
+                                borderBottomLeftRadius: 0,
+                                borderTopRightRadius: 20,
+                                borderBottomRightRadius: 20,
+                              } : textAlignment === 'right' ? {
+                                borderTopRightRadius: 0,
+                                borderBottomRightRadius: 0,
+                                borderTopLeftRadius: 20,
+                                borderBottomLeftRadius: 20,
+                              } : {
+                                borderRadius: 15, // Center: reduced radius
+                              }),
+                              marginTop: index > 0 ? -2 : 0,
+                              alignSelf: textAlignment === 'center' ? 'center' : 
+                                        textAlignment === 'right' ? 'flex-end' : 'flex-start',
+                            },
+                          ]}
+                          pointerEvents="none"
+                        >
+                          <Text
+                            style={[
+                              getTextStyle(),
+                              {
+                                textAlign: textAlignment,
+                                color: 'transparent',
+                                opacity: 0,
+                              },
+                            ]}
+                          >
+                            {trimmedLine}
+                          </Text>
+                        </View>
+                      );
+                    })}
                   </View>
                 )}
                 
-                {/* Actual Visible Text - Single text block inside unified wrapper */}
-                {(textEffect === 'white-bg' || textEffect === 'black-bg') && (
+                {/* Actual Text - Positioned absolutely over backgrounds */}
+                {(textEffect === 'white-bg' || textEffect === 'black-bg') ? (
                   <View style={[styles.textPreviewTextOverlay, {
                     alignItems: textAlignment === 'left' ? 'flex-start' : 
                                textAlignment === 'right' ? 'flex-end' : 'center',
@@ -640,8 +654,28 @@ export default function CreateStatusScreen() {
                           color: textEffect === 'white-bg' ? '#000' : '#fff',
                           paddingHorizontal: 12,
                           paddingVertical: 8,
-                          maxWidth: '85%', // Ensure text stays within wrapper
-                          flexShrink: 1, // Allow shrinking to fit
+                          maxWidth: '85%',
+                        },
+                      ]}
+                    >
+                      {textContent}
+                    </Text>
+                  </View>
+                ) : (
+                  <View style={[styles.textPreviewTextOverlay, {
+                    alignItems: textAlignment === 'left' ? 'flex-start' : 
+                               textAlignment === 'right' ? 'flex-end' : 'center',
+                  }]}>
+                    <Text
+                      style={[
+                        getTextStyle(),
+                        getTextEffectStyle(),
+                        {
+                          textAlign: textAlignment,
+                          color: '#fff',
+                          paddingHorizontal: 12,
+                          paddingVertical: 8,
+                          maxWidth: '85%',
                         },
                       ]}
                     >
@@ -744,47 +778,110 @@ export default function CreateStatusScreen() {
           
           {/* Text Input Area - Per-line Adaptive Backgrounds, Each with Rounded Corners */}
           <View style={styles.textInputWrapper}>
-            {/* Single Unified Background Wrapper - One shape wrapping all text */}
+            {/* Per-line Backgrounds - Each line has own width, all corners rounded, merged seamlessly */}
             {(textEffect === 'white-bg' || textEffect === 'black-bg') && textContent && (
               <View 
                 style={[
-                  styles.unifiedBackgroundWrapper,
+                  styles.adaptiveBackgroundContainer,
                   {
-                    backgroundColor: textEffect === 'white-bg' ? '#fff' : '#000',
                     alignItems: textAlignment === 'left' ? 'flex-start' : 
                                textAlignment === 'right' ? 'flex-end' : 'center',
-                    // Border radius based on alignment
-                    ...(textAlignment === 'left' ? {
-                      borderTopLeftRadius: 0,
-                      borderBottomLeftRadius: 0,
-                      borderTopRightRadius: 20,
-                      borderBottomRightRadius: 20,
-                    } : textAlignment === 'right' ? {
-                      borderTopRightRadius: 0,
-                      borderBottomRightRadius: 0,
-                      borderTopLeftRadius: 20,
-                      borderBottomLeftRadius: 20,
-                    } : {
-                      borderRadius: 15, // Center: reduced radius
-                    }),
                   },
                 ]} 
                 pointerEvents="none"
               >
-                {/* Invisible text for sizing - measures the full text block */}
-                <Text
-                  style={[
-                    getTextStyle(),
-                    {
-                      textAlign: textAlignment,
-                      color: 'transparent',
-                      opacity: 0,
-                      maxWidth: '85%',
-                    },
-                  ]}
-                >
-                  {textContent}
-                </Text>
+                {textContent.split('\n').map((line, index, lines) => {
+                  const trimmedLine = line.trim();
+                  if (!trimmedLine && index === lines.length - 1 && lines.length === 1) {
+                    // Show background for empty first line
+                    return (
+                    <View
+                      key={index}
+                      style={[
+                        styles.adaptiveLineBackground,
+                        {
+                          backgroundColor: textEffect === 'white-bg' ? '#fff' : '#000',
+                          // Border radius based on alignment
+                          ...(textAlignment === 'left' ? {
+                            borderTopLeftRadius: 0,
+                            borderBottomLeftRadius: 0,
+                            borderTopRightRadius: 20,
+                            borderBottomRightRadius: 20,
+                          } : textAlignment === 'right' ? {
+                            borderTopRightRadius: 0,
+                            borderBottomRightRadius: 0,
+                            borderTopLeftRadius: 20,
+                            borderBottomLeftRadius: 20,
+                          } : {
+                            borderRadius: 15, // Center: reduced radius
+                          }),
+                          marginTop: index > 0 ? -2 : 0, // Merge seamlessly
+                          alignSelf: textAlignment === 'center' ? 'center' : 
+                                    textAlignment === 'right' ? 'flex-end' : 'flex-start',
+                        },
+                      ]}
+                      pointerEvents="none"
+                    >
+                      <Text
+                        style={[
+                          getTextStyle(),
+                          {
+                            textAlign: textAlignment,
+                            color: 'transparent',
+                            opacity: 0,
+                          },
+                        ]}
+                      >
+                        {' '}
+                      </Text>
+                    </View>
+                    );
+                  }
+                  if (!trimmedLine) return null;
+                  
+                  return (
+                    <View
+                      key={index}
+                      style={[
+                        styles.adaptiveLineBackground,
+                        {
+                          backgroundColor: textEffect === 'white-bg' ? '#fff' : '#000',
+                          // Border radius based on alignment
+                          ...(textAlignment === 'left' ? {
+                            borderTopLeftRadius: 0,
+                            borderBottomLeftRadius: 0,
+                            borderTopRightRadius: 20,
+                            borderBottomRightRadius: 20,
+                          } : textAlignment === 'right' ? {
+                            borderTopRightRadius: 0,
+                            borderBottomRightRadius: 0,
+                            borderTopLeftRadius: 20,
+                            borderBottomLeftRadius: 20,
+                          } : {
+                            borderRadius: 15, // Center: reduced radius
+                          }),
+                          marginTop: index > 0 ? -2 : 0, // Merge seamlessly with slight overlap
+                          alignSelf: textAlignment === 'center' ? 'center' : 
+                                    textAlignment === 'right' ? 'flex-end' : 'flex-start',
+                        },
+                      ]}
+                      pointerEvents="none"
+                    >
+                      <Text
+                        style={[
+                          getTextStyle(),
+                          {
+                            textAlign: textAlignment,
+                            color: 'transparent',
+                            opacity: 0,
+                          },
+                        ]}
+                      >
+                        {trimmedLine}
+                      </Text>
+                    </View>
+                  );
+                })}
               </View>
             )}
             
@@ -813,10 +910,7 @@ export default function CreateStatusScreen() {
                     paddingHorizontal: 12, // Match background padding
                     paddingVertical: 8, // Match background padding
                     width: '100%',
-                    maxWidth: '85%', // Ensure text stays within wrapper
-                    flexShrink: 1, // Allow shrinking to fit
-                    alignSelf: textAlignment === 'center' ? 'center' : 
-                              textAlignment === 'right' ? 'flex-end' : 'flex-start',
+                    maxWidth: '85%',
                   },
                 ]}
                 placeholder="Type or @Tag"
@@ -825,7 +919,6 @@ export default function CreateStatusScreen() {
                 onChangeText={setTextContent}
                 multiline
                 autoFocus
-                textBreakStrategy="simple" // Better text wrapping
               />
             </View>
           </View>
@@ -1605,42 +1698,13 @@ const styles = StyleSheet.create({
     pointerEvents: 'none',
     // alignItems will be set dynamically based on textAlignment
   },
-  // Unified Background Wrapper - Single shape wrapping all text
-  unifiedBackgroundWrapper: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    justifyContent: 'center',
-    zIndex: 1, // Below TextInput
-    pointerEvents: 'none',
-    // Padding hugs text closely
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    // Max width to prevent overflow - ensures text stays within wrapper
-    maxWidth: '85%',
-    // Shadow for depth
-    shadowOffset: {
-      width: 0,
-      height: 1,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 2,
-    // View wraps invisible text to determine width - critical for preventing overflow
-    overflow: 'hidden',
-    // Flex shrink to prevent overflow
-    flexShrink: 1,
-    // alignSelf will be set dynamically based on textAlignment
-  },
-  // Adaptive Line Background - Each line has own width, all corners rounded (kept for backward compatibility)
+  // Adaptive Line Background - Each line has own width, all corners rounded
   adaptiveLineBackground: {
     // Tight padding - hugs text closely (each line has its own padding)
     paddingHorizontal: 12,
     paddingVertical: 8,
     // Border radius is set dynamically based on text alignment
-    // Max width to prevent overflow - ensures text stays within wrapper
+    // Max width to prevent overflow
     maxWidth: '85%',
     // Shadow for depth
     shadowOffset: {
@@ -1650,10 +1714,8 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 3,
     elevation: 2,
-    // View wraps invisible text to determine width - critical for preventing overflow
+    // View wraps invisible text to determine width
     overflow: 'hidden',
-    // Flex shrink to prevent overflow
-    flexShrink: 1,
     // alignSelf will be set dynamically based on textAlignment
   },
   // TextInput overlay container - positioned on top of background bubbles
@@ -1667,8 +1729,6 @@ const styles = StyleSheet.create({
     zIndex: 2, // Above background bubbles
     // alignItems will be set dynamically based on textAlignment
     // maxWidth handled in TextInput style
-    maxWidth: '100%', // Container respects max width
-    overflow: 'hidden', // Prevent text overflow
   },
   textInputWithBg: {
     position: 'relative',
