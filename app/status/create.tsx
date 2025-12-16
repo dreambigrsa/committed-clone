@@ -557,107 +557,20 @@ export default function CreateStatusScreen() {
     >
       <StatusBar barStyle="light-content" />
       <SafeAreaView style={styles.flex1}>
-        {/* Header - All buttons at top */}
+        {/* Header - Simple header */}
         <View style={styles.textHeader}>
-          {/* Left side - Back button */}
           <TouchableOpacity 
             style={styles.textHeaderIconButton}
             onPress={() => setScreenMode('gallery')}
           >
             <ChevronRight size={20} color="#fff" style={{ transform: [{ rotate: '180deg' }] }} />
           </TouchableOpacity>
-
-          {/* Center - Text Style Buttons (Classic, Neon, Typewriter) */}
-          <View style={styles.headerTextStyleButtons}>
-            {(['classic', 'neon', 'typewriter'] as const).map((style) => (
-              <TouchableOpacity
-                key={style}
-                style={[
-                  styles.headerTextStyleButton,
-                  textStyle === style && styles.headerTextStyleButtonActive,
-                ]}
-                onPress={() => setTextStyle(style)}
-                activeOpacity={0.7}
-              >
-                <Text style={[
-                  styles.headerTextStyleButtonText,
-                  textStyle === style && styles.headerTextStyleButtonTextActive,
-                ]}>
-                  {style.charAt(0).toUpperCase() + style.slice(1)}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-
-          {/* Right side - All control buttons */}
           <View style={styles.textHeaderRight}>
-            {/* Color Picker */}
-            <TouchableOpacity
-              style={styles.textHeaderIconButton}
-              onPress={() => setShowColorPicker(!showColorPicker)}
-              activeOpacity={0.7}
-            >
-              <View style={[styles.headerColorDot, { backgroundColor: textBackgroundColor }]} />
-            </TouchableOpacity>
-
-            {/* Text Effect (Aa) */}
-            <TouchableOpacity
-              style={styles.textHeaderIconButton}
-              onPress={cycleTextEffect}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.aaButtonHeader}>Aa</Text>
-            </TouchableOpacity>
-
-            {/* Alignment */}
-            <TouchableOpacity
-              style={styles.textHeaderIconButton}
-              onPress={cycleTextAlignment}
-              activeOpacity={0.7}
-            >
-              {textAlignment === 'left' ? (
-                <AlignLeft size={20} color="#fff" />
-              ) : textAlignment === 'center' ? (
-                <AlignCenter size={20} color="#fff" />
-              ) : (
-                <AlignRight size={20} color="#fff" />
-              )}
-            </TouchableOpacity>
-
-            {/* Music */}
-            <TouchableOpacity
-              style={styles.textHeaderIconButton}
-              onPress={() => {
-                // TODO: Implement music
-              }}
-              activeOpacity={0.7}
-            >
-              <Music size={20} color="#fff" />
-            </TouchableOpacity>
-
-            {/* Stickers */}
-            <TouchableOpacity
-              style={styles.textHeaderIconButton}
-              onPress={() => {
-                // TODO: Implement stickers
-              }}
-              activeOpacity={0.7}
-            >
+            <TouchableOpacity style={styles.textHeaderIconButton}>
               <Smile size={20} color="#fff" />
             </TouchableOpacity>
-
-            {/* Done Button */}
-            <TouchableOpacity
-              style={styles.headerDoneButton}
-              onPress={handlePost}
-              disabled={isPosting}
-              activeOpacity={0.7}
-            >
-              {isPosting ? (
-                <ActivityIndicator size="small" color="#fff" />
-              ) : (
-                <Text style={styles.headerDoneButtonText}>Done</Text>
-              )}
+            <TouchableOpacity style={styles.textHeaderIconButton}>
+              <MoreHorizontal size={20} color="#fff" />
             </TouchableOpacity>
           </View>
         </View>
@@ -1286,8 +1199,8 @@ const styles = StyleSheet.create({
     bottom: 0,
     justifyContent: 'center',
     alignItems: 'center',
-    zIndex: 0,
-    pointerEvents: 'none',
+    zIndex: 1, // Below TextInput (zIndex: 2) but above background
+    pointerEvents: 'none', // Cannot block clicks
     paddingHorizontal: 14,
     paddingVertical: 10,
     borderRadius: 16, // Round and soft edges
@@ -1309,7 +1222,7 @@ const styles = StyleSheet.create({
     textAlignVertical: 'center',
     paddingHorizontal: 24,
     paddingVertical: 0,
-    zIndex: 1,
+    zIndex: 2, // Above background layer
     backgroundColor: 'transparent',
     // Remove any visible box constraints
     borderWidth: 0,
@@ -1324,6 +1237,8 @@ const styles = StyleSheet.create({
     top: height * 0.3,
     alignItems: 'center',
     gap: 12,
+    zIndex: 10, // Above everything - buttons must be clickable
+    elevation: 10, // Android elevation
   },
   verticalOptionButton: {
     width: 48,
@@ -1533,6 +1448,8 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingHorizontal: 16,
     paddingVertical: 10,
+    zIndex: 10, // Above everything - buttons must be clickable
+    elevation: 10, // Android elevation
   },
   textStyleButton: {
     paddingHorizontal: 18,
