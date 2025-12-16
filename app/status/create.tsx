@@ -842,9 +842,12 @@ export default function CreateStatusScreen() {
                           } : {
                             borderRadius: 15, // Center: reduced radius
                           }),
-                          marginTop: index > 0 ? -2 : 0, // Merge seamlessly with slight overlap
+                          marginTop: index > 0 ? -3 : 0, // Merge seamlessly with more overlap
                           alignSelf: textAlignment === 'center' ? 'center' : 
                                     textAlignment === 'right' ? 'flex-end' : 'flex-start',
+                          // Ensure it only wraps the text width, not expanding
+                          flexShrink: 1,
+                          flexGrow: 0,
                         },
                       ]}
                       pointerEvents="none"
@@ -894,9 +897,9 @@ export default function CreateStatusScreen() {
                     outlineWidth: 0,
                     paddingHorizontal: 12, // Match background padding
                     paddingVertical: 8, // Match background padding
-                    width: '100%',
                     maxWidth: '85%',
                     includeFontPadding: false,
+                    // Don't set width - let it match background container
                   },
                 ]}
                 placeholder="Type or @Tag"
@@ -1682,12 +1685,14 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     justifyContent: 'center',
-    alignItems: 'flex-start',
+    alignItems: 'flex-start', // Default to flex-start, will be overridden
     zIndex: 1, // Below TextInput
     pointerEvents: 'none',
     // alignItems will be set dynamically based on textAlignment
+    // Container should NOT expand - let children determine width
+    flexDirection: 'column',
   },
-  // Adaptive Line Background - Each line has own width, all corners rounded
+  // Adaptive Line Background - Each line has own width, wraps text tightly
   adaptiveLineBackground: {
     // Tight padding - hugs text closely (each line has its own padding)
     paddingHorizontal: 12,
@@ -1695,9 +1700,8 @@ const styles = StyleSheet.create({
     // Center content vertically and horizontally within the wrapper
     justifyContent: 'center',
     alignItems: 'center',
+    // CRITICAL: No maxWidth - let it shrink to text width only
     // Border radius is set dynamically based on text alignment
-    // Max width to prevent overflow
-    maxWidth: '85%',
     // Shadow for depth
     shadowOffset: {
       width: 0,
@@ -1706,9 +1710,8 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 3,
     elevation: 2,
-    // View wraps invisible text to determine width
-    overflow: 'hidden',
-    // alignSelf will be set dynamically based on textAlignment
+    // View wraps invisible text to determine width - MUST shrink to content
+    alignSelf: 'flex-start', // Start with flex-start, will be overridden
   },
   // TextInput overlay container - positioned on top of background bubbles
   textInputOverlay: {
