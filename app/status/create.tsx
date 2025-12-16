@@ -6,7 +6,7 @@
  * alignment, fonts, and background image support.
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -860,8 +860,7 @@ export default function CreateStatusScreen() {
                             color: 'transparent',
                             opacity: 0,
                             includeFontPadding: false,
-                            textAlignVertical: 'center',
-                            lineHeight: getTextStyle().lineHeight, // Ensure line height matches
+                            lineHeight: getTextStyle().lineHeight, // Ensure line height matches exactly
                           },
                         ]}
                       >
@@ -889,7 +888,7 @@ export default function CreateStatusScreen() {
                   getTextEffectStyle(),
                   { 
                     textAlign: textAlignment,
-                    textAlignVertical: 'top',
+                    textAlignVertical: 'top', // Top align to match natural text flow
                     lineHeight: getTextStyle().lineHeight, // Match background text line height exactly
                     color: (textEffect === 'white-bg' || textEffect === 'black-bg') 
                       ? (textEffect === 'white-bg' ? '#000' : '#fff')
@@ -1691,7 +1690,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    justifyContent: 'flex-start',
+    justifyContent: 'center', // Center content vertically
     alignItems: 'flex-start', // Default to flex-start, will be overridden
     zIndex: 1, // Below TextInput
     pointerEvents: 'none',
@@ -1727,7 +1726,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    justifyContent: 'flex-start',
+    justifyContent: 'center', // Center content vertically - matches background container
     alignItems: 'center',
     zIndex: 2, // Above background bubbles
     // alignItems will be overridden dynamically based on textAlignment
