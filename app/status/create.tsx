@@ -628,6 +628,8 @@ export default function CreateStatusScreen() {
                                 textAlign: textAlignment,
                                 color: 'transparent',
                                 opacity: 0,
+                                includeFontPadding: false,
+                                textAlignVertical: 'center',
                               },
                             ]}
                             pointerEvents="none"
@@ -854,6 +856,8 @@ export default function CreateStatusScreen() {
                             textAlign: textAlignment,
                             color: 'transparent',
                             opacity: 0,
+                            includeFontPadding: false,
+                            textAlignVertical: 'center',
                           },
                         ]}
                       >
@@ -881,6 +885,7 @@ export default function CreateStatusScreen() {
                   getTextEffectStyle(),
                   { 
                     textAlign: textAlignment,
+                    textAlignVertical: 'center',
                     color: (textEffect === 'white-bg' || textEffect === 'black-bg') 
                       ? (textEffect === 'white-bg' ? '#000' : '#fff')
                       : '#fff',
@@ -891,6 +896,7 @@ export default function CreateStatusScreen() {
                     paddingVertical: 8, // Match background padding
                     width: '100%',
                     maxWidth: '85%',
+                    includeFontPadding: false,
                   },
                 ]}
                 placeholder="Type or @Tag"
@@ -1688,6 +1694,8 @@ const styles = StyleSheet.create({
     // Center content vertically and horizontally within the wrapper
     justifyContent: 'center',
     alignItems: 'center',
+    // Ensure minimum height for proper vertical centering
+    minHeight: 'auto',
     // Border radius is set dynamically based on text alignment
     // Max width to prevent overflow
     maxWidth: '85%',
