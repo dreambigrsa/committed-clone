@@ -557,20 +557,107 @@ export default function CreateStatusScreen() {
     >
       <StatusBar barStyle="light-content" />
       <SafeAreaView style={styles.flex1}>
-        {/* Header - Facebook Style with transparent background */}
+        {/* Header - All buttons at top */}
         <View style={styles.textHeader}>
+          {/* Left side - Back button */}
           <TouchableOpacity 
             style={styles.textHeaderIconButton}
             onPress={() => setScreenMode('gallery')}
           >
             <ChevronRight size={20} color="#fff" style={{ transform: [{ rotate: '180deg' }] }} />
           </TouchableOpacity>
+
+          {/* Center - Text Style Buttons (Classic, Neon, Typewriter) */}
+          <View style={styles.headerTextStyleButtons}>
+            {(['classic', 'neon', 'typewriter'] as const).map((style) => (
+              <TouchableOpacity
+                key={style}
+                style={[
+                  styles.headerTextStyleButton,
+                  textStyle === style && styles.headerTextStyleButtonActive,
+                ]}
+                onPress={() => setTextStyle(style)}
+                activeOpacity={0.7}
+              >
+                <Text style={[
+                  styles.headerTextStyleButtonText,
+                  textStyle === style && styles.headerTextStyleButtonTextActive,
+                ]}>
+                  {style.charAt(0).toUpperCase() + style.slice(1)}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          {/* Right side - All control buttons */}
           <View style={styles.textHeaderRight}>
-            <TouchableOpacity style={styles.textHeaderIconButton}>
+            {/* Color Picker */}
+            <TouchableOpacity
+              style={styles.textHeaderIconButton}
+              onPress={() => setShowColorPicker(!showColorPicker)}
+              activeOpacity={0.7}
+            >
+              <View style={[styles.headerColorDot, { backgroundColor: textBackgroundColor }]} />
+            </TouchableOpacity>
+
+            {/* Text Effect (Aa) */}
+            <TouchableOpacity
+              style={styles.textHeaderIconButton}
+              onPress={cycleTextEffect}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.aaButtonHeader}>Aa</Text>
+            </TouchableOpacity>
+
+            {/* Alignment */}
+            <TouchableOpacity
+              style={styles.textHeaderIconButton}
+              onPress={cycleTextAlignment}
+              activeOpacity={0.7}
+            >
+              {textAlignment === 'left' ? (
+                <AlignLeft size={20} color="#fff" />
+              ) : textAlignment === 'center' ? (
+                <AlignCenter size={20} color="#fff" />
+              ) : (
+                <AlignRight size={20} color="#fff" />
+              )}
+            </TouchableOpacity>
+
+            {/* Music */}
+            <TouchableOpacity
+              style={styles.textHeaderIconButton}
+              onPress={() => {
+                // TODO: Implement music
+              }}
+              activeOpacity={0.7}
+            >
+              <Music size={20} color="#fff" />
+            </TouchableOpacity>
+
+            {/* Stickers */}
+            <TouchableOpacity
+              style={styles.textHeaderIconButton}
+              onPress={() => {
+                // TODO: Implement stickers
+              }}
+              activeOpacity={0.7}
+            >
               <Smile size={20} color="#fff" />
             </TouchableOpacity>
-            <TouchableOpacity style={styles.textHeaderIconButton}>
-              <MoreHorizontal size={20} color="#fff" />
+
+            {/* Done Button */}
+            <TouchableOpacity
+              style={styles.headerDoneButton}
+              onPress={handlePost}
+              disabled={isPosting}
+              activeOpacity={0.7}
+            >
+              {isPosting ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Text style={styles.headerDoneButtonText}>Done</Text>
+              )}
             </TouchableOpacity>
           </View>
         </View>
@@ -587,71 +674,39 @@ export default function CreateStatusScreen() {
             <View style={[styles.textInputArea, { backgroundColor: textBackgroundColor }]} />
           )}
           
-          {/* Text Input Area - Facebook Style with Per-Line Background Bubbles */}
+          {/* Text Input Area - Single Unified Background Container */}
           <View style={styles.textInputWrapper}>
-            {/* Background Layer - Connected bubbles with seamless merging */}
+            {/* Single Unified Background Container - wraps all text together like second image */}
             {(textEffect === 'white-bg' || textEffect === 'black-bg') && textContent && (
-              <View style={styles.textLinesContainer}>
-                {textLines.map((line, index) => {
-                  // Skip completely empty lines (but preserve intentional line breaks)
-                  if (!line.trim() && textLines.length > 1) {
-                    if (index < textLines.length - 1) return null;
-                  }
-                  
-                  const isFirstLine = index === 0;
-                  const isLastLine = index === textLines.length - 1;
-                  const isMiddleLine = !isFirstLine && !isLastLine;
-                  const totalLines = textLines.filter(l => l.trim() || textLines.length === 1).length;
-                  
-                  return (
-                    <View
-                      key={index}
-                      style={[
-                        styles.textLineWrapper,
-                        {
-                          alignSelf: textAlignment === 'left' ? 'flex-start' : 
-                                    textAlignment === 'right' ? 'flex-end' : 'center',
-                          // Slight vertical overlap to ensure no visible gaps and single connected silhouette
-                          marginBottom: 0,
-                          marginTop: isFirstLine ? 0 : -2, // Overlap by 2px for seamless connection
-                        },
-                      ]}
-                    >
-                      <View
-                        style={[
-                          styles.textLineBackground,
-                          {
-                            backgroundColor: textEffect === 'white-bg' ? '#fff' : '#000',
-                            shadowColor: textEffect === 'white-bg' ? '#000' : '#fff',
-                            // Round and soft edges on all corners for clean appearance
-                            borderRadius: 12, // Soft rounded edges throughout
-                            // Use Text inside View to determine width, but make it completely invisible
-                            alignSelf: textAlignment === 'left' ? 'flex-start' : 
-                                      textAlignment === 'right' ? 'flex-end' : 'center',
-                          },
-                        ]}
-                        pointerEvents="none"
-                      >
-                        <Text
-                          style={[
-                            getTextStyle(),
-                            {
-                              textAlign: textAlignment,
-                              color: 'transparent', // Completely transparent - only used for width calculation
-                              opacity: 0, // Ensure absolutely no visibility
-                            },
-                          ]}
-                        >
-                          {line.trim() || '\u00A0'} {/* Invisible text for width sizing only */}
-                        </Text>
-                      </View>
-                    </View>
-                  );
-                })}
+              <View
+                style={[
+                  styles.unifiedTextBackground,
+                  {
+                    backgroundColor: textEffect === 'white-bg' ? '#fff' : '#000',
+                    shadowColor: textEffect === 'white-bg' ? '#000' : '#fff',
+                    alignSelf: textAlignment === 'left' ? 'flex-start' : 
+                              textAlignment === 'right' ? 'flex-end' : 'center',
+                  },
+                ]}
+                pointerEvents="none"
+              >
+                {/* Invisible text for sizing - TextInput handles actual display */}
+                <Text
+                  style={[
+                    getTextStyle(),
+                    {
+                      textAlign: textAlignment,
+                      color: 'transparent',
+                      opacity: 0,
+                    },
+                  ]}
+                >
+                  {textContent}
+                </Text>
               </View>
             )}
             
-            {/* Main text input - Independent text layer positioned over backgrounds */}
+            {/* Main text input - Independent text layer positioned over unified background */}
             <TextInput
               style={[
                 styles.fullScreenTextInput,
@@ -665,9 +720,9 @@ export default function CreateStatusScreen() {
                 (textEffect === 'white-bg' || textEffect === 'black-bg') && {
                   backgroundColor: 'transparent',
                   color: textEffect === 'white-bg' ? '#000' : '#fff',
-                  // Match padding exactly with background bubbles for perfect overlay alignment (tightly hugging text)
-                  paddingHorizontal: 10, // Match textLineBackground paddingHorizontal
-                  paddingVertical: 8, // Match textLineBackground paddingVertical
+                  // Match padding exactly with unified background for perfect overlay alignment
+                  paddingHorizontal: 14,
+                  paddingVertical: 10,
                 },
               ]}
               placeholder="Type or @Tag"
@@ -678,98 +733,6 @@ export default function CreateStatusScreen() {
               autoFocus
             />
           </View>
-        </View>
-
-        {/* Text Style Selector at Bottom (Classic, Neon, Typewriter) - Facebook Style */}
-        <View style={styles.textStyleSelectorContainer}>
-          {(['classic', 'neon', 'typewriter'] as const).map((style) => (
-            <TouchableOpacity
-              key={style}
-              style={[
-                styles.textStyleButton,
-                textStyle === style && styles.textStyleButtonActive,
-              ]}
-              onPress={() => setTextStyle(style)}
-              activeOpacity={0.7}
-            >
-              <Text style={[
-                styles.textStyleButtonText,
-                textStyle === style && styles.textStyleButtonTextActive,
-              ]}>
-                {style.charAt(0).toUpperCase() + style.slice(1)}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-
-        {/* Vertical Options on Right Side */}
-        <View style={styles.verticalOptionsContainer}>
-          {/* Color Picker */}
-          <TouchableOpacity
-            style={[styles.verticalOptionButton, { backgroundColor: 'rgba(0, 0, 0, 0.5)' }]}
-            onPress={() => setShowColorPicker(!showColorPicker)}
-            activeOpacity={0.7}
-          >
-            <View style={[styles.colorPreviewCircle, { backgroundColor: textBackgroundColor }]} />
-          </TouchableOpacity>
-
-          {/* Text Effect (Aa) - Cycles through effects */}
-          <TouchableOpacity
-            style={[styles.verticalOptionButton, { backgroundColor: 'rgba(0, 0, 0, 0.5)' }]}
-            onPress={cycleTextEffect}
-            activeOpacity={0.7}
-          >
-            <Text style={styles.aaButton}>Aa</Text>
-          </TouchableOpacity>
-
-          {/* Alignment - Cycles through left/center/right */}
-          <TouchableOpacity
-            style={[styles.verticalOptionButton, { backgroundColor: 'rgba(0, 0, 0, 0.5)' }]}
-            onPress={cycleTextAlignment}
-            activeOpacity={0.7}
-          >
-            {textAlignment === 'left' ? (
-              <AlignLeft size={24} color="#fff" />
-            ) : textAlignment === 'center' ? (
-              <AlignCenter size={24} color="#fff" />
-            ) : (
-              <AlignRight size={24} color="#fff" />
-            )}
-          </TouchableOpacity>
-
-          {/* Music */}
-          <TouchableOpacity
-            style={[styles.verticalOptionButton, { backgroundColor: 'rgba(0, 0, 0, 0.5)' }]}
-            activeOpacity={0.7}
-          >
-            <Music size={24} color="#fff" />
-          </TouchableOpacity>
-
-          {/* Stickers */}
-          <TouchableOpacity
-            style={[styles.verticalOptionButton, { backgroundColor: 'rgba(0, 0, 0, 0.5)' }]}
-            activeOpacity={0.7}
-          >
-            <Smile size={24} color="#fff" />
-          </TouchableOpacity>
-
-          {/* Done Button */}
-          <TouchableOpacity
-            style={[
-              styles.verticalDoneButton,
-              { backgroundColor: colors.primary },
-              (isPosting || !textContent.trim()) && { opacity: 0.5 },
-            ]}
-            onPress={handlePost}
-            disabled={isPosting || !textContent.trim()}
-            activeOpacity={0.7}
-          >
-            {isPosting ? (
-              <ActivityIndicator size="small" color="#fff" />
-            ) : (
-              <Text style={styles.doneButtonText}>Done</Text>
-            )}
-          </TouchableOpacity>
         </View>
 
         {/* Color Picker Modal */}
@@ -1232,6 +1195,64 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  // Header Text Style Buttons (Classic, Neon, Typewriter)
+  headerTextStyleButtons: {
+    flexDirection: 'row',
+    gap: 8,
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  headerTextStyleButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+  },
+  headerTextStyleButtonActive: {
+    backgroundColor: '#fff',
+    borderColor: '#fff',
+  },
+  headerTextStyleButtonText: {
+    fontSize: 12,
+    fontWeight: '600' as const,
+    color: '#fff',
+  },
+  headerTextStyleButtonTextActive: {
+    color: '#000',
+    fontWeight: '700' as const,
+  },
+  // Header Color Dot
+  headerColorDot: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: '#fff',
+  },
+  // Header Aa Button
+  aaButtonHeader: {
+    fontSize: 16,
+    fontWeight: '700' as const,
+    color: '#fff',
+  },
+  // Header Done Button
+  headerDoneButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 18,
+    backgroundColor: '#EF4444',
+    minWidth: 60,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerDoneButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600' as const,
+  },
   fullScreenTextContainer: {
     flex: 1,
     position: 'relative',
@@ -1256,8 +1277,8 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
   },
-  // Container for stacked line backgrounds - seamlessly merged unified container
-  textLinesContainer: {
+  // Single Unified Background Container - wraps all text together (like second image)
+  unifiedTextBackground: {
     position: 'absolute',
     top: 0,
     left: 0,
@@ -1267,26 +1288,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     zIndex: 0,
     pointerEvents: 'none',
-    paddingHorizontal: 24,
-    // Stack backgrounds vertically with zero spacing for seamless merge
-    flexDirection: 'column',
-  },
-  // Wrapper for each line to handle alignment
-  textLineWrapper: {
-    // Slight overlap for seamless connection - creates single connected silhouette
-    marginBottom: 0,
-    width: '100%',
-  },
-  // Individual connected background per line - seamlessly merged into one unified container
-  textLineBackground: {
-    // View container that wraps transparent Text for width calculation
-    // Variable width per line creates adaptive pill shapes that connect
-    // Minimal padding to tightly hug text - no unnecessary space
-    paddingHorizontal: 10, // Reduced from 16 to tightly hug text
-    paddingVertical: 8, // Reduced from 12 to tightly hug text
-    // Round and soft edges on all corners
-    borderRadius: 12, // Soft rounded edges throughout
-    // Soft shadow creates depth for the unified container
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 16, // Round and soft edges
+    // Soft shadow creates depth
     shadowOffset: {
       width: 0,
       height: 2,
@@ -1294,13 +1299,9 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.15,
     shadowRadius: 4,
     elevation: 2,
-    // View wraps transparent Text that determines width - creates adaptive-width pills
-    // Short lines = narrow backgrounds, long lines = wide backgrounds
-    maxWidth: '100%',
-    // Ensure backgrounds overlap slightly to eliminate any visible gaps
-    overflow: 'hidden',
-    // View sizes to its content (transparent Text inside)
-    alignSelf: 'flex-start',
+    // View wraps transparent Text that determines width - single unified container
+    maxWidth: '85%',
+    alignSelf: 'center',
   },
   fullScreenTextInput: {
     width: '100%',
