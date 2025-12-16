@@ -861,6 +861,7 @@ export default function CreateStatusScreen() {
                             opacity: 0,
                             includeFontPadding: false,
                             textAlignVertical: 'center',
+                            lineHeight: getTextStyle().lineHeight, // Ensure line height matches
                           },
                         ]}
                       >
@@ -889,6 +890,7 @@ export default function CreateStatusScreen() {
                   { 
                     textAlign: textAlignment,
                     textAlignVertical: 'top',
+                    lineHeight: getTextStyle().lineHeight, // Match background text line height exactly
                     color: (textEffect === 'white-bg' || textEffect === 'black-bg') 
                       ? (textEffect === 'white-bg' ? '#000' : '#fff')
                       : '#fff',
@@ -900,6 +902,7 @@ export default function CreateStatusScreen() {
                     maxWidth: '85%',
                     includeFontPadding: false,
                     // Don't set width - let it match background container
+                    // Line height is set above to match background Text exactly
                   },
                 ]}
                 placeholder="Type or @Tag"
@@ -1169,8 +1172,11 @@ export default function CreateStatusScreen() {
   );
 
   function getTextStyle() {
+    const fontSize = textStyle === 'typewriter' ? 20 : textStyle === 'elegant' ? 24 : 32;
+    const lineHeight = fontSize * 1.2; // Consistent line height multiplier
     const baseStyle: any = {
-      fontSize: textStyle === 'typewriter' ? 20 : textStyle === 'elegant' ? 24 : 32,
+      fontSize: fontSize,
+      lineHeight: lineHeight,
       color: textEffect === 'black-bg' ? '#fff' : textEffect === 'white-bg' ? '#000' : '#fff',
       fontWeight: textStyle === 'bold' ? ('700' as const) : textStyle === 'typewriter' ? ('400' as const) : ('600' as const),
       fontStyle: textStyle === 'italic' ? ('italic' as const) : ('normal' as const),
@@ -1676,6 +1682,7 @@ const styles = StyleSheet.create({
     position: 'relative',
     width: '100%',
     height: '100%',
+    // Children are absolutely positioned, so justifyContent: 'center' creates reference point
   },
   // Adaptive Background Container - Holds per-line backgrounds
   adaptiveBackgroundContainer: {
@@ -1684,7 +1691,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
     alignItems: 'flex-start', // Default to flex-start, will be overridden
     zIndex: 1, // Below TextInput
     pointerEvents: 'none',
@@ -1720,7 +1727,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
     alignItems: 'center',
     zIndex: 2, // Above background bubbles
     // alignItems will be overridden dynamically based on textAlignment
