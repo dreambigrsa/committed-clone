@@ -842,7 +842,7 @@ export default function CreateStatusScreen() {
                           } : {
                             borderRadius: 15, // Center: reduced radius
                           }),
-                          marginTop: index > 0 ? -3 : 0, // Merge seamlessly with more overlap
+                          marginTop: index > 0 ? -4 : 0, // Merge seamlessly - overlap to connect
                           alignSelf: textAlignment === 'center' ? 'center' : 
                                     textAlignment === 'right' ? 'flex-end' : 'flex-start',
                           // Ensure it only wraps the text width, not expanding
@@ -857,12 +857,14 @@ export default function CreateStatusScreen() {
                           getTextStyle(),
                           {
                             textAlign: textAlignment,
-                            color: 'transparent',
-                            opacity: 0,
+                            color: 'transparent', // Hide text, but keep background visible
                             includeFontPadding: false,
-                            lineHeight: getTextStyle().lineHeight, // Ensure line height matches exactly
+                            lineHeight: getTextStyle().lineHeight, // MUST match TextInput exactly
+                            // Text has no padding - padding is on the parent View
+                            // This matches how TextInput works - text inside has padding from TextInput itself
                           },
                         ]}
+                        numberOfLines={1}
                       >
                         {trimmedLine}
                       </Text>
@@ -888,20 +890,21 @@ export default function CreateStatusScreen() {
                   getTextEffectStyle(),
                   { 
                     textAlign: textAlignment,
-                    textAlignVertical: 'top', // Top align to match natural text flow
-                    lineHeight: getTextStyle().lineHeight, // Match background text line height exactly
+                    textAlignVertical: 'center', // Center vertically to align with background Views' justifyContent: center
+                    lineHeight: getTextStyle().lineHeight, // MUST match background Text exactly
                     color: (textEffect === 'white-bg' || textEffect === 'black-bg') 
                       ? (textEffect === 'white-bg' ? '#000' : '#fff')
                       : '#fff',
                     backgroundColor: 'transparent',
                     borderWidth: 0,
                     outlineWidth: 0,
-                    paddingHorizontal: 12, // Match background padding
-                    paddingVertical: 8, // Match background padding
+                    paddingHorizontal: 12, // Match background padding EXACTLY
+                    paddingVertical: 8, // Match background padding EXACTLY
                     maxWidth: '85%',
                     includeFontPadding: false,
-                    // Don't set width - let it match background container
-                    // Line height is set above to match background Text exactly
+                    // CRITICAL: Match TextInput spacing to background spacing
+                    // The TextInput should have NO extra spacing between lines
+                    // Line height matches, padding matches - they should align perfectly
                   },
                 ]}
                 placeholder="Type or @Tag"
@@ -1706,6 +1709,7 @@ const styles = StyleSheet.create({
     // Center content vertically and horizontally within the wrapper
     justifyContent: 'center',
     alignItems: 'center',
+    minHeight: undefined, // Let it wrap to content
     // CRITICAL: No maxWidth - let it shrink to text width only
     // Border radius is set dynamically based on text alignment
     // Shadow for depth
