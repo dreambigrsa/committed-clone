@@ -131,7 +131,7 @@ function OtherUserStoryCard({
     },
     cardTitle: {
       color: '#FFFFFF',
-      fontSize: 13,
+      fontSize: 11,
       fontWeight: '700' as const,
       marginBottom: 4,
       textAlign: 'center',
@@ -433,7 +433,7 @@ function YourStoryCard({
     },
     cardTitle: {
       color: '#FFFFFF',
-      fontSize: 13,
+      fontSize: 11,
       fontWeight: '700' as const,
       marginBottom: 4,
       textAlign: 'center',
@@ -758,17 +758,6 @@ function YourStoryCard({
               {truncatedText}
             </Text>
           )}
-
-          {/* Stats */}
-          {status.text_content && (
-            <View style={cardStyles.cardStats}>
-              <Text style={cardStyles.cardStat}>•</Text>
-              <Text style={cardStyles.cardStat}>Active</Text>
-            </View>
-          )}
-
-          {/* Status label */}
-          <Text style={cardStyles.cardLabel}>Sharing...</Text>
         </View>
       </View>
     </TouchableOpacity>
