@@ -772,6 +772,11 @@ export default function CreateStatusScreen() {
                 ]} 
                 pointerEvents="none"
               >
+                <View style={{ 
+                  alignSelf: textAlignment === 'left' ? 'flex-start' : 
+                           textAlignment === 'right' ? 'flex-end' : 'center',
+                  maxWidth: '85%',
+                }}>
                 {textContent.split('\n').map((line, index, lines) => {
                   const trimmedLine = line.trim();
                   if (!trimmedLine && index === lines.length - 1 && lines.length === 1) {
@@ -866,6 +871,7 @@ export default function CreateStatusScreen() {
                     </View>
                   );
                 })}
+                </View>
               </View>
             )}
             
@@ -879,13 +885,19 @@ export default function CreateStatusScreen() {
                 },
               ]}
             >
+              <View style={{ 
+                alignSelf: textAlignment === 'left' ? 'flex-start' : 
+                         textAlignment === 'right' ? 'flex-end' : 'center',
+                maxWidth: '85%',
+                width: '100%',
+              }}>
               <TextInput
                 style={[
                   getTextStyle(),
                   getTextEffectStyle(),
                   { 
                     textAlign: textAlignment,
-                    textAlignVertical: 'center',
+                    textAlignVertical: 'top',
                     color: (textEffect === 'white-bg' || textEffect === 'black-bg') 
                       ? (textEffect === 'white-bg' ? '#000' : '#fff')
                       : '#fff',
@@ -906,6 +918,7 @@ export default function CreateStatusScreen() {
                 multiline
                 autoFocus
               />
+              </View>
             </View>
           </View>
         </View>
@@ -1682,6 +1695,7 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     justifyContent: 'center',
+    alignItems: 'flex-start',
     zIndex: 1, // Below TextInput
     pointerEvents: 'none',
     // alignItems will be set dynamically based on textAlignment
@@ -1719,8 +1733,9 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     justifyContent: 'center',
+    alignItems: 'center',
     zIndex: 2, // Above background bubbles
-    // alignItems will be set dynamically based on textAlignment
+    // alignItems will be overridden dynamically based on textAlignment
     // maxWidth handled in TextInput style
   },
   textInputWithBg: {
