@@ -186,10 +186,14 @@ function OtherUserStoryCard({
     },
     textBackgroundWrapper: {
       position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
       width: '100%',
       justifyContent: 'center',
       alignItems: 'center',
-      paddingHorizontal: 8,
+      // No padding - padding is on individual line backgrounds
     },
     textLineBackground: {
       paddingHorizontal: 6,
@@ -197,11 +201,15 @@ function OtherUserStoryCard({
       marginBottom: 2,
     },
     textPreviewOverlay: {
-      position: 'relative',
+      position: 'absolute', // Position absolutely to overlay exactly on background
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
       width: '100%',
       justifyContent: 'center',
       alignItems: 'center',
-      paddingHorizontal: 8,
+      // No padding - padding is on the Text component itself
     },
     stickersPreview: {
       position: 'absolute',
@@ -223,8 +231,10 @@ function OtherUserStoryCard({
 
   // Helper functions for text styling
   const getTextStyle = (textStyle: string = 'classic') => {
+    const fontSize = textStyle === 'typewriter' ? 10 : textStyle === 'elegant' ? 12 : 11;
     const baseStyle: any = {
-      fontSize: textStyle === 'typewriter' ? 10 : textStyle === 'elegant' ? 12 : 11,
+      fontSize: fontSize,
+      lineHeight: fontSize * 1.2, // Add lineHeight for consistent spacing
       fontWeight: textStyle === 'bold' ? ('700' as const) : textStyle === 'typewriter' ? ('400' as const) : ('600' as const),
       fontStyle: textStyle === 'italic' ? ('italic' as const) : ('normal' as const),
     };
@@ -488,10 +498,14 @@ function YourStoryCard({
     },
     textBackgroundWrapper: {
       position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
       width: '100%',
       justifyContent: 'center',
       alignItems: 'center',
-      paddingHorizontal: 8,
+      // No padding - padding is on individual line backgrounds
     },
     textLineBackground: {
       paddingHorizontal: 6,
@@ -499,11 +513,15 @@ function YourStoryCard({
       marginBottom: 2,
     },
     textPreviewOverlay: {
-      position: 'relative',
+      position: 'absolute', // Position absolutely to overlay exactly on background
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
       width: '100%',
       justifyContent: 'center',
       alignItems: 'center',
-      paddingHorizontal: 8,
+      // No padding - padding is on the Text component itself
     },
     stickersPreview: {
       position: 'absolute',
@@ -525,8 +543,10 @@ function YourStoryCard({
 
   // Helper functions for text styling
   const getTextStyle = (textStyle: string = 'classic') => {
+    const fontSize = textStyle === 'typewriter' ? 10 : textStyle === 'elegant' ? 12 : 11;
     const baseStyle: any = {
-      fontSize: textStyle === 'typewriter' ? 10 : textStyle === 'elegant' ? 12 : 11,
+      fontSize: fontSize,
+      lineHeight: fontSize * 1.2, // Add lineHeight for consistent spacing
       fontWeight: textStyle === 'bold' ? ('700' as const) : textStyle === 'typewriter' ? ('400' as const) : ('600' as const),
       fontStyle: textStyle === 'italic' ? ('italic' as const) : ('normal' as const),
     };
@@ -609,6 +629,9 @@ function YourStoryCard({
                   if (!trimmedLine) return null;
                   const displayLine = trimmedLine.length > 20 ? trimmedLine.substring(0, 20) + '...' : trimmedLine;
                   
+                  // Get text style to match font size exactly
+                  const textStyleObj = getTextStyle(status.text_style || 'classic');
+                  
                   return (
                     <View
                       key={index}
@@ -620,19 +643,27 @@ function YourStoryCard({
                           marginTop: index > 0 ? -2 : 0,
                           alignSelf: status.text_alignment === 'center' ? 'center' : 
                                     status.text_alignment === 'right' ? 'flex-end' : 'flex-start',
+                          // Match padding exactly with actual text
+                          paddingHorizontal: 6,
+                          paddingVertical: 4,
                         },
                       ]}
                       pointerEvents="none"
                     >
+                      {/* Invisible Text for width measurement - MUST match actual text exactly */}
                       <Text
                         style={[
-                          getTextStyle(status.text_style || 'classic'),
+                          textStyleObj, // Use same font style, size, weight, family
                           {
                             textAlign: status.text_alignment || 'center',
                             color: 'transparent',
-                            fontSize: 9,
+                            opacity: 0.001, // Nearly invisible
+                            lineHeight: textStyleObj.lineHeight, // Use lineHeight from getTextStyle()
+                            includeFontPadding: false,
                           },
                         ]}
+                        numberOfLines={1}
+                        pointerEvents="none"
                       >
                         {displayLine}
                       </Text>
@@ -642,24 +673,26 @@ function YourStoryCard({
               </View>
             )}
             
-            {/* Actual text */}
+            {/* Actual text - MUST align exactly with background */}
             <View style={[cardStyles.textPreviewOverlay, {
               alignItems: status.text_alignment === 'left' ? 'flex-start' : 
                          status.text_alignment === 'right' ? 'flex-end' : 'center',
             }]}>
               <Text
                 style={[
-                  getTextStyle(status.text_style || 'classic'),
+                  getTextStyle(status.text_style || 'classic'), // Use SAME getTextStyle() function
                   getTextEffectStyle(status.text_effect || 'default', status.background_color || '#1A73E8'),
                   {
                     textAlign: status.text_alignment || 'center',
                     color: (status.text_effect === 'white-bg' || status.text_effect === 'black-bg')
                       ? (status.text_effect === 'white-bg' ? '#000' : '#fff')
                       : '#fff',
-                    fontSize: 10,
-                    paddingHorizontal: 6,
-                    paddingVertical: 4,
+                    // CRITICAL: Use fontSize from getTextStyle() - don't override it
+                    // fontSize comes from getTextStyle() - don't set fontSize: 10 here
+                    paddingHorizontal: 6, // Match background View padding
+                    paddingVertical: 4, // Match background View padding
                     maxWidth: '90%',
+                    includeFontPadding: false,
                   },
                 ]}
                 numberOfLines={2}
