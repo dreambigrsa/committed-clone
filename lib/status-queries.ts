@@ -990,38 +990,125 @@ export async function getSignedUrlForMedia(mediaPath: string): Promise<string | 
  * Delete a status (owner only)
  */
 export async function deleteStatus(statusId: string): Promise<boolean> {
+  console.log('🗑️ [deleteStatus] Starting deletion:', { statusId });
+  
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return false;
+  if (!user) {
+    console.error('❌ [deleteStatus] No authenticated user');
+    return false;
+  }
 
-  // Get status to check ownership and get media path
-  const { data: status } = await supabase
+  console.log('✅ [deleteStatus] User authenticated:', user.id);
+
+  // Get status to check ownership and get media paths
+  // Use a query that bypasses RLS for own statuses (if the policy allows)
+  // Try to get the status, including expired/archived ones
+  const { data: status, error: selectError } = await supabase
     .from('statuses')
-    .select('media_path')
+    .select('media_path, background_image_path, user_id')
     .eq('id', statusId)
     .eq('user_id', user.id)
     .single();
 
-  if (!status) return false;
+  if (selectError) {
+    console.error('❌ [deleteStatus] Error fetching status:', {
+      code: selectError.code,
+      message: selectError.message,
+      details: selectError.details,
+      hint: selectError.hint,
+    });
+    
+    // If SELECT fails due to RLS, try direct DELETE (RLS will handle authorization)
+    console.log('⚠️ [deleteStatus] SELECT failed, trying direct DELETE...');
+    const { error: deleteError } = await supabase
+      .from('statuses')
+      .delete()
+      .eq('id', statusId)
+      .eq('user_id', user.id);
 
-  // Delete media if exists
+    if (deleteError) {
+      console.error('❌ [deleteStatus] Error deleting status:', {
+        code: deleteError.code,
+        message: deleteError.message,
+        details: deleteError.details,
+        hint: deleteError.hint,
+      });
+      return false;
+    }
+
+    console.log('✅ [deleteStatus] Status deleted successfully (direct DELETE)');
+    return true;
+  }
+
+  if (!status) {
+    console.error('❌ [deleteStatus] Status not found or not owned by user');
+    return false;
+  }
+
+  console.log('✅ [deleteStatus] Status found, deleting media files...');
+
+  // Delete media files if they exist
+  const filesToDelete: string[] = [];
+
   if (status.media_path) {
     const pathParts = status.media_path.split('/');
     const filePath = pathParts.slice(1).join('/');
-    await supabase.storage.from('status-media').remove([filePath]);
+    filesToDelete.push(filePath);
+    console.log('📎 [deleteStatus] Adding media file to delete:', filePath);
+  }
+
+  if (status.background_image_path) {
+    const pathParts = status.background_image_path.split('/');
+    const filePath = pathParts.slice(1).join('/');
+    filesToDelete.push(filePath);
+    console.log('📎 [deleteStatus] Adding background image to delete:', filePath);
+  }
+
+  // Delete all media files
+  if (filesToDelete.length > 0) {
+    const { error: storageError } = await supabase.storage
+      .from('status-media')
+      .remove(filesToDelete);
+
+    if (storageError) {
+      console.error('⚠️ [deleteStatus] Error deleting media files:', storageError);
+      // Continue with status deletion even if media deletion fails
+    } else {
+      console.log('✅ [deleteStatus] Media files deleted:', filesToDelete.length);
+    }
+  }
+
+  // Delete stickers (should cascade automatically, but explicit deletion is safer)
+  const { error: stickersError } = await supabase
+    .from('status_stickers')
+    .delete()
+    .eq('status_id', statusId);
+
+  if (stickersError) {
+    console.error('⚠️ [deleteStatus] Error deleting stickers:', stickersError);
+    // Continue with status deletion even if sticker deletion fails
+  } else {
+    console.log('✅ [deleteStatus] Stickers deleted');
   }
 
   // Delete status
-  const { error } = await supabase
+  const { error: deleteError } = await supabase
     .from('statuses')
     .delete()
     .eq('id', statusId)
     .eq('user_id', user.id);
 
-  if (error) {
-    console.error('Error deleting status:', error);
+  if (deleteError) {
+    console.error('❌ [deleteStatus] Error deleting status:', {
+      code: deleteError.code,
+      message: deleteError.message,
+      details: deleteError.details,
+      hint: deleteError.hint,
+    });
     return false;
   }
 
+  console.log('✅ [deleteStatus] Status deleted successfully');
   return true;
 }
 
