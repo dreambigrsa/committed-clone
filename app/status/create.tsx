@@ -648,6 +648,104 @@ export default function CreateStatusScreen() {
           </View>
         </View>
 
+        {/* Text Style Selector at Bottom (Classic, Neon, Typewriter) - Facebook Style */}
+        <View style={styles.textStyleSelectorContainer}>
+          {(['classic', 'neon', 'typewriter'] as const).map((style) => (
+            <TouchableOpacity
+              key={style}
+              style={[
+                styles.textStyleButton,
+                textStyle === style && styles.textStyleButtonActive,
+              ]}
+              onPress={() => setTextStyle(style)}
+              activeOpacity={0.7}
+            >
+              <Text style={[
+                styles.textStyleButtonText,
+                textStyle === style && styles.textStyleButtonTextActive,
+              ]}>
+                {style.charAt(0).toUpperCase() + style.slice(1)}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        {/* Vertical Options on Right Side - ABOVE background layer for clickability */}
+        <View style={styles.verticalOptionsContainer}>
+          {/* Color Picker */}
+          <TouchableOpacity
+            style={[styles.verticalOptionButton, { backgroundColor: 'rgba(0, 0, 0, 0.5)' }]}
+            onPress={() => setShowColorPicker(!showColorPicker)}
+            activeOpacity={0.7}
+          >
+            <View style={[styles.colorPreviewCircle, { backgroundColor: textBackgroundColor }]} />
+          </TouchableOpacity>
+
+          {/* Text Effect (Aa) - Cycles through effects */}
+          <TouchableOpacity
+            style={[styles.verticalOptionButton, { backgroundColor: 'rgba(0, 0, 0, 0.5)' }]}
+            onPress={cycleTextEffect}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.aaButton}>Aa</Text>
+          </TouchableOpacity>
+
+          {/* Alignment - Cycles through left/center/right */}
+          <TouchableOpacity
+            style={[styles.verticalOptionButton, { backgroundColor: 'rgba(0, 0, 0, 0.5)' }]}
+            onPress={cycleTextAlignment}
+            activeOpacity={0.7}
+          >
+            {textAlignment === 'left' ? (
+              <AlignLeft size={24} color="#fff" />
+            ) : textAlignment === 'center' ? (
+              <AlignCenter size={24} color="#fff" />
+            ) : (
+              <AlignRight size={24} color="#fff" />
+            )}
+          </TouchableOpacity>
+
+          {/* Music */}
+          <TouchableOpacity
+            style={[styles.verticalOptionButton, { backgroundColor: 'rgba(0, 0, 0, 0.5)' }]}
+            onPress={() => {
+              // TODO: Implement music
+            }}
+            activeOpacity={0.7}
+          >
+            <Music size={24} color="#fff" />
+          </TouchableOpacity>
+
+          {/* Stickers */}
+          <TouchableOpacity
+            style={[styles.verticalOptionButton, { backgroundColor: 'rgba(0, 0, 0, 0.5)' }]}
+            onPress={() => {
+              // TODO: Implement stickers
+            }}
+            activeOpacity={0.7}
+          >
+            <Smile size={24} color="#fff" />
+          </TouchableOpacity>
+
+          {/* Done Button */}
+          <TouchableOpacity
+            style={[
+              styles.verticalDoneButton,
+              { backgroundColor: '#EF4444' },
+              (isPosting || !textContent.trim()) && { opacity: 0.5 },
+            ]}
+            onPress={handlePost}
+            disabled={isPosting || !textContent.trim()}
+            activeOpacity={0.7}
+          >
+            {isPosting ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <Text style={styles.doneButtonText}>Done</Text>
+            )}
+          </TouchableOpacity>
+        </View>
+
         {/* Color Picker Modal */}
         {showColorPicker && (
           <Modal
