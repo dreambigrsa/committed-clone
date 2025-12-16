@@ -606,45 +606,65 @@ export default function CreateStatusScreen() {
                   if (!trimmedLine && index === lines.length - 1 && lines.length === 1) {
                     // Show background for empty first line
                     return (
-                    <Text
+                    <View
                       key={index}
                       style={[
-                        getTextStyle(),
                         styles.adaptiveLineBackground,
                         {
-                          textAlign: textAlignment,
                           backgroundColor: textEffect === 'white-bg' ? '#fff' : '#000',
-                          color: 'transparent', // Text is invisible, but background shows
                           borderRadius: 20, // All corners rounded
                           marginTop: index > 0 ? -2 : 0, // Merge seamlessly
+                          alignSelf: textAlignment === 'center' ? 'center' : 
+                                    textAlignment === 'right' ? 'flex-end' : 'flex-start',
                         },
                       ]}
                       pointerEvents="none"
                     >
-                      {' '}
-                    </Text>
+                      <Text
+                        style={[
+                          getTextStyle(),
+                          {
+                            textAlign: textAlignment,
+                            color: 'transparent',
+                            opacity: 0,
+                          },
+                        ]}
+                      >
+                        {' '}
+                      </Text>
+                    </View>
                     );
                   }
                   if (!trimmedLine) return null;
                   
                   return (
-                    <Text
+                    <View
                       key={index}
                       style={[
-                        getTextStyle(),
                         styles.adaptiveLineBackground,
                         {
-                          textAlign: textAlignment,
                           backgroundColor: textEffect === 'white-bg' ? '#fff' : '#000',
-                          color: 'transparent', // Text is invisible, but background shows
                           borderRadius: 20, // All corners rounded on each line
                           marginTop: index > 0 ? -2 : 0, // Merge seamlessly with slight overlap
+                          alignSelf: textAlignment === 'center' ? 'center' : 
+                                    textAlignment === 'right' ? 'flex-end' : 'flex-start',
                         },
                       ]}
                       pointerEvents="none"
                     >
-                      {trimmedLine}
-                    </Text>
+                      <Text
+                        style={[
+                          getTextStyle(),
+                          {
+                            textAlign: textAlignment,
+                            color: 'transparent',
+                            opacity: 0,
+                          },
+                        ]}
+                      >
+                        {trimmedLine}
+                      </Text>
+                    </View>
                   );
                 })}
               </View>
@@ -1356,10 +1376,10 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 3,
     elevation: 2,
-    includeFontPadding: false,
-    textAlignVertical: 'center',
-    // Each line displays as block (takes shape of text)
+    // View wraps invisible text to determine width
     overflow: 'hidden',
+    // Allow View to shrink-wrap around Text content
+    alignSelf: 'flex-start',
   },
   // TextInput overlay container - positioned on top of background bubbles
   textInputOverlay: {
