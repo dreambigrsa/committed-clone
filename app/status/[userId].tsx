@@ -24,7 +24,7 @@ import {
 import { Image } from 'expo-image';
 import { Video, ResizeMode } from 'expo-av';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { X, Trash2, Plus, Music, Type, Image as ImageIcon, RefreshCw, Share2, MoreHorizontal, Globe } from 'lucide-react-native';
+import { X, Trash2, Plus, Music, Type, Image as ImageIcon, RefreshCw, Share2, MoreHorizontal, Globe, Lock, MessageCircle, Download, Archive, Link, AlertCircle, AtSign } from 'lucide-react-native';
 import { getUserStatuses, markStatusAsViewed, getSignedUrlForMedia, deleteStatus, getStatusViewers, getStatusViewCount, type StatusViewer } from '@/lib/status-queries';
 import { useApp } from '@/contexts/AppContext';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -46,8 +46,8 @@ export default function StatusViewerScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [isDeleting, setIsDeleting] = useState(false);
   const [showPlusMenu, setShowPlusMenu] = useState(false);
-  const [showThreeDotsMenu, setShowThreeDotsMenu] = useState(false);
   const [showViewers, setShowViewers] = useState(false);
+  const [showOwnStatusMenu, setShowOwnStatusMenu] = useState(false);
   const [messageText, setMessageText] = useState('');
   const [viewCount, setViewCount] = useState<number>(0);
   const [viewers, setViewers] = useState<StatusViewer[]>([]);
@@ -234,125 +234,54 @@ export default function StatusViewerScreen() {
       right: 0,
       flexDirection: 'row',
       alignItems: 'center',
-      paddingHorizontal: 16,
+      paddingHorizontal: 12,
       paddingVertical: 12,
-      paddingBottom: Platform.OS === 'ios' ? 30 : 20,
-      backgroundColor: 'transparent', // No background overlay
+      paddingBottom: 20,
+      backgroundColor: 'rgba(0, 0, 0, 0.5)',
       gap: 8,
     },
     quickReactions: {
       flexDirection: 'row',
-      gap: 6,
-      alignItems: 'center',
-      paddingHorizontal: 8,
-      paddingVertical: 6,
-      backgroundColor: 'rgba(255, 255, 255, 0.15)',
-      borderRadius: 20,
-    },
-    quickReactionButton: {
-      paddingHorizontal: 4,
-      paddingVertical: 2,
+      gap: 4,
     },
     quickReactionEmoji: {
       fontSize: 20,
     },
     messageInputContainer: {
       flex: 1,
-      backgroundColor: 'rgba(255, 255, 255, 0.2)',
-      borderRadius: 24,
+      backgroundColor: 'rgba(255, 255, 255, 0.1)',
+      borderRadius: 20,
       paddingHorizontal: 16,
       paddingVertical: 10,
-      marginHorizontal: 8,
-      minHeight: 44,
-      maxHeight: 44,
-      justifyContent: 'center',
+      maxHeight: 50,
     },
     messageInput: {
       color: '#fff',
-      fontSize: 15,
+      fontSize: 14,
       padding: 0,
-      includeFontPadding: false,
     },
     reactionButtons: {
       flexDirection: 'row',
       gap: 8,
     },
     reactionButton: {
-      width: 44,
-      height: 44,
-      borderRadius: 22,
-      backgroundColor: 'rgba(255, 255, 255, 0.2)',
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor: 'rgba(255, 255, 255, 0.1)',
       alignItems: 'center',
       justifyContent: 'center',
     },
     reactionEmoji: {
-      fontSize: 24,
+      fontSize: 22,
     },
     plusButton: {
-      width: 44,
-      height: 44,
-      borderRadius: 22,
-      backgroundColor: 'rgba(255, 255, 255, 0.2)',
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    viewerCountContainer: {
-      position: 'absolute',
-      bottom: Platform.OS === 'ios' ? 80 : 70,
-      left: 16,
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 6,
-      backgroundColor: 'rgba(0, 0, 0, 0.6)',
-      paddingHorizontal: 12,
-      paddingVertical: 8,
+      width: 40,
+      height: 40,
       borderRadius: 20,
-    },
-    viewerCountIcon: {
-      fontSize: 14,
-      color: '#fff',
-    },
-    viewerCountText: {
-      color: '#fff',
-      fontSize: 14,
-      fontWeight: '500' as const,
-    },
-    threeDotsMenu: {
-      position: 'absolute',
-      bottom: Platform.OS === 'ios' ? 120 : 110,
-      left: 0,
-      right: 0,
-      backgroundColor: '#242526',
-      borderTopLeftRadius: 16,
-      borderTopRightRadius: 16,
-      paddingTop: 8,
-      paddingBottom: Platform.OS === 'ios' ? 30 : 20,
-      maxHeight: height * 0.6,
-    },
-    threeDotsMenuItem: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      paddingHorizontal: 16,
-      paddingVertical: 14,
-      gap: 16,
-    },
-    threeDotsMenuText: {
-      color: '#fff',
-      fontSize: 16,
-      flex: 1,
-    },
-    threeDotsMenuIcon: {
-      width: 36,
-      height: 36,
-      borderRadius: 18,
       backgroundColor: 'rgba(255, 255, 255, 0.1)',
       alignItems: 'center',
       justifyContent: 'center',
-    },
-    divider: {
-      height: 1,
-      backgroundColor: 'rgba(255, 255, 255, 0.1)',
-      marginVertical: 8,
     },
     plusMenuOverlay: {
       position: 'absolute',
@@ -394,6 +323,65 @@ export default function StatusViewerScreen() {
       color: '#fff',
       fontSize: 16,
       fontWeight: '500' as const,
+    },
+    // Own Status Menu Styles
+    ownStatusMenuOverlay: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      zIndex: 1000,
+    },
+    ownStatusMenuBackdrop: {
+      flex: 1,
+      backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    },
+    ownStatusMenu: {
+      position: 'absolute',
+      bottom: 0,
+      left: 0,
+      right: 0,
+      backgroundColor: '#1C1C1E',
+      borderTopLeftRadius: 20,
+      borderTopRightRadius: 20,
+      paddingTop: 12,
+      paddingBottom: Platform.OS === 'ios' ? 34 : 16,
+      maxHeight: height * 0.7,
+    },
+    ownStatusMenuHandle: {
+      width: 40,
+      height: 4,
+      backgroundColor: 'rgba(255, 255, 255, 0.3)',
+      borderRadius: 2,
+      alignSelf: 'center',
+      marginBottom: 16,
+    },
+    ownStatusMenuOption: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: 20,
+      paddingVertical: 16,
+      gap: 16,
+    },
+    ownStatusMenuIcon: {
+      width: 24,
+      height: 24,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    ownStatusMenuContent: {
+      flex: 1,
+    },
+    ownStatusMenuText: {
+      color: '#fff',
+      fontSize: 16,
+      fontWeight: '400' as const,
+    },
+    ownStatusMenuSubtext: {
+      color: 'rgba(255, 255, 255, 0.6)',
+      fontSize: 13,
+      marginTop: 2,
     },
   });
 
@@ -869,18 +857,32 @@ export default function StatusViewerScreen() {
                   <Text style={styles.timestamp}>
                     {formatTimeAgo(status.created_at)}
                   </Text>
+                  {/* Show view count for own statuses - inline with timestamp */}
+                  {currentUser?.id === status.user_id && viewCount > 0 && (
+                    <>
+                      <Text style={styles.timestampSeparator}>·</Text>
+                      <TouchableOpacity 
+                        onPress={handleViewersPress}
+                        activeOpacity={0.7}
+                      >
+                        <Text style={styles.viewCountText}>
+                          {viewCount} {viewCount === 1 ? 'viewer' : 'viewers'}
+                        </Text>
+                      </TouchableOpacity>
+                    </>
+                  )}
                 </View>
               </View>
             </View>
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, zIndex: 100 }}>
-            {/* Three dots menu button - only show for own statuses */}
+            {/* Three-dot menu - only show for own statuses */}
             {currentUser?.id === status.user_id && (
               <TouchableOpacity 
                 style={[styles.closeButton, { zIndex: 101 }]} 
                 onPress={(e) => {
                   e?.stopPropagation?.();
-                  setShowThreeDotsMenu(!showThreeDotsMenu);
+                  setShowOwnStatusMenu(true);
                 }}
                 activeOpacity={0.7}
               >
@@ -1039,142 +1041,64 @@ export default function StatusViewerScreen() {
           activeOpacity={1}
         />
 
-        {/* Bottom Interaction Bar */}
-        <View style={styles.bottomBar}>
-          {/* Quick Reactions (pill-shaped container with small emojis) */}
-          <View style={styles.quickReactions}>
-            <TouchableOpacity style={styles.quickReactionButton} onPress={() => handleReaction('heart-eyes')} activeOpacity={0.7}>
-              <Text style={styles.quickReactionEmoji}>😍</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.quickReactionButton} onPress={() => handleReaction('heart')} activeOpacity={0.7}>
-              <Text style={styles.quickReactionEmoji}>❤️</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.quickReactionButton} onPress={() => handleReaction('wink')} activeOpacity={0.7}>
-              <Text style={styles.quickReactionEmoji}>😉</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.quickReactionButton} onPress={() => handleReaction('like')} activeOpacity={0.7}>
-              <Text style={styles.quickReactionEmoji}>👍</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.quickReactionButton} onPress={() => handleReaction('laugh')} activeOpacity={0.7}>
-              <Text style={styles.quickReactionEmoji}>😂</Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* Send Message Input */}
-          <View style={styles.messageInputContainer}>
-            <TextInput
-              style={styles.messageInput}
-              placeholder="Send message..."
-              placeholderTextColor="rgba(255, 255, 255, 0.6)"
-              value={messageText}
-              onChangeText={setMessageText}
-              onSubmitEditing={handleSendMessage}
-              multiline={false}
-            />
-          </View>
-
-          {/* Reaction Buttons (larger circular buttons) */}
-          <View style={styles.reactionButtons}>
-            <TouchableOpacity
-              style={styles.reactionButton}
-              onPress={() => handleReaction('heart')}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.reactionEmoji}>❤️</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.reactionButton}
-              onPress={() => handleReaction('like')}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.reactionEmoji}>👍</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.reactionButton}
-              onPress={() => handleReaction('laugh')}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.reactionEmoji}>😂</Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* Plus Icon */}
-          <TouchableOpacity
-            style={styles.plusButton}
-            onPress={() => setShowPlusMenu(!showPlusMenu)}
-            activeOpacity={0.7}
-          >
-            <Plus size={24} color="#fff" />
-          </TouchableOpacity>
-        </View>
-
-        {/* Viewer Count for Own Statuses */}
-        {currentUser?.id === status.user_id && viewCount > 0 && (
-          <TouchableOpacity 
-            style={styles.viewerCountContainer}
-            onPress={handleViewersPress}
-            activeOpacity={0.7}
-          >
-            <Text style={styles.viewerCountIcon}>↑</Text>
-            <Text style={styles.viewerCountText}>{viewCount} {viewCount === 1 ? 'viewer' : 'viewers'}</Text>
-          </TouchableOpacity>
-        )}
-
-        {/* Three Dots Menu Modal (for own statuses) */}
-        {showThreeDotsMenu && currentUser?.id === status.user_id && (
-          <View style={styles.plusMenuOverlay}>
-            <TouchableOpacity
-              style={styles.plusMenuBackdrop}
-              onPress={() => setShowThreeDotsMenu(false)}
-              activeOpacity={1}
-            />
-            <View style={styles.threeDotsMenu}>
-              <ScrollView>
-                <TouchableOpacity
-                  style={styles.threeDotsMenuItem}
-                  onPress={() => {
-                    setShowThreeDotsMenu(false);
-                    handleDelete();
-                  }}
-                  activeOpacity={0.7}
-                >
-                  <View style={styles.threeDotsMenuIcon}>
-                    <Trash2 size={20} color="#f02849" />
-                  </View>
-                  <Text style={[styles.threeDotsMenuText, { color: '#f02849' }]}>Delete story</Text>
-                </TouchableOpacity>
-                
-                <View style={styles.divider} />
-                
-                <TouchableOpacity
-                  style={styles.threeDotsMenuItem}
-                  onPress={() => {
-                    setShowThreeDotsMenu(false);
-                    Alert.alert('Share Story', 'Sharing stories feature is coming soon!');
-                  }}
-                  activeOpacity={0.7}
-                >
-                  <View style={styles.threeDotsMenuIcon}>
-                    <Share2 size={20} color="#fff" />
-                  </View>
-                  <Text style={styles.threeDotsMenuText}>Share story</Text>
-                </TouchableOpacity>
-                
-                <TouchableOpacity
-                  style={styles.threeDotsMenuItem}
-                  onPress={() => {
-                    setShowThreeDotsMenu(false);
-                    Alert.alert('Mute Story', 'Muting stories feature is coming soon!');
-                  }}
-                  activeOpacity={0.7}
-                >
-                  <View style={styles.threeDotsMenuIcon}>
-                    <Globe size={20} color="#fff" />
-                  </View>
-                  <Text style={styles.threeDotsMenuText}>Mute story</Text>
-                </TouchableOpacity>
-              </ScrollView>
+        {/* Bottom Interaction Bar - Only show for other people's statuses */}
+        {currentUser?.id !== status.user_id && (
+          <View style={styles.bottomBar}>
+            {/* Quick Reactions (small emojis) - Only 3 emojis like Facebook */}
+            <View style={styles.quickReactions}>
+              <TouchableOpacity onPress={() => handleReaction('heart')} activeOpacity={0.7}>
+                <Text style={styles.quickReactionEmoji}>❤️</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => handleReaction('like')} activeOpacity={0.7}>
+                <Text style={styles.quickReactionEmoji}>👍</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => handleReaction('laugh')} activeOpacity={0.7}>
+                <Text style={styles.quickReactionEmoji}>😂</Text>
+              </TouchableOpacity>
             </View>
+
+            {/* Send Message Input */}
+            <View style={styles.messageInputContainer}>
+              <TextInput
+                style={styles.messageInput}
+                placeholder="Send message..."
+                placeholderTextColor="rgba(255, 255, 255, 0.5)"
+                value={messageText}
+                onChangeText={setMessageText}
+                onSubmitEditing={handleSendMessage}
+                multiline={false}
+              />
+            </View>
+
+            {/* Reaction Buttons */}
+            <View style={styles.reactionButtons}>
+              <TouchableOpacity
+                style={styles.reactionButton}
+                onPress={() => handleReaction('heart')}
+              >
+                <Text style={styles.reactionEmoji}>❤️</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.reactionButton}
+                onPress={() => handleReaction('like')}
+              >
+                <Text style={styles.reactionEmoji}>👍</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.reactionButton}
+                onPress={() => handleReaction('laugh')}
+              >
+                <Text style={styles.reactionEmoji}>😂</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Plus Icon */}
+            <TouchableOpacity
+              style={styles.plusButton}
+              onPress={() => setShowPlusMenu(!showPlusMenu)}
+            >
+              <Plus size={24} color="#fff" />
+            </TouchableOpacity>
           </View>
         )}
 
@@ -1251,6 +1175,156 @@ export default function StatusViewerScreen() {
                 </View>
                 <Text style={styles.plusMenuText}>Share story</Text>
               </TouchableOpacity>
+            </View>
+          </View>
+        )}
+
+        {/* Own Status Menu Modal */}
+        {showOwnStatusMenu && status && (
+          <View style={styles.ownStatusMenuOverlay}>
+            <TouchableOpacity
+              style={styles.ownStatusMenuBackdrop}
+              onPress={() => setShowOwnStatusMenu(false)}
+              activeOpacity={1}
+            />
+            <View style={styles.ownStatusMenu}>
+              <View style={styles.ownStatusMenuHandle} />
+              <ScrollView showsVerticalScrollIndicator={false}>
+                <TouchableOpacity
+                  style={styles.ownStatusMenuOption}
+                  onPress={() => {
+                    setShowOwnStatusMenu(false);
+                    Alert.alert('Mention People', 'Mention people feature coming soon!');
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <View style={styles.ownStatusMenuIcon}>
+                    <AtSign size={24} color="#fff" />
+                  </View>
+                  <View style={styles.ownStatusMenuContent}>
+                    <Text style={styles.ownStatusMenuText}>Mention people</Text>
+                  </View>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.ownStatusMenuOption}
+                  onPress={() => {
+                    setShowOwnStatusMenu(false);
+                    Alert.alert('Edit Story Privacy', 'Edit story privacy feature coming soon!');
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <View style={styles.ownStatusMenuIcon}>
+                    <Lock size={24} color="#fff" />
+                  </View>
+                  <View style={styles.ownStatusMenuContent}>
+                    <Text style={styles.ownStatusMenuText}>Edit story privacy</Text>
+                  </View>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.ownStatusMenuOption}
+                  onPress={() => {
+                    setShowOwnStatusMenu(false);
+                    Alert.alert('Send in Messenger', 'Send in Messenger feature coming soon!');
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <View style={styles.ownStatusMenuIcon}>
+                    <MessageCircle size={24} color="#fff" />
+                  </View>
+                  <View style={styles.ownStatusMenuContent}>
+                    <Text style={styles.ownStatusMenuText}>Send in Messenger</Text>
+                  </View>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.ownStatusMenuOption}
+                  onPress={() => {
+                    setShowOwnStatusMenu(false);
+                    Alert.alert('Save Photo', 'Save photo feature coming soon!');
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <View style={styles.ownStatusMenuIcon}>
+                    <Download size={24} color="#fff" />
+                  </View>
+                  <View style={styles.ownStatusMenuContent}>
+                    <Text style={styles.ownStatusMenuText}>Save photo</Text>
+                  </View>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.ownStatusMenuOption}
+                  onPress={() => {
+                    setShowOwnStatusMenu(false);
+                    Alert.alert('Archive Photo', 'Archive photo feature coming soon!');
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <View style={styles.ownStatusMenuIcon}>
+                    <Archive size={24} color="#fff" />
+                  </View>
+                  <View style={styles.ownStatusMenuContent}>
+                    <Text style={styles.ownStatusMenuText}>Archive photo</Text>
+                    <Text style={styles.ownStatusMenuSubtext}>Remove photo from story and save to archive.</Text>
+                  </View>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.ownStatusMenuOption}
+                  onPress={(e) => {
+                    e?.stopPropagation?.();
+                    setShowOwnStatusMenu(false);
+                    setTimeout(() => handleDelete(e), 300);
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <View style={styles.ownStatusMenuIcon}>
+                    <Trash2 size={24} color="#ff3b30" />
+                  </View>
+                  <View style={styles.ownStatusMenuContent}>
+                    <Text style={[styles.ownStatusMenuText, { color: '#ff3b30' }]}>Delete photo</Text>
+                  </View>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.ownStatusMenuOption}
+                  onPress={async () => {
+                    setShowOwnStatusMenu(false);
+                    if (status.id) {
+                      Alert.alert('Copy Link', 'Link copied to clipboard!', [{ text: 'OK' }]);
+                    }
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <View style={styles.ownStatusMenuIcon}>
+                    <Link size={24} color="#fff" />
+                  </View>
+                  <View style={styles.ownStatusMenuContent}>
+                    <Text style={styles.ownStatusMenuText}>Copy link to share this story</Text>
+                    <Text style={styles.ownStatusMenuSubtext}>
+                      Stories are visible to {status.user?.full_name || 'your'}'s audience for 24 hours.
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.ownStatusMenuOption}
+                  onPress={() => {
+                    setShowOwnStatusMenu(false);
+                    Alert.alert('Report Issue', 'Something went wrong? Please report this issue.');
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <View style={styles.ownStatusMenuIcon}>
+                    <AlertCircle size={24} color="#fff" />
+                  </View>
+                  <View style={styles.ownStatusMenuContent}>
+                    <Text style={styles.ownStatusMenuText}>Something went wrong</Text>
+                  </View>
+                </TouchableOpacity>
+              </ScrollView>
             </View>
           </View>
         )}
