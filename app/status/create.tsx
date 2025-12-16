@@ -219,11 +219,31 @@ export default function CreateStatusScreen() {
     try {
       // If background image is set, use it as mediaUri
       const finalMediaUri = backgroundImageUri || mediaUri;
+      
+      // Prepare customization data
+      const customization = {
+        backgroundColor: textBackgroundColor,
+        textStyle: textStyle,
+        textEffect: textEffect,
+        textAlignment: textAlignment,
+        backgroundImageUri: contentType === 'text' ? backgroundImageUri : null,
+        stickers: selectedStickers.map((sticker, index) => ({
+          id: sticker.id,
+          imageUrl: sticker.imageUrl,
+          positionX: 0.5, // Default center position
+          positionY: 0.5 + (index * 0.1), // Stack stickers vertically
+          scale: 1.0,
+          rotation: 0,
+        })),
+      };
+
       const status = await createStatus(
         contentType,
         textContent || null,
         finalMediaUri,
-        privacyLevel
+        privacyLevel,
+        undefined, // allowedUserIds (for custom privacy)
+        customization
       );
 
       if (status) {
