@@ -575,7 +575,7 @@ export default function CreateStatusScreen() {
                 />
               )}
               
-              {/* Text Content with Customization */}
+              {/* Text Content with Customization - Matches status viewer structure */}
               <View style={[styles.textPreviewWrapper, {
                 alignItems: textAlignment === 'left' ? 'flex-start' : 
                            textAlignment === 'right' ? 'flex-end' : 'center',
@@ -630,6 +630,7 @@ export default function CreateStatusScreen() {
                                 opacity: 0,
                               },
                             ]}
+                            pointerEvents="none"
                           >
                             {trimmedLine}
                           </Text>
@@ -640,49 +641,28 @@ export default function CreateStatusScreen() {
                 )}
                 
                 {/* Actual Text - Positioned absolutely over backgrounds */}
-                {(textEffect === 'white-bg' || textEffect === 'black-bg') ? (
-                  <View style={[styles.textPreviewTextOverlay, {
-                    alignItems: textAlignment === 'left' ? 'flex-start' : 
-                               textAlignment === 'right' ? 'flex-end' : 'center',
-                  }]}>
-                    <Text
-                      style={[
-                        getTextStyle(),
-                        getTextEffectStyle(),
-                        {
-                          textAlign: textAlignment,
-                          color: textEffect === 'white-bg' ? '#000' : '#fff',
-                          paddingHorizontal: 12,
-                          paddingVertical: 8,
-                          maxWidth: '85%',
-                        },
-                      ]}
-                    >
-                      {textContent}
-                    </Text>
-                  </View>
-                ) : (
-                  <View style={[styles.textPreviewTextOverlay, {
-                    alignItems: textAlignment === 'left' ? 'flex-start' : 
-                               textAlignment === 'right' ? 'flex-end' : 'center',
-                  }]}>
-                    <Text
-                      style={[
-                        getTextStyle(),
-                        getTextEffectStyle(),
-                        {
-                          textAlign: textAlignment,
-                          color: '#fff',
-                          paddingHorizontal: 12,
-                          paddingVertical: 8,
-                          maxWidth: '85%',
-                        },
-                      ]}
-                    >
-                      {textContent}
-                    </Text>
-                  </View>
-                )}
+                <View style={[styles.textPreviewTextOverlay, {
+                  alignItems: textAlignment === 'left' ? 'flex-start' : 
+                             textAlignment === 'right' ? 'flex-end' : 'center',
+                }]}>
+                  <Text
+                    style={[
+                      getTextStyle(),
+                      getTextEffectStyle(),
+                      {
+                        textAlign: textAlignment,
+                        color: (textEffect === 'white-bg' || textEffect === 'black-bg')
+                          ? (textEffect === 'white-bg' ? '#000' : '#fff')
+                          : '#fff',
+                        paddingHorizontal: 12,
+                        paddingVertical: 8,
+                        maxWidth: '85%',
+                      },
+                    ]}
+                  >
+                    {textContent}
+                  </Text>
+                </View>
               </View>
               
               {/* Stickers */}
@@ -1538,6 +1518,8 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     justifyContent: 'center',
+    alignItems: 'center',
+    width: '100%',
     zIndex: 10,
     pointerEvents: 'none',
   },
