@@ -562,7 +562,109 @@ export default function CreateStatusScreen() {
         </View>
 
         <View style={styles.previewContent}>
-          {contentType === 'image' ? (
+          {contentType === 'text' ? (
+            <View style={[styles.textPreviewContainer, {
+              backgroundColor: textBackgroundColor || '#1A73E8',
+            }]}>
+              {/* Background Image */}
+              {backgroundImageUri && (
+                <Image 
+                  source={{ uri: backgroundImageUri }} 
+                  style={styles.textPreviewBackgroundImage} 
+                  contentFit="cover" 
+                />
+              )}
+              
+              {/* Text Content with Customization */}
+              <View style={[styles.textPreviewWrapper, {
+                alignItems: textAlignment === 'left' ? 'flex-start' : 
+                           textAlignment === 'right' ? 'flex-end' : 'center',
+              }]}>
+                {/* Per-line Backgrounds */}
+                {(textEffect === 'white-bg' || textEffect === 'black-bg') && textContent && (
+                  <View 
+                    style={[styles.adaptiveBackgroundContainer, {
+                      alignItems: textAlignment === 'left' ? 'flex-start' : 
+                                 textAlignment === 'right' ? 'flex-end' : 'center',
+                    }]} 
+                    pointerEvents="none"
+                  >
+                    {textContent.split('\n').map((line, index) => {
+                      const trimmedLine = line.trim();
+                      if (!trimmedLine) return null;
+                      
+                      return (
+                        <View
+                          key={index}
+                          style={[
+                            styles.adaptiveLineBackground,
+                            {
+                              backgroundColor: textEffect === 'white-bg' ? '#fff' : '#000',
+                              borderRadius: 20,
+                              marginTop: index > 0 ? -2 : 0,
+                              alignSelf: textAlignment === 'center' ? 'center' : 
+                                        textAlignment === 'right' ? 'flex-end' : 'flex-start',
+                            },
+                          ]}
+                          pointerEvents="none"
+                        >
+                          <Text
+                            style={[
+                              getTextStyle(),
+                              {
+                                textAlign: textAlignment,
+                                color: 'transparent',
+                              },
+                            ]}
+                          >
+                            {trimmedLine}
+                          </Text>
+                        </View>
+                      );
+                    })}
+                  </View>
+                )}
+                
+                {/* Actual Text */}
+                <View style={styles.textPreviewTextOverlay}>
+                  <Text
+                    style={[
+                      getTextStyle(),
+                      getTextEffectStyle(),
+                      {
+                        textAlign: textAlignment,
+                        color: (textEffect === 'white-bg' || textEffect === 'black-bg')
+                          ? (textEffect === 'white-bg' ? '#000' : '#fff')
+                          : '#fff',
+                        paddingHorizontal: 12,
+                        paddingVertical: 8,
+                      },
+                    ]}
+                  >
+                    {textContent}
+                  </Text>
+                </View>
+              </View>
+              
+              {/* Stickers */}
+              {selectedStickers.length > 0 && (
+                <View style={styles.previewStickersContainer} pointerEvents="none">
+                  {selectedStickers.map((sticker, index) => (
+                    <Image
+                      key={sticker.id || index}
+                      source={{ uri: sticker.imageUrl }}
+                      style={[styles.previewSticker, {
+                        left: '50%',
+                        top: `${50 + (index * 10)}%`,
+                        transform: [{ scale: 1.0 }],
+                      }]}
+                      contentFit="contain"
+                    />
+                  ))}
+                </View>
+              )}
+            </View>
+          ) : contentType === 'image' ? (
             <Image source={{ uri: mediaUri }} style={styles.previewMediaFull} contentFit="contain" />
           ) : (
             <Video
@@ -1343,6 +1445,47 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  textPreviewContainer: {
+    flex: 1,
+    width: '100%',
+    position: 'relative',
+  },
+  textPreviewBackgroundImage: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    width: '100%',
+    height: '100%',
+  },
+  textPreviewWrapper: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+  },
+  textPreviewTextOverlay: {
+    position: 'relative',
+    width: '100%',
+    maxWidth: '85%',
+  },
+  previewStickersContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    width: '100%',
+    height: '100%',
+  },
+  previewSticker: {
+    position: 'absolute',
+    width: 80,
+    height: 80,
+    marginLeft: -40,
+    marginTop: -40,
   },
   previewMediaFull: {
     width: width,
