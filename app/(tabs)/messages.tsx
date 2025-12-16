@@ -196,13 +196,12 @@ export default function MessagesScreen() {
         </View>
       </TouchableOpacity>
 
-      {/* Status Stories Bar */}
-      <StatusStoriesBar context="messenger" />
-
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
+        {/* Status Stories Bar - Inside ScrollView (static, scrolls with content) */}
+        <StatusStoriesBar context="messenger" />
         {conversations.length === 0 ? (
           <Animated.View style={[styles.emptyState, { opacity: fadeAnim }]}>
             <MessageCircle size={80} color={colors.text.tertiary} strokeWidth={1.5} />
