@@ -878,13 +878,15 @@ export default function CreateStatusScreen() {
               </View>
             )}
             
-            {/* TextInput - Positioned to overlay on adaptive backgrounds */}
+            {/* TextInput - Positioned to overlay EXACTLY on adaptive backgrounds */}
             <View 
               style={[
                 styles.textInputOverlay,
                 {
+                  // CRITICAL: Use EXACT same alignment as adaptiveBackgroundContainer
                   alignItems: textAlignment === 'left' ? 'flex-start' : 
                              textAlignment === 'right' ? 'flex-end' : 'center',
+                  // Both containers use justifyContent: 'center' - ensures same vertical centering
                 },
               ]}
             >
@@ -894,7 +896,7 @@ export default function CreateStatusScreen() {
                   getTextEffectStyle(),
                   { 
                     textAlign: textAlignment,
-                    textAlignVertical: 'center', // Center vertically to align with background Views' justifyContent: center
+                    textAlignVertical: 'center', // Center vertically to match background Views
                     lineHeight: getTextStyle().lineHeight, // MUST match background Text exactly
                     color: (textEffect === 'white-bg' || textEffect === 'black-bg') 
                       ? (textEffect === 'white-bg' ? '#000' : '#fff')
@@ -902,13 +904,17 @@ export default function CreateStatusScreen() {
                     backgroundColor: 'transparent',
                     borderWidth: 0,
                     outlineWidth: 0,
-                    paddingHorizontal: 12, // Match background padding EXACTLY
-                    paddingVertical: 8, // Match background padding EXACTLY
+                    paddingHorizontal: 12, // MUST match adaptiveLineBackground paddingHorizontal
+                    paddingVertical: 8, // MUST match adaptiveLineBackground paddingVertical
                     maxWidth: '85%',
                     includeFontPadding: false,
-                    // CRITICAL: Match TextInput spacing to background spacing
-                    // The TextInput should have NO extra spacing between lines
-                    // Line height matches, padding matches - they should align perfectly
+                    // CRITICAL: Match background Views' alignSelf behavior
+                    alignSelf: textAlignment === 'center' ? 'center' : 
+                              textAlignment === 'right' ? 'flex-end' : 'flex-start',
+                    // CRITICAL: TextInput must align exactly with background Text
+                    // Both use same lineHeight, paddingHorizontal, paddingVertical
+                    // Both containers use same justifyContent and alignItems
+                    // Both use same alignSelf based on textAlignment
                   },
                 ]}
                 placeholder="Type or @Tag"
@@ -1734,11 +1740,11 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    justifyContent: 'center', // Center content vertically - matches background container
-    alignItems: 'center',
+    justifyContent: 'center', // CRITICAL: Same as adaptiveBackgroundContainer - centers content vertically
+    alignItems: 'center', // Default, will be overridden dynamically to match adaptiveBackgroundContainer
     zIndex: 2, // Above background bubbles
-    // alignItems will be overridden dynamically based on textAlignment
-    // maxWidth handled in TextInput style
+    flexDirection: 'column', // Match adaptiveBackgroundContainer structure
+    // alignItems will be overridden dynamically based on textAlignment to match adaptiveBackgroundContainer exactly
   },
   textInputWithBg: {
     position: 'relative',
