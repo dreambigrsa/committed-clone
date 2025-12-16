@@ -614,13 +614,16 @@ export default function CreateStatusScreen() {
                               } : {
                                 borderRadius: 15, // Center: reduced radius
                               }),
-                              marginTop: index > 0 ? -2 : 0,
+                              marginTop: index > 0 ? -4 : 0, // Increased overlap for seamless merging
                               alignSelf: textAlignment === 'center' ? 'center' : 
                                         textAlignment === 'right' ? 'flex-end' : 'flex-start',
+                              overflow: 'hidden',
+                              maxWidth: '85%', // Ensure wrapper doesn't overflow
                             },
                           ]}
                           pointerEvents="none"
                         >
+                          {/* Invisible text for sizing - completely hidden */}
                           <Text
                             style={[
                               getTextStyle(),
@@ -639,25 +642,40 @@ export default function CreateStatusScreen() {
                   </View>
                 )}
                 
-                {/* Actual Text */}
-                <View style={styles.textPreviewTextOverlay}>
-                  <Text
-                    style={[
-                      getTextStyle(),
-                      getTextEffectStyle(),
-                      {
-                        textAlign: textAlignment,
-                        color: (textEffect === 'white-bg' || textEffect === 'black-bg')
-                          ? (textEffect === 'white-bg' ? '#000' : '#fff')
-                          : '#fff',
-                        paddingHorizontal: 12,
-                        paddingVertical: 8,
-                      },
-                    ]}
-                  >
-                    {textContent}
-                  </Text>
-                </View>
+                {/* Actual Visible Text - Render per-line to match backgrounds exactly */}
+                {(textEffect === 'white-bg' || textEffect === 'black-bg') && (
+                  <View style={[styles.textPreviewTextOverlay, {
+                    alignItems: textAlignment === 'left' ? 'flex-start' : 
+                               textAlignment === 'right' ? 'flex-end' : 'center',
+                  }]}>
+                    {textContent.split('\n').map((line, index) => {
+                      const trimmedLine = line.trim();
+                      if (!trimmedLine) return null;
+                      
+                      return (
+                        <Text
+                          key={index}
+                          style={[
+                            getTextStyle(),
+                            getTextEffectStyle(),
+                            {
+                              textAlign: textAlignment,
+                              color: textEffect === 'white-bg' ? '#000' : '#fff',
+                              paddingHorizontal: 12,
+                              paddingVertical: 8,
+                              maxWidth: '85%', // Ensure text stays within wrapper
+                              flexShrink: 1, // Allow shrinking to fit
+                            },
+                          ]}
+                          numberOfLines={0} // Allow multiple lines but constrain width
+                          ellipsizeMode="clip" // Clip text instead of ellipsis
+                        >
+                          {trimmedLine}
+                        </Text>
+                      );
+                    })}
+                  </View>
+                )}
               </View>
               
               {/* Stickers */}
@@ -790,9 +808,11 @@ export default function CreateStatusScreen() {
                           } : {
                             borderRadius: 15, // Center: reduced radius
                           }),
-                          marginTop: index > 0 ? -2 : 0, // Merge seamlessly
+                          marginTop: index > 0 ? -4 : 0, // Increased overlap for seamless merging
                           alignSelf: textAlignment === 'center' ? 'center' : 
                                     textAlignment === 'right' ? 'flex-end' : 'flex-start',
+                          overflow: 'hidden',
+                          maxWidth: '85%', // Ensure wrapper doesn't overflow
                         },
                       ]}
                       pointerEvents="none"
@@ -835,25 +855,28 @@ export default function CreateStatusScreen() {
                           } : {
                             borderRadius: 15, // Center: reduced radius
                           }),
-                          marginTop: index > 0 ? -2 : 0, // Merge seamlessly with slight overlap
+                          marginTop: index > 0 ? -4 : 0, // Increased overlap for seamless merging
                           alignSelf: textAlignment === 'center' ? 'center' : 
                                     textAlignment === 'right' ? 'flex-end' : 'flex-start',
+                          overflow: 'hidden',
+                          maxWidth: '85%', // Ensure wrapper doesn't overflow
                         },
                       ]}
                       pointerEvents="none"
                     >
-                      <Text
-                        style={[
-                          getTextStyle(),
-                          {
-                            textAlign: textAlignment,
-                            color: 'transparent',
-                            opacity: 0,
-                          },
-                        ]}
-                      >
-                        {trimmedLine}
-                      </Text>
+                          {/* Hidden text for background sizing - completely invisible but still measures width */}
+                          <View style={{ position: 'absolute', opacity: 0, width: 0, height: 0, overflow: 'hidden' }}>
+                            <Text
+                              style={[
+                                getTextStyle(),
+                                {
+                                  textAlign: textAlignment,
+                                },
+                              ]}
+                            >
+                              {trimmedLine}
+                            </Text>
+                          </View>
                     </View>
                   );
                 })}
@@ -885,7 +908,8 @@ export default function CreateStatusScreen() {
                     paddingHorizontal: 12, // Match background padding
                     paddingVertical: 8, // Match background padding
                     width: '100%',
-                    maxWidth: '85%',
+                    maxWidth: '85%', // Ensure text stays within wrapper
+                    flexShrink: 1, // Allow shrinking to fit
                   },
                 ]}
                 placeholder="Type or @Tag"
@@ -894,6 +918,7 @@ export default function CreateStatusScreen() {
                 onChangeText={setTextContent}
                 multiline
                 autoFocus
+                textBreakStrategy="simple" // Better text wrapping
               />
             </View>
           </View>
@@ -1507,9 +1532,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   textPreviewTextOverlay: {
-    position: 'relative',
-    width: '100%',
-    maxWidth: '85%',
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    zIndex: 10,
+    pointerEvents: 'none',
   },
   previewStickersContainer: {
     position: 'absolute',
@@ -1674,7 +1704,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
     // Border radius is set dynamically based on text alignment
-    // Max width to prevent overflow
+    // Max width to prevent overflow - ensures text stays within wrapper
     maxWidth: '85%',
     // Shadow for depth
     shadowOffset: {
@@ -1684,8 +1714,10 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 3,
     elevation: 2,
-    // View wraps invisible text to determine width
+    // View wraps invisible text to determine width - critical for preventing overflow
     overflow: 'hidden',
+    // Flex shrink to prevent overflow
+    flexShrink: 1,
     // alignSelf will be set dynamically based on textAlignment
   },
   // TextInput overlay container - positioned on top of background bubbles
@@ -1699,6 +1731,8 @@ const styles = StyleSheet.create({
     zIndex: 2, // Above background bubbles
     // alignItems will be set dynamically based on textAlignment
     // maxWidth handled in TextInput style
+    maxWidth: '100%', // Container respects max width
+    overflow: 'hidden', // Prevent text overflow
   },
   textInputWithBg: {
     position: 'relative',
