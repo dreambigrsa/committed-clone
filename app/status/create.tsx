@@ -54,6 +54,8 @@ import {
   Upload,
 } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import StickerPicker from '@/components/StickerPicker';
+import { Sticker } from '@/types';
 
 const { width, height } = Dimensions.get('window');
 const GRID_ITEM_SIZE = (width - 48) / 3;
@@ -106,6 +108,10 @@ export default function CreateStatusScreen() {
   const [lastStatus, setLastStatus] = useState<any>(null);
   const [lastStatusMediaUrl, setLastStatusMediaUrl] = useState<string | null>(null);
   const [selectedMedia, setSelectedMedia] = useState<MediaLibrary.Asset | null>(null);
+  const [showStickerPicker, setShowStickerPicker] = useState(false);
+  const [selectedStickers, setSelectedStickers] = useState<Array<{ id: string; imageUrl: string }>>([]);
+  const [showMoreOptions, setShowMoreOptions] = useState(false);
+  const [showMutedStories, setShowMutedStories] = useState(false);
 
   const bgColor = isDark ? '#000' : '#fff';
   const textColor = isDark ? '#fff' : '#000';
@@ -322,21 +328,33 @@ export default function CreateStatusScreen() {
               <Text style={[styles.toolLabel, { color: textColor }]}>Text</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.toolCard} activeOpacity={0.8}>
+            <TouchableOpacity 
+              style={styles.toolCard} 
+              activeOpacity={0.8}
+              onPress={() => Alert.alert('Music', 'Music feature coming soon!')}
+            >
               <View style={[styles.toolIconWrapper, { backgroundColor: cardBg, borderColor }]}>
                 <Music size={28} color={colors.primary} />
               </View>
               <Text style={[styles.toolLabel, { color: textColor }]}>Music</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.toolCard} activeOpacity={0.8}>
+            <TouchableOpacity 
+              style={styles.toolCard} 
+              activeOpacity={0.8}
+              onPress={() => Alert.alert('AI Images', 'AI image generation coming soon!')}
+            >
               <View style={[styles.toolIconWrapper, { backgroundColor: cardBg, borderColor }]}>
                 <ImageIcon size={28} color={colors.primary} />
               </View>
               <Text style={[styles.toolLabel, { color: textColor }]}>AI images</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.toolCard} activeOpacity={0.8}>
+            <TouchableOpacity 
+              style={styles.toolCard} 
+              activeOpacity={0.8}
+              onPress={() => Alert.alert('Collage', 'Collage creation coming soon!')}
+            >
               <View style={[styles.toolIconWrapper, { backgroundColor: cardBg, borderColor }]}>
                 <Grid3x3 size={28} color={colors.primary} />
               </View>
@@ -477,7 +495,11 @@ export default function CreateStatusScreen() {
 
           <View style={styles.privacySection}>
             <Text style={[styles.sectionTitle, { color: textColor }]}>Other settings</Text>
-            <TouchableOpacity style={[styles.settingsOption, { backgroundColor: cardBg }]} activeOpacity={0.7}>
+            <TouchableOpacity 
+              style={[styles.settingsOption, { backgroundColor: cardBg }]} 
+              activeOpacity={0.7}
+              onPress={() => setShowMutedStories(true)}
+            >
               <Text style={styles.settingsIcon}>🔇</Text>
               <Text style={[styles.settingsLabel, { color: textColor }]}>Stories you've muted</Text>
               <ChevronRight size={20} color={colors.text.secondary} />
@@ -566,10 +588,16 @@ export default function CreateStatusScreen() {
             <ChevronRight size={20} color="#fff" style={{ transform: [{ rotate: '180deg' }] }} />
           </TouchableOpacity>
           <View style={styles.textHeaderRight}>
-            <TouchableOpacity style={styles.textHeaderIconButton}>
+            <TouchableOpacity 
+              style={styles.textHeaderIconButton}
+              onPress={() => setShowStickerPicker(true)}
+            >
               <Smile size={20} color="#fff" />
             </TouchableOpacity>
-            <TouchableOpacity style={styles.textHeaderIconButton}>
+            <TouchableOpacity 
+              style={styles.textHeaderIconButton}
+              onPress={() => setShowMoreOptions(!showMoreOptions)}
+            >
               <MoreHorizontal size={20} color="#fff" />
             </TouchableOpacity>
           </View>
@@ -770,7 +798,7 @@ export default function CreateStatusScreen() {
           <TouchableOpacity
             style={[styles.verticalOptionButton, { backgroundColor: 'rgba(0, 0, 0, 0.5)' }]}
             onPress={() => {
-              // TODO: Implement music
+              Alert.alert('Music', 'Music feature coming soon!');
             }}
             activeOpacity={0.7}
           >
@@ -780,9 +808,7 @@ export default function CreateStatusScreen() {
           {/* Stickers */}
           <TouchableOpacity
             style={[styles.verticalOptionButton, { backgroundColor: 'rgba(0, 0, 0, 0.5)' }]}
-            onPress={() => {
-              // TODO: Implement stickers
-            }}
+            onPress={() => setShowStickerPicker(true)}
             activeOpacity={0.7}
           >
             <Smile size={24} color="#fff" />
@@ -806,6 +832,86 @@ export default function CreateStatusScreen() {
             )}
           </TouchableOpacity>
         </View>
+
+        {/* Sticker Picker Modal */}
+        <StickerPicker
+          visible={showStickerPicker}
+          onClose={() => setShowStickerPicker(false)}
+          onSelectSticker={(sticker: Sticker) => {
+            setSelectedStickers([...selectedStickers, { id: sticker.id, imageUrl: sticker.imageUrl }]);
+            // For now, we'll just store the sticker - in a full implementation, you'd overlay it on the text/image
+            Alert.alert('Sticker Added', 'Sticker feature integration coming soon!');
+            setShowStickerPicker(false);
+          }}
+        />
+
+        {/* More Options Modal */}
+        {showMoreOptions && (
+          <Modal
+            visible={showMoreOptions}
+            transparent
+            animationType="fade"
+            onRequestClose={() => setShowMoreOptions(false)}
+          >
+            <TouchableOpacity
+              style={styles.modalOverlay}
+              activeOpacity={1}
+              onPress={() => setShowMoreOptions(false)}
+            >
+              <View style={[styles.moreOptionsMenu, { backgroundColor: cardBg }]}>
+                <TouchableOpacity
+                  style={styles.moreOptionsItem}
+                  onPress={() => {
+                    setShowMoreOptions(false);
+                    Alert.alert('Help', 'Story help coming soon!');
+                  }}
+                >
+                  <Text style={[styles.moreOptionsText, { color: textColor }]}>Help</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.moreOptionsItem}
+                  onPress={() => {
+                    setShowMoreOptions(false);
+                    Alert.alert('Report', 'Report feature coming soon!');
+                  }}
+                >
+                  <Text style={[styles.moreOptionsText, { color: textColor }]}>Report a Problem</Text>
+                </TouchableOpacity>
+              </View>
+            </TouchableOpacity>
+          </Modal>
+        )}
+
+        {/* Muted Stories Modal */}
+        {showMutedStories && (
+          <Modal
+            visible={showMutedStories}
+            transparent
+            animationType="slide"
+            onRequestClose={() => setShowMutedStories(false)}
+          >
+            <View style={styles.modalOverlay}>
+              <TouchableOpacity
+                style={{ flex: 1 }}
+                activeOpacity={1}
+                onPress={() => setShowMutedStories(false)}
+              />
+              <View style={[styles.mutedStoriesModal, { backgroundColor: cardBg }]}>
+                <View style={[styles.modalHeaderContainer, { borderBottomColor: borderColor }]}>
+                  <Text style={[styles.modalTitleText, { color: textColor }]}>Muted Stories</Text>
+                  <TouchableOpacity onPress={() => setShowMutedStories(false)}>
+                    <X size={24} color={textColor} />
+                  </TouchableOpacity>
+                </View>
+                <View style={styles.emptyStateContainer}>
+                  <Text style={[styles.emptyStateText, { color: colors.text.secondary }]}>
+                    No muted stories
+                  </Text>
+                </View>
+              </View>
+            </View>
+          </Modal>
+        )}
 
         {/* Color Picker Modal */}
         {showColorPicker && (
@@ -1637,5 +1743,54 @@ const styles = StyleSheet.create({
   textStyleButtonTextActive: {
     color: '#000',
     fontWeight: '700' as const,
+  },
+  moreOptionsMenu: {
+    position: 'absolute',
+    top: Platform.OS === 'ios' ? 60 : 50,
+    right: 16,
+    borderRadius: 12,
+    paddingVertical: 8,
+    minWidth: 200,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  moreOptionsItem: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  moreOptionsText: {
+    fontSize: 16,
+  },
+  mutedStoriesModal: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    maxHeight: height * 0.7,
+  },
+  modalHeaderContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  modalTitleText: {
+    fontSize: 18,
+    fontWeight: '600' as const,
+  },
+  emptyStateContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 50,
+  },
+  emptyStateText: {
+    fontSize: 16,
   },
 });
