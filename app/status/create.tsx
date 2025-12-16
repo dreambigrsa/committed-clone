@@ -1685,6 +1685,9 @@ const styles = StyleSheet.create({
     // Tight padding - hugs text closely (each line has its own padding)
     paddingHorizontal: 12,
     paddingVertical: 8,
+    // Center content vertically and horizontally within the wrapper
+    justifyContent: 'center',
+    alignItems: 'center',
     // Border radius is set dynamically based on text alignment
     // Max width to prevent overflow
     maxWidth: '85%',
