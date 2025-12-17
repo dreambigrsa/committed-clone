@@ -14,26 +14,6 @@ import {
   Animated,
   ActivityIndicator,
   Alert,
-} from 'react-native';
-import { Image } from 'expo-image';
-import { Video, ResizeMode } from 'expo-av';
-import { useRouter } from 'expo-router';
-import { Heart, MessageCircle, Share2, Plus, X, ExternalLink, MoreVertical, Edit2, Trash2, Image as ImageIcon, Flag, Smile } from 'lucide-react-native';
-import { useApp } from '@/contexts/AppContext';
-import { useTheme } from '@/contexts/ThemeContext';
-import { Post, Advertisement, Sticker } from '@/types';
-import StickerPicker from '@/components/StickerPicker';
-import StatusIndicator from '@/components/StatusIndicator';
-import StatusStoriesBar from '@/components/StatusStoriesBar';
-import FacebookStyleStoriesBar from '@/components/FacebookStyleStoriesBar';
-import * as WebBrowser from 'expo-web-browser';
-import ReportContentModal from '@/components/ReportContentModal';
-import * as ImagePicker from 'expo-image-picker';
-// @ts-ignore - legacy path works at runtime, TypeScript definitions may not include it
-import * as FileSystem from 'expo-file-system/legacy';
-import { supabase } from '@/lib/supabase';
-
-const { width } = Dimensions.get('window');
 
 export default function FeedScreen() {
   const router = useRouter();
