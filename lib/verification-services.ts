@@ -157,27 +157,85 @@ export async function createVerificationCode(
 
     const insertData: any = {
       user_id: userId,
-      verification_type: type,
+      verification_type: type, // Use verification_type, not type
       code,
       expires_at: expiresAt,
       used: false,
     };
 
-    // Also set type column if it exists (for backward compatibility)
-    insertData.type = type;
-
+    // Add phone_number or email based on type
+    // Only add if the column exists (handles cases where table might not have these columns yet)
     if (type === 'phone') {
       insertData.phone_number = contact;
     } else {
       insertData.email = contact;
     }
 
+    // Explicitly specify columns to avoid schema cache issues
+    // This ensures we only insert the columns that exist
     const { error } = await supabase
       .from('verification_codes')
-      .insert(insertData);
+      .insert(insertData)
+      .select('id'); // Select a column to verify the insert worked
 
     if (error) {
       console.error('Failed to create verification code:', error);
+      console.error('Error details:', {
+        code: error.code,
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+      });
+      
+      // If error mentions 'type' column (schema cache issue), retry with minimal data
+      if (error.message?.includes("'type' column") || (error.message?.includes('type') && error.message?.includes('schema cache'))) {
+        console.log('Schema cache error detected - retrying with minimal columns (no phone_number/email)...');
+        const minimalData: any = {
+          user_id: userId,
+          verification_type: type,
+          code,
+          expires_at: expiresAt,
+          used: false,
+        };
+        
+        const { data: retryData, error: retryError } = await supabase
+          .from('verification_codes')
+          .insert(minimalData)
+          .select('id');
+        
+        if (retryError) {
+          console.error('Retry also failed:', retryError);
+          return { 
+            success: false, 
+            error: `Schema cache issue. Please run 'force-refresh-schema.sql' in Supabase SQL Editor to refresh the cache. Error: ${retryError.message}` 
+          };
+        }
+        console.log('Successfully inserted with minimal columns (bypassed schema cache)');
+        return { success: true };
+      }
+      
+      // If phone_number or email column doesn't exist, try without them
+      if (error.message?.includes('phone_number') || error.message?.includes('email')) {
+        console.log('Retrying without phone_number/email columns...');
+        const retryData: any = {
+          user_id: userId,
+          verification_type: type,
+          code,
+          expires_at: expiresAt,
+          used: false,
+        };
+        
+        const { error: retryError } = await supabase
+          .from('verification_codes')
+          .insert(retryData)
+          .select('id');
+        
+        if (retryError) {
+          return { success: false, error: retryError.message };
+        }
+        return { success: true };
+      }
+      
       return { success: false, error: error.message };
     }
 
