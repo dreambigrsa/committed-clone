@@ -16,6 +16,7 @@ interface ServiceConfig {
 
 /**
  * Get service configuration from database
+ * Returns null if table doesn't exist or config is not found (graceful fallback)
  */
 export async function getServiceConfig(serviceType: 'sms' | 'email'): Promise<ServiceConfig | null> {
   try {
@@ -23,16 +24,29 @@ export async function getServiceConfig(serviceType: 'sms' | 'email'): Promise<Se
       .from('verification_service_configs')
       .select('*')
       .eq('service_type', serviceType)
-      .single();
+      .maybeSingle(); // Use maybeSingle() instead of single() to handle no rows gracefully
 
+    // If table doesn't exist or no config found, return null (not an error)
     if (error) {
-      console.error(`Failed to get ${serviceType} config:`, error);
+      // Check if it's a "table doesn't exist" error (code 42P01) or RLS issue
+      if (error.code === '42P01' || error.message?.includes('does not exist')) {
+        console.log(`verification_service_configs table doesn't exist - verification will work without external service`);
+        return null;
+      }
+      // For other errors, log but don't throw
+      console.warn(`Failed to get ${serviceType} config (non-critical):`, error.message);
+      return null;
+    }
+
+    // If no data found, that's okay - service just isn't configured
+    if (!data) {
       return null;
     }
 
     return data as ServiceConfig;
-  } catch (error) {
-    console.error(`Error getting ${serviceType} config:`, error);
+  } catch (error: any) {
+    // Catch any unexpected errors and return null gracefully
+    console.warn(`Error getting ${serviceType} config (non-critical):`, error?.message || error);
     return null;
   }
 }
@@ -94,6 +108,7 @@ export async function sendEmailCode(email: string, code: string): Promise<{ succ
   try {
     const config = await getServiceConfig('email');
     
+    // If config doesn't exist or is disabled, that's okay - we'll show code in alert
     if (!config || !config.enabled) {
       return { success: false, error: 'Email service is not configured or enabled' };
     }
