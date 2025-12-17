@@ -72,43 +72,61 @@ export default function MessagesStatusStoriesBar({}: MessagesStatusStoriesBarPro
       // Get friends and recent chat participants
       const participantIds = new Set<string>();
       conversations.forEach(conv => {
-        conv.participants.forEach((id: string) => {
-          if (id !== currentUser.id) {
-            participantIds.add(id);
-          }
-        });
+        if (conv.participants && Array.isArray(conv.participants)) {
+          conv.participants.forEach((id: string) => {
+            if (id && id !== currentUser.id) {
+              participantIds.add(id);
+            }
+          });
+        }
       });
 
       // Fetch statuses for friends and chat participants
-      const { data: statuses, error } = await supabase
-        .from('statuses')
-        .select(`
-          id,
-          user_id,
-          content_type,
-          media_path,
-          created_at,
-          users!statuses_user_id_fkey(full_name, profile_picture)
-        `)
-        .eq('archived', false)
-        .gt('expires_at', new Date().toISOString())
-        .in('user_id', Array.from(participantIds))
-        .order('created_at', { ascending: false });
+      // Only query if we have participants, otherwise get empty array
+      let statuses: any[] = [];
+      let error: any = null;
+      
+      if (participantIds.size > 0) {
+        const result = await supabase
+          .from('statuses')
+          .select(`
+            id,
+            user_id,
+            content_type,
+            media_path,
+            created_at,
+            users!statuses_user_id_fkey(full_name, profile_picture)
+          `)
+          .eq('archived', false)
+          .gt('expires_at', new Date().toISOString())
+          .in('user_id', Array.from(participantIds))
+          .order('created_at', { ascending: false });
+        
+        statuses = result.data || [];
+        error = result.error;
+      }
 
-      if (error) throw error;
+      if (error) {
+        console.error('Load status feed error:', error);
+        throw error;
+      }
 
       // Check which statuses have been viewed
-      const statusIds = statuses?.map(s => s.id) || [];
+      const statusIds = statuses?.map((s: any) => s.id).filter((id: any) => id) || [];
       let viewedStatusIds: string[] = [];
       
       if (statusIds.length > 0) {
-        const { data: views } = await supabase
+        const { data: views, error: viewsError } = await supabase
           .from('status_views')
           .select('status_id')
           .eq('viewer_id', currentUser.id)
           .in('status_id', statusIds);
         
-        viewedStatusIds = views?.map(v => v.status_id) || [];
+        if (viewsError) {
+          console.error('Error fetching status views:', viewsError);
+        } else {
+          viewedStatusIds = views?.map((v: any) => v.status_id).filter((id: any) => id) || [];
+        }
       }
 
       // Group by user and get latest status
@@ -154,32 +172,36 @@ export default function MessagesStatusStoriesBar({}: MessagesStatusStoriesBarPro
       }
 
       // Add other users' statuses
-      statuses?.forEach((status: any) => {
-        const userId = status.user_id;
-        if (userId === currentUser.id) return; // Skip current user (already added)
+      if (statuses && Array.isArray(statuses)) {
+        statuses.forEach((status: any) => {
+          if (!status || !status.user_id) return;
+          
+          const userId = status.user_id;
+          if (userId === currentUser.id) return; // Skip current user (already added)
 
-        const user = status.users;
-        const hasUnviewed = !viewedStatusIds.includes(status.id);
-        
-        const existing = statusMap.get(userId);
-        // Only add if no existing status or this one is newer
-        if (!existing || !existing.latestStatus || new Date(status.created_at) > new Date(existing.latestStatus.id)) {
-          statusMap.set(userId, {
-            userId,
-            userName: user?.full_name || 'Unknown',
-            userAvatar: (user?.profile_picture as string | null) || null,
-            hasUnviewed,
-            latestStatus: {
-              id: status.id,
-              mediaPath: status.media_path,
-              contentType: status.content_type as 'text' | 'image' | 'video',
-            },
-          });
-        } else if (existing && existing.latestStatus && existing.latestStatus.id === status.id) {
-          // Update unviewed status if it's the same status
-          existing.hasUnviewed = hasUnviewed;
-        }
-      });
+          const user = status.users;
+          const hasUnviewed = status.id ? !viewedStatusIds.includes(status.id) : false;
+          
+          const existing = statusMap.get(userId);
+          // Only add if no existing status or this one is newer
+          if (!existing || !existing.latestStatus || (status.created_at && status.id && new Date(status.created_at) > new Date(existing.latestStatus.id))) {
+            statusMap.set(userId, {
+              userId,
+              userName: (user?.full_name || user?.fullName || 'Unknown') as string,
+              userAvatar: (user?.profile_picture || user?.profilePicture || null) as string | null,
+              hasUnviewed,
+              latestStatus: status.id ? {
+                id: status.id,
+                mediaPath: status.media_path || null,
+                contentType: (status.content_type || 'image') as 'text' | 'image' | 'video',
+              } : null,
+            });
+          } else if (existing && existing.latestStatus && status.id && existing.latestStatus.id === status.id) {
+            // Update unviewed status if it's the same status
+            existing.hasUnviewed = hasUnviewed;
+          }
+        });
+      }
 
       // Convert to array, ensuring current user is first
       // Filter out users with no status (except current user who should always show)
@@ -200,8 +222,10 @@ export default function MessagesStatusStoriesBar({}: MessagesStatusStoriesBarPro
         });
 
       setStatusFeed(feedArray);
-    } catch (error) {
-      console.error('Load status feed error:', error);
+    } catch (error: any) {
+      console.error('Load status feed error:', error?.message || error || 'Unknown error');
+      // Set empty feed on error to prevent crashes
+      setStatusFeed([]);
     } finally {
       setIsLoading(false);
     }
