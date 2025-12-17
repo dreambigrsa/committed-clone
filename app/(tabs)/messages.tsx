@@ -179,8 +179,24 @@ export default function MessagesScreen() {
       // Navigate to conversation
       router.push(`/messages/${conversation.id}` as any);
 
-      // Get conversation history for context
+      // Check if this is a new conversation (no messages yet)
       const existingMessages = getMessages(conversation.id) || [];
+      const isNewConversation = existingMessages.length === 0;
+
+      // If it's a new conversation, send initial greeting first
+      if (isNewConversation) {
+        await sendMessage(
+          conversation.id,
+          aiUser.id,
+          "Hello! I'm Committed AI.",
+          undefined,
+          undefined,
+          undefined,
+          'text'
+        );
+      }
+
+      // Get conversation history for context
       const conversationHistory = existingMessages
         .slice(-10) // Last 10 messages
         .map((msg: any) => ({
@@ -188,47 +204,45 @@ export default function MessagesScreen() {
           content: msg.content || '',
         }));
 
-      // Get AI response
+      // Get AI response immediately (no delay)
       const aiResponse = await getAIResponse(aiQuery.trim(), conversationHistory);
 
       if (aiResponse.success) {
-        // Send AI response after a short delay to make it feel natural
-        setTimeout(async () => {
-          if (aiResponse.contentType === 'image' && aiResponse.imageUrl) {
-            // Send image message
-            await sendMessage(
-              conversation.id,
-              aiUser.id,
-              aiResponse.message || 'I\'ve generated an image for you!',
-              aiResponse.imageUrl,
-              undefined,
-              undefined,
-              'image'
-            );
-          } else if (aiResponse.contentType === 'document' && aiResponse.documentUrl) {
-            // Send document message
-            await sendMessage(
-              conversation.id,
-              aiUser.id,
-              aiResponse.message || 'I\'ve generated a document for you!',
-              undefined,
-              aiResponse.documentUrl,
-              aiResponse.documentName || 'document.txt',
-              'document'
-            );
-          } else if (aiResponse.message) {
-            // Send text message
-            await sendMessage(
-              conversation.id,
-              aiUser.id,
-              aiResponse.message,
-              undefined,
-              undefined,
-              undefined,
-              'text'
-            );
-          }
-        }, 1000);
+        // Send AI response immediately (no delay for faster response)
+        if (aiResponse.contentType === 'image' && aiResponse.imageUrl) {
+          // Send image message
+          await sendMessage(
+            conversation.id,
+            aiUser.id,
+            aiResponse.message || 'I\'ve generated an image for you!',
+            aiResponse.imageUrl,
+            undefined,
+            undefined,
+            'image'
+          );
+        } else if (aiResponse.contentType === 'document' && aiResponse.documentUrl) {
+          // Send document message
+          await sendMessage(
+            conversation.id,
+            aiUser.id,
+            aiResponse.message || 'I\'ve generated a document for you!',
+            undefined,
+            aiResponse.documentUrl,
+            aiResponse.documentName || 'document.txt',
+            'document'
+          );
+        } else if (aiResponse.message) {
+          // Send text message
+          await sendMessage(
+            conversation.id,
+            aiUser.id,
+            aiResponse.message,
+            undefined,
+            undefined,
+            undefined,
+            'text'
+          );
+        }
       }
     } catch (error: any) {
       console.error('Error handling AI submit:', error);
