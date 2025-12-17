@@ -1097,6 +1097,119 @@ export async function getSignedUrlForMedia(mediaPath: string): Promise<string | 
 /**
  * Delete a status (owner only)
  */
+/**
+ * React to a status
+ */
+export async function reactToStatus(
+  statusId: string,
+  reactionType: 'heart' | 'like' | 'laugh'
+): Promise<boolean> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return false;
+
+  try {
+    // Upsert reaction (insert or update if exists)
+    const { error } = await supabase
+      .from('status_reactions')
+      .upsert(
+        {
+          status_id: statusId,
+          user_id: user.id,
+          reaction_type: reactionType,
+        },
+        {
+          onConflict: 'status_id,user_id',
+        }
+      );
+
+    if (error) throw error;
+    return true;
+  } catch (error) {
+    console.error('Error reacting to status:', error);
+    return false;
+  }
+}
+
+/**
+ * Remove reaction from a status
+ */
+export async function removeStatusReaction(statusId: string): Promise<boolean> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return false;
+
+  try {
+    const { error } = await supabase
+      .from('status_reactions')
+      .delete()
+      .eq('status_id', statusId)
+      .eq('user_id', user.id);
+
+    if (error) throw error;
+    return true;
+  } catch (error) {
+    console.error('Error removing reaction:', error);
+    return false;
+  }
+}
+
+/**
+ * Get user's reaction to a status
+ */
+export async function getUserReaction(statusId: string): Promise<'heart' | 'like' | 'laugh' | null> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return null;
+
+  try {
+    const { data, error } = await supabase
+      .from('status_reactions')
+      .select('reaction_type')
+      .eq('status_id', statusId)
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    if (error) throw error;
+    return data?.reaction_type as 'heart' | 'like' | 'laugh' | null;
+  } catch (error) {
+    console.error('Error getting user reaction:', error);
+    return null;
+  }
+}
+
+/**
+ * Get reaction counts for a status
+ */
+export async function getStatusReactionCounts(statusId: string): Promise<{
+  heart: number;
+  like: number;
+  laugh: number;
+}> {
+  try {
+    const { data, error } = await supabase
+      .from('status_reactions')
+      .select('reaction_type')
+      .eq('status_id', statusId);
+
+    if (error) throw error;
+
+    const counts = {
+      heart: 0,
+      like: 0,
+      laugh: 0,
+    };
+
+    data?.forEach((reaction) => {
+      if (reaction.reaction_type === 'heart') counts.heart++;
+      else if (reaction.reaction_type === 'like') counts.like++;
+      else if (reaction.reaction_type === 'laugh') counts.laugh++;
+    });
+
+    return counts;
+  } catch (error) {
+    console.error('Error getting reaction counts:', error);
+    return { heart: 0, like: 0, laugh: 0 };
+  }
+}
+
 export async function deleteStatus(statusId: string): Promise<boolean> {
   console.log('🗑️ [deleteStatus] Starting deletion:', { statusId });
   
