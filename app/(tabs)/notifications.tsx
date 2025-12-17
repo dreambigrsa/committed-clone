@@ -155,6 +155,11 @@ export default function NotificationsScreen() {
           router.push(`/profile/${data.followerId}` as any);
         }
         break;
+      case 'status_reaction':
+        if (data.statusId && data.userId) {
+          router.push(`/status/${data.userId}` as any);
+        }
+        break;
       case 'relationship_request':
         setActiveTab('requests');
         break;
