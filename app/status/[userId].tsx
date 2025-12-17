@@ -2167,23 +2167,24 @@ function ViewersListModal({
                     : viewer.reaction_type === 'laugh' ? '😂' 
                     : null;
                   
+                  const handleNavigateToProfile = () => {
+                    // Close modal first, then navigate
+                    onClose();
+                    // Use setTimeout to ensure modal closes before navigation
+                    setTimeout(() => {
+                      router.push(`/profile/${viewer.user.id}` as any);
+                    }, 100);
+                  };
+
                   return (
                     <TouchableOpacity 
                       key={viewer.id} 
                       style={styles.viewerItem}
-                      onPress={() => {
-                        // Navigate to viewer's profile
-                        console.log('Navigating to profile:', viewer.user.id);
-                        router.push(`/profile/${viewer.user.id}` as any);
-                      }}
+                      onPress={handleNavigateToProfile}
                       activeOpacity={0.7}
                     >
                       <TouchableOpacity
-                        onPress={() => {
-                          // Navigate to viewer's profile when clicking avatar
-                          console.log('Navigating to profile from avatar:', viewer.user.id);
-                          router.push(`/profile/${viewer.user.id}` as any);
-                        }}
+                        onPress={handleNavigateToProfile}
                         activeOpacity={0.8}
                         style={{ marginRight: 12 }}
                       >
