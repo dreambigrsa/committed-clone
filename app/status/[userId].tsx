@@ -20,11 +20,13 @@ import {
   TextInput,
   ScrollView,
   Platform,
+  Clipboard,
+  Share,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { Video, ResizeMode } from 'expo-av';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { X, Trash2, Plus, Music, Type, Image as ImageIcon, RefreshCw, Share2, MoreHorizontal, Globe, Lock, MessageCircle, Download, Archive, Link, AlertCircle, AtSign } from 'lucide-react-native';
+import { X, Trash2, Plus, Music, Type, Image as ImageIcon, RefreshCw, Share2, MoreHorizontal, Globe, Lock, MessageCircle, Download, Archive, Link, AlertCircle, AtSign, ChevronUp, Camera } from 'lucide-react-native';
 import { getUserStatuses, markStatusAsViewed, getSignedUrlForMedia, deleteStatus, getStatusViewers, getStatusViewCount, type StatusViewer } from '@/lib/status-queries';
 import { useApp } from '@/contexts/AppContext';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -52,6 +54,8 @@ export default function StatusViewerScreen() {
   const [viewCount, setViewCount] = useState<number>(0);
   const [viewers, setViewers] = useState<StatusViewer[]>([]);
   const [loadingViewers, setLoadingViewers] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
+  const [pausedProgress, setPausedProgress] = useState(0);
   const progressAnim = useRef(new Animated.Value(0)).current;
   const progressInterval = useRef<NodeJS.Timeout | null>(null);
 
@@ -383,6 +387,53 @@ export default function StatusViewerScreen() {
       fontSize: 13,
       marginTop: 2,
     },
+    // Owner's bottom bar styles
+    ownerBottomBar: {
+      position: 'absolute',
+      bottom: 0,
+      left: 0,
+      right: 0,
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      paddingBottom: Platform.OS === 'ios' ? 34 : 12,
+      backgroundColor: 'rgba(0, 0, 0, 0.6)',
+      zIndex: 10,
+    },
+    ownerBottomLeft: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+    },
+    ownerViewersText: {
+      color: '#fff',
+      fontSize: 14,
+      fontWeight: '500' as const,
+    },
+    ownerBottomRight: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 24,
+    },
+    ownerActionButton: {
+      alignItems: 'center',
+      gap: 4,
+    },
+    ownerActionIcon: {
+      width: 32,
+      height: 32,
+      borderRadius: 16,
+      backgroundColor: 'rgba(255, 255, 255, 0.1)',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    ownerActionText: {
+      color: '#fff',
+      fontSize: 11,
+      fontWeight: '500' as const,
+    },
   });
 
   useEffect(() => {
@@ -413,6 +464,24 @@ export default function StatusViewerScreen() {
       }
     };
   }, [currentIndex, statuses]);
+
+  // Pause when viewers modal opens, resume when it closes
+  useEffect(() => {
+    if (showViewers) {
+      pauseProgress();
+    } else if (!showViewers && isPaused && progressInterval.current === null) {
+      resumeProgress();
+    }
+  }, [showViewers]);
+
+  // Pause when own status menu opens, resume when it closes
+  useEffect(() => {
+    if (showOwnStatusMenu) {
+      pauseProgress();
+    } else if (!showOwnStatusMenu && isPaused && progressInterval.current === null) {
+      resumeProgress();
+    }
+  }, [showOwnStatusMenu]);
 
   const loadViewCount = async () => {
     const status = statuses[currentIndex];
@@ -459,6 +528,7 @@ export default function StatusViewerScreen() {
       return; // Only allow viewing for own statuses
     }
     
+    pauseProgress();
     setShowViewers(true);
     await loadViewers();
   };
@@ -615,11 +685,62 @@ export default function StatusViewerScreen() {
     return styles;
   };
 
+  const pauseProgress = () => {
+    if (progressInterval.current && !isPaused) {
+      clearInterval(progressInterval.current);
+      progressInterval.current = null;
+      setIsPaused(true);
+      // Save current progress value
+      progressAnim.stopAnimation((value) => {
+        setPausedProgress(value);
+      });
+    }
+  };
+
+  const resumeProgress = () => {
+    if (isPaused && progressInterval.current === null) {
+      setIsPaused(false);
+      const duration = 5000; // 5 seconds per status
+      const remainingProgress = 1 - pausedProgress;
+      const remainingDuration = duration * remainingProgress;
+      const steps = 100;
+      const stepDuration = remainingDuration / steps;
+      let currentStep = pausedProgress * steps;
+
+      progressInterval.current = setInterval(() => {
+        if (!isPaused) {
+          currentStep++;
+          const progress = currentStep / steps;
+
+          progressAnim.setValue(progress);
+
+          if (progress >= 1) {
+            if (progressInterval.current) {
+              clearInterval(progressInterval.current);
+              progressInterval.current = null;
+            }
+            handleNext();
+          }
+        }
+      }, stepDuration);
+    }
+  };
+
+  const togglePause = () => {
+    if (isPaused) {
+      resumeProgress();
+    } else {
+      pauseProgress();
+    }
+  };
+
   const startProgress = () => {
     if (progressInterval.current) {
       clearInterval(progressInterval.current);
     }
 
+    setIsPaused(false);
+    setPausedProgress(0);
     progressAnim.setValue(0);
     const duration = 5000; // 5 seconds per status
     const steps = 100;
@@ -627,16 +748,19 @@ export default function StatusViewerScreen() {
     let currentStep = 0;
 
     progressInterval.current = setInterval(() => {
-      currentStep++;
-      const progress = currentStep / steps;
+      if (!isPaused) {
+        currentStep++;
+        const progress = currentStep / steps;
 
-      progressAnim.setValue(progress);
+        progressAnim.setValue(progress);
 
-      if (progress >= 1) {
-        if (progressInterval.current) {
-          clearInterval(progressInterval.current);
+        if (progress >= 1) {
+          if (progressInterval.current) {
+            clearInterval(progressInterval.current);
+            progressInterval.current = null;
+          }
+          handleNext();
         }
-        handleNext();
       }
     }, stepDuration);
   };
@@ -1040,6 +1164,59 @@ export default function StatusViewerScreen() {
           onPress={handleNext}
           activeOpacity={1}
         />
+        
+        {/* Tap to pause/resume (only for content area) */}
+        <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
+          <TouchableOpacity
+            style={StyleSheet.absoluteFill}
+            onPress={togglePause}
+            activeOpacity={1}
+          />
+        </View>
+
+        {/* Owner's Bottom Bar - Only show for own statuses */}
+        {currentUser?.id === status.user_id && (
+          <View style={styles.ownerBottomBar}>
+            <TouchableOpacity 
+              style={styles.ownerBottomLeft}
+              onPress={handleViewersPress}
+              activeOpacity={0.7}
+            >
+              <ChevronUp size={16} color="#fff" />
+              <Text style={styles.ownerViewersText}>
+                {viewCount} {viewCount === 1 ? 'viewer' : 'viewers'}
+              </Text>
+            </TouchableOpacity>
+            
+            <View style={styles.ownerBottomRight}>
+              <TouchableOpacity
+                style={styles.ownerActionButton}
+                onPress={() => {
+                  router.push('/status/create' as any);
+                }}
+                activeOpacity={0.7}
+              >
+                <View style={styles.ownerActionIcon}>
+                  <Plus size={18} color="#fff" />
+                </View>
+                <Text style={styles.ownerActionText}>Add new</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={styles.ownerActionButton}
+                onPress={() => {
+                  Alert.alert('Mention People', 'Mention people feature coming soon!');
+                }}
+                activeOpacity={0.7}
+              >
+                <View style={styles.ownerActionIcon}>
+                  <AtSign size={18} color="#fff" />
+                </View>
+                <Text style={styles.ownerActionText}>Mention</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
 
         {/* Bottom Interaction Bar - Only show for other people's statuses */}
         {currentUser?.id !== status.user_id && (
@@ -1171,7 +1348,10 @@ export default function StatusViewerScreen() {
           <View style={styles.ownStatusMenuOverlay}>
             <TouchableOpacity
               style={styles.ownStatusMenuBackdrop}
-              onPress={() => setShowOwnStatusMenu(false)}
+              onPress={() => {
+                setShowOwnStatusMenu(false);
+                resumeProgress();
+              }}
               activeOpacity={1}
             />
             <View style={styles.ownStatusMenu}>
@@ -1181,6 +1361,7 @@ export default function StatusViewerScreen() {
                   style={styles.ownStatusMenuOption}
                   onPress={() => {
                     setShowOwnStatusMenu(false);
+                    resumeProgress();
                     Alert.alert('Mention People', 'Mention people feature coming soon!');
                   }}
                   activeOpacity={0.7}
@@ -1197,6 +1378,7 @@ export default function StatusViewerScreen() {
                   style={styles.ownStatusMenuOption}
                   onPress={() => {
                     setShowOwnStatusMenu(false);
+                    resumeProgress();
                     Alert.alert('Edit Story Privacy', 'Edit story privacy feature coming soon!');
                   }}
                   activeOpacity={0.7}
@@ -1213,6 +1395,7 @@ export default function StatusViewerScreen() {
                   style={styles.ownStatusMenuOption}
                   onPress={() => {
                     setShowOwnStatusMenu(false);
+                    resumeProgress();
                     Alert.alert('Send in Messenger', 'Send in Messenger feature coming soon!');
                   }}
                   activeOpacity={0.7}
@@ -1245,6 +1428,7 @@ export default function StatusViewerScreen() {
                   style={styles.ownStatusMenuOption}
                   onPress={() => {
                     setShowOwnStatusMenu(false);
+                    resumeProgress();
                     Alert.alert('Archive Photo', 'Archive photo feature coming soon!');
                   }}
                   activeOpacity={0.7}
@@ -1263,6 +1447,7 @@ export default function StatusViewerScreen() {
                   onPress={(e) => {
                     e?.stopPropagation?.();
                     setShowOwnStatusMenu(false);
+                    resumeProgress();
                     setTimeout(() => handleDelete(e), 300);
                   }}
                   activeOpacity={0.7}
@@ -1279,8 +1464,29 @@ export default function StatusViewerScreen() {
                   style={styles.ownStatusMenuOption}
                   onPress={async () => {
                     setShowOwnStatusMenu(false);
-                    if (status.id) {
-                      Alert.alert('Copy Link', 'Link copied to clipboard!', [{ text: 'OK' }]);
+                    resumeProgress();
+                    
+                    const status = statuses[currentIndex];
+                    if (!status || !status.id) return;
+                    
+                    try {
+                      // Create shareable link (you can customize this URL format)
+                      const shareUrl = `https://yourapp.com/status/${status.id}`;
+                      
+                      // Copy to clipboard
+                      if (Clipboard && Clipboard.setString) {
+                        Clipboard.setString(shareUrl);
+                        Alert.alert('Link Copied', 'Story link copied to clipboard!', [{ text: 'OK' }]);
+                      } else {
+                        // Fallback: Use Share API
+                        await Share.share({
+                          message: shareUrl,
+                          url: shareUrl,
+                        });
+                      }
+                    } catch (error) {
+                      console.error('Error copying link:', error);
+                      Alert.alert('Error', 'Failed to copy link. Please try again.');
                     }
                   }}
                   activeOpacity={0.7}
@@ -1300,6 +1506,7 @@ export default function StatusViewerScreen() {
                   style={styles.ownStatusMenuOption}
                   onPress={() => {
                     setShowOwnStatusMenu(false);
+                    resumeProgress();
                     Alert.alert('Report Issue', 'Something went wrong? Please report this issue.');
                   }}
                   activeOpacity={0.7}
@@ -1320,7 +1527,10 @@ export default function StatusViewerScreen() {
         {showViewers && status && (
           <ViewersListModal
             visible={showViewers}
-            onClose={() => setShowViewers(false)}
+            onClose={() => {
+              setShowViewers(false);
+              resumeProgress();
+            }}
             viewers={viewers}
             loading={loadingViewers}
             viewCount={viewCount}
