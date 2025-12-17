@@ -699,7 +699,7 @@ export default function StatusViewerScreen() {
       clearInterval(progressInterval.current);
       progressInterval.current = null;
       setIsPaused(true);
-      // Save current progress value
+      // Save current progress value synchronously
       progressAnim.stopAnimation((value) => {
         setPausedProgress(value);
       });
@@ -707,19 +707,31 @@ export default function StatusViewerScreen() {
   };
 
   const resumeProgress = () => {
-    if (isPaused && progressInterval.current === null) {
-      setIsPaused(false);
-      const duration = 5000; // 5 seconds per status
-      const remainingProgress = 1 - pausedProgress;
-      const remainingDuration = duration * remainingProgress;
-      const steps = 100;
-      const stepDuration = remainingDuration / steps;
-      let currentStep = pausedProgress * steps;
+    if (isPaused) {
+      // Clear any existing interval first
+      if (progressInterval.current) {
+        clearInterval(progressInterval.current);
+        progressInterval.current = null;
+      }
+      
+      // Get current progress value from the animated value directly
+      // stopAnimation is synchronous in terms of getting the value
+      progressAnim.stopAnimation((currentProgressValue) => {
+        // Update state
+        setIsPaused(false);
+        setPausedProgress(currentProgressValue);
+        
+        const duration = 5000; // 5 seconds per status
+        const remainingProgress = Math.max(0, Math.min(1, 1 - currentProgressValue));
+        const remainingDuration = duration * remainingProgress;
+        const steps = 100;
+        const stepDuration = Math.max(10, remainingDuration / steps); // Minimum 10ms per step
+        let currentStep = currentProgressValue * steps;
 
-      progressInterval.current = setInterval(() => {
-        if (!isPaused) {
+        // Start the interval
+        progressInterval.current = setInterval(() => {
           currentStep++;
-          const progress = currentStep / steps;
+          const progress = Math.min(1, currentStep / steps);
 
           progressAnim.setValue(progress);
 
@@ -730,8 +742,8 @@ export default function StatusViewerScreen() {
             }
             handleNext();
           }
-        }
-      }, stepDuration);
+        }, stepDuration);
+      });
     }
   };
 
@@ -1278,22 +1290,30 @@ export default function StatusViewerScreen() {
           )}
         </View>
 
-        {/* Navigation Areas */}
+        {/* Full screen tap to pause/resume */}
+        <TouchableOpacity
+          style={StyleSheet.absoluteFill}
+          onPress={togglePause}
+          activeOpacity={1}
+        />
+        
+        {/* Navigation Areas - these will intercept touches but also allow pause/resume */}
         <TouchableOpacity
           style={[styles.navArea, styles.leftArea]}
-          onPress={handlePrev}
+          onPress={(e) => {
+            e?.stopPropagation?.();
+            togglePause();
+            handlePrev();
+          }}
           activeOpacity={1}
         />
         <TouchableOpacity
           style={[styles.navArea, styles.rightArea]}
-          onPress={handleNext}
-          activeOpacity={1}
-        />
-        
-        {/* Tap to pause/resume (center area only) */}
-        <TouchableOpacity
-          style={styles.centerArea}
-          onPress={togglePause}
+          onPress={(e) => {
+            e?.stopPropagation?.();
+            togglePause();
+            handleNext();
+          }}
           activeOpacity={1}
         />
 
