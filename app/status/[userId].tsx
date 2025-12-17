@@ -930,7 +930,7 @@ export default function StatusViewerScreen() {
               'status_reaction',
               'Status Reaction',
               `${currentUser.fullName} reacted ${reactionEmoji} to your story`,
-              { statusId: status.id, reactionType, userId: currentUser.id }
+              { statusId: status.id, reactionType, userId: currentUser.id, statusOwnerId: status.user_id }
             );
           }
         } catch (reactionError: any) {
