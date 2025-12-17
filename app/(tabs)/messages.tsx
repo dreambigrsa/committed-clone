@@ -8,23 +8,28 @@ import {
   SafeAreaView,
   Animated,
   Alert,
+  TextInput,
+  ActivityIndicator,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
-import { MessageCircle, Trash2 } from 'lucide-react-native';
+import { MessageCircle, Trash2, Send } from 'lucide-react-native';
 import { useApp } from '@/contexts/AppContext';
 import StatusIndicator from '@/components/StatusIndicator';
 import StatusStoriesBar from '@/components/StatusStoriesBar';
 import { UserStatus } from '@/types';
 import { useTheme } from '@/contexts/ThemeContext';
+import { getOrCreateAIUser, getAIResponse } from '@/lib/ai-service';
 
 export default function MessagesScreen() {
   const router = useRouter();
-  const { currentUser, conversations, deleteConversation, getUserStatus, userStatuses } = useApp();
+  const { currentUser, conversations, deleteConversation, getUserStatus, userStatuses, createOrGetConversation, sendMessage, getMessages } = useApp();
   const { colors } = useTheme();
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [participantStatuses, setParticipantStatuses] = useState<Record<string, UserStatus>>({});
+  const [aiQuery, setAiQuery] = useState<string>('');
+  const [isSendingAI, setIsSendingAI] = useState<boolean>(false);
 
   const styles = useMemo(() => createStyles(colors), [colors]);
 
@@ -133,6 +138,106 @@ export default function MessagesScreen() {
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   };
 
+  const handleAISubmit = async () => {
+    if (!aiQuery.trim() || !currentUser || isSendingAI) return;
+
+    setIsSendingAI(true);
+    try {
+      // Get or create AI user
+      const aiUser = await getOrCreateAIUser();
+      if (!aiUser) {
+        Alert.alert('Error', 'Unable to connect to Committed AI. Please run create-ai-user.sql in Supabase SQL Editor first.');
+        setIsSendingAI(false);
+        return;
+      }
+
+      // Create or get conversation with AI
+      const conversation = await createOrGetConversation(aiUser.id);
+      if (!conversation) {
+        Alert.alert('Error', 'Could not create conversation with Committed AI.');
+        setIsSendingAI(false);
+        return;
+      }
+
+      // Send user's message
+      await sendMessage(
+        conversation.id,
+        aiUser.id,
+        aiQuery.trim(),
+        undefined, // mediaUrl
+        undefined, // documentUrl
+        undefined, // documentName
+        'text', // messageType
+        undefined, // stickerId
+        undefined, // statusId
+        undefined // statusPreviewUrl
+      );
+
+      // Clear input
+      setAiQuery('');
+
+      // Navigate to conversation
+      router.push(`/messages/${conversation.id}` as any);
+
+      // Get conversation history for context
+      const existingMessages = getMessages(conversation.id) || [];
+      const conversationHistory = existingMessages
+        .slice(-10) // Last 10 messages
+        .map((msg: any) => ({
+          role: msg.senderId === currentUser.id ? 'user' as const : 'assistant' as const,
+          content: msg.content || '',
+        }));
+
+      // Get AI response
+      const aiResponse = await getAIResponse(aiQuery.trim(), conversationHistory);
+
+      if (aiResponse.success) {
+        // Send AI response after a short delay to make it feel natural
+        setTimeout(async () => {
+          if (aiResponse.contentType === 'image' && aiResponse.imageUrl) {
+            // Send image message
+            await sendMessage(
+              conversation.id,
+              aiUser.id,
+              aiResponse.message || 'I\'ve generated an image for you!',
+              aiResponse.imageUrl,
+              undefined,
+              undefined,
+              'image'
+            );
+          } else if (aiResponse.contentType === 'document' && aiResponse.documentUrl) {
+            // Send document message
+            await sendMessage(
+              conversation.id,
+              aiUser.id,
+              aiResponse.message || 'I\'ve generated a document for you!',
+              undefined,
+              aiResponse.documentUrl,
+              aiResponse.documentName || 'document.txt',
+              'document'
+            );
+          } else if (aiResponse.message) {
+            // Send text message
+            await sendMessage(
+              conversation.id,
+              aiUser.id,
+              aiResponse.message,
+              undefined,
+              undefined,
+              undefined,
+              'text'
+            );
+          }
+        }, 1000);
+      }
+    } catch (error: any) {
+      console.error('Error handling AI submit:', error);
+      Alert.alert('Error', 'Failed to send message to Committed AI. Please try again.');
+    } finally {
+      setIsSendingAI(false);
+    }
+  };
+
   const handleDeleteConversation = async (conversationId: string) => {
     Alert.alert(
       'Delete Conversation',
@@ -192,14 +297,36 @@ export default function MessagesScreen() {
       </View>
 
       {/* Committed AI Search Bar */}
-      <TouchableOpacity style={styles.searchBarContainer} activeOpacity={0.7}>
+      <View style={styles.searchBarContainer}>
         <View style={styles.searchBar}>
           <View style={styles.committedAIIcon}>
             <View style={styles.committedAIGradient} />
           </View>
-          <Text style={styles.searchPlaceholder}>Ask Committed AI or Search</Text>
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Ask Committed AI or Search"
+            placeholderTextColor={colors.text.tertiary}
+            value={aiQuery}
+            onChangeText={setAiQuery}
+            onSubmitEditing={handleAISubmit}
+            returnKeyType="send"
+            editable={!isSendingAI}
+          />
+          {aiQuery.trim().length > 0 && (
+            <TouchableOpacity
+              style={styles.sendAIButton}
+              onPress={handleAISubmit}
+              disabled={isSendingAI}
+            >
+              {isSendingAI ? (
+                <ActivityIndicator size="small" color={colors.primary} />
+              ) : (
+                <Send size={20} color={colors.primary} />
+              )}
+            </TouchableOpacity>
+          )}
         </View>
-      </TouchableOpacity>
+      </View>
 
       <ScrollView
         contentContainerStyle={styles.scrollContent}
@@ -381,10 +508,20 @@ const createStyles = (colors: any) => StyleSheet.create({
     backgroundColor: colors.primary,
     borderRadius: 12,
   },
-  searchPlaceholder: {
+  searchInput: {
     flex: 1,
     fontSize: 15,
-    color: colors.text.tertiary,
+    color: colors.text.primary,
+    padding: 0,
+    margin: 0,
+  },
+  sendAIButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 8,
   },
   scrollContent: {
     paddingBottom: 100,
