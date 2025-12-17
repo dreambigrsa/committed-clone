@@ -314,12 +314,27 @@ async function uploadDocumentToStorage(content: string, filename: string): Promi
 }
 
 /**
+ * Check if this is the first message in the conversation
+ */
+export function isFirstMessage(conversationHistory: Array<{ role: 'user' | 'assistant'; content: string }>): boolean {
+  return conversationHistory.length === 0;
+}
+
+/**
  * Get AI response using OpenAI API or fallback
  */
 export async function getAIResponse(
   userMessage: string,
   conversationHistory: Array<{ role: 'user' | 'assistant'; content: string }> = []
 ): Promise<AIResponse> {
+  // If this is the first message, send a simple greeting
+  if (conversationHistory.length === 0) {
+    return {
+      success: true,
+      message: "Hello! I'm Committed AI.",
+      contentType: 'text',
+    };
+  }
   try {
     // Check for image generation requests
     const imagePatterns = [
@@ -424,7 +439,7 @@ When users ask for documents (e.g., "create a document", "write a...", "generate
         model: 'gpt-3.5-turbo',
         messages: messages,
         temperature: 0.7,
-        max_tokens: 300,
+        max_tokens: 200, // Reduced for faster, more concise responses
       }),
     });
 
@@ -484,7 +499,7 @@ function getFallbackResponse(
   if (message.includes('hello') || message.includes('hi') || message.includes('hey') || message.startsWith('h')) {
     return {
       success: true,
-      message: "Hello! I'm Committed AI, your friendly companion here to help with relationships, life advice, or just to chat. What's on your mind today?",
+      message: "Hello! I'm Committed AI.",
     };
   }
 
