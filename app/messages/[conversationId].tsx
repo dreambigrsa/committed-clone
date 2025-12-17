@@ -553,9 +553,29 @@ export default function ConversationDetailScreen() {
       setIsDownloading(true);
       
       // Request media library permissions (only photos, not audio)
-      const { status } = await MediaLibrary.requestPermissionsAsync();
+      // Wrap in try-catch to handle audio permission errors gracefully
+      let permissionStatus;
+      try {
+        const result = await MediaLibrary.requestPermissionsAsync();
+        permissionStatus = result.status;
+      } catch (error: any) {
+        // If audio permission error occurs, try to continue with just photo permission
+        if (error?.message?.includes('AUDIO permission')) {
+          console.warn('Audio permission not available, continuing with photo permission only');
+          // Check if we have photo permission via ImagePicker instead
+          const imagePickerResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+          if (!imagePickerResult.granted) {
+            Alert.alert('Permission Required', 'Please grant access to save photos to your gallery.');
+            setIsDownloading(false);
+            return;
+          }
+          permissionStatus = 'granted';
+        } else {
+          throw error;
+        }
+      }
       
-      if (status !== 'granted') {
+      if (permissionStatus !== 'granted') {
         Alert.alert('Permission Required', 'Please grant access to save photos to your gallery.');
         setIsDownloading(false);
         return;
