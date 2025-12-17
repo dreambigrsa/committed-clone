@@ -20,6 +20,7 @@ interface ServiceConfig {
  */
 export async function getServiceConfig(serviceType: 'sms' | 'email'): Promise<ServiceConfig | null> {
   try {
+    console.log(`[getServiceConfig] Fetching ${serviceType} config...`);
     const { data, error } = await supabase
       .from('verification_service_configs')
       .select('*')
@@ -28,25 +29,48 @@ export async function getServiceConfig(serviceType: 'sms' | 'email'): Promise<Se
 
     // If table doesn't exist or no config found, return null (not an error)
     if (error) {
+      console.error(`[getServiceConfig] Error fetching ${serviceType} config:`, {
+        code: error.code,
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+      });
+      
       // Check if it's a "table doesn't exist" error (code 42P01) or RLS issue
       if (error.code === '42P01' || error.message?.includes('does not exist')) {
-        console.log(`verification_service_configs table doesn't exist - verification will work without external service`);
+        console.log(`[getServiceConfig] verification_service_configs table doesn't exist - verification will work without external service`);
         return null;
       }
+      
+      // Check for RLS/permission errors
+      if (error.code === '42501' || error.code === 'PGRST301' || error.message?.includes('permission denied') || error.message?.includes('RLS')) {
+        console.error(`[getServiceConfig] RLS/permission error - user may not have access to verification_service_configs table`);
+        console.error(`[getServiceConfig] This is likely an RLS policy issue. Check that users can read verification_service_configs.`);
+        return null;
+      }
+      
       // For other errors, log but don't throw
-      console.warn(`Failed to get ${serviceType} config (non-critical):`, error.message);
+      console.warn(`[getServiceConfig] Failed to get ${serviceType} config (non-critical):`, error.message);
       return null;
     }
 
     // If no data found, that's okay - service just isn't configured
     if (!data) {
+      console.log(`[getServiceConfig] No ${serviceType} config found in database`);
       return null;
     }
+
+    console.log(`[getServiceConfig] Found ${serviceType} config:`, {
+      enabled: data.enabled,
+      provider: data.provider,
+      hasApiKey: !!data.config?.api_key,
+      hasFromEmail: !!data.config?.from_email,
+    });
 
     return data as ServiceConfig;
   } catch (error: any) {
     // Catch any unexpected errors and return null gracefully
-    console.warn(`Error getting ${serviceType} config (non-critical):`, error?.message || error);
+    console.error(`[getServiceConfig] Unexpected error getting ${serviceType} config:`, error?.message || error);
     return null;
   }
 }
@@ -106,10 +130,23 @@ export async function sendSmsCode(phoneNumber: string, code: string): Promise<{ 
  */
 export async function sendEmailCode(email: string, code: string): Promise<{ success: boolean; error?: string }> {
   try {
+    console.log('[sendEmailCode] Getting email service config...');
     const config = await getServiceConfig('email');
     
+    console.log('[sendEmailCode] Config result:', {
+      configExists: !!config,
+      enabled: config?.enabled,
+      provider: config?.provider,
+    });
+    
     // If config doesn't exist or is disabled, that's okay - we'll show code in alert
-    if (!config || !config.enabled) {
+    if (!config) {
+      console.warn('[sendEmailCode] No email config found - will show code in alert');
+      return { success: false, error: 'Email service is not configured or enabled' };
+    }
+    
+    if (!config.enabled) {
+      console.warn('[sendEmailCode] Email config exists but is disabled');
       return { success: false, error: 'Email service is not configured or enabled' };
     }
 
