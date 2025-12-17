@@ -25,12 +25,13 @@ import {
 } from 'react-native';
 import { Image } from 'expo-image';
 import { Video, ResizeMode } from 'expo-av';
+import * as MediaLibrary from 'expo-media-library';
+import * as FileSystem from 'expo-file-system/legacy';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { X, Trash2, Plus, Music, Type, Image as ImageIcon, RefreshCw, Share2, MoreHorizontal, Globe, Lock, MessageCircle, Download, Archive, Link, AlertCircle, AtSign, ChevronUp, Camera } from 'lucide-react-native';
-import { getUserStatuses, markStatusAsViewed, getSignedUrlForMedia, deleteStatus, getStatusViewers, getStatusViewCount, type StatusViewer } from '@/lib/status-queries';
+import { getUserStatuses, markStatusAsViewed, getSignedUrlForMedia, deleteStatus, getStatusViewers, getStatusViewCount, updateStatusPrivacy, archiveStatus, type StatusViewer, type Status } from '@/lib/status-queries';
 import { useApp } from '@/contexts/AppContext';
 import { useTheme } from '@/contexts/ThemeContext';
-import type { Status } from '@/lib/status-queries';
 
 const { width, height } = Dimensions.get('window');
 const PROGRESS_BAR_HEIGHT = 3;
@@ -50,6 +51,7 @@ export default function StatusViewerScreen() {
   const [showPlusMenu, setShowPlusMenu] = useState(false);
   const [showViewers, setShowViewers] = useState(false);
   const [showOwnStatusMenu, setShowOwnStatusMenu] = useState(false);
+  const [showPrivacyPicker, setShowPrivacyPicker] = useState(false);
   const [messageText, setMessageText] = useState('');
   const [viewCount, setViewCount] = useState<number>(0);
   const [viewers, setViewers] = useState<StatusViewer[]>([]);
@@ -838,6 +840,122 @@ export default function StatusViewerScreen() {
     // TODO: Save reaction to database if you have a reactions system
   };
 
+  const handleUpdatePrivacy = async (privacyLevel: 'public' | 'friends' | 'followers' | 'only_me' | 'custom') => {
+    const status = statuses[currentIndex];
+    if (!status || !currentUser || status.user_id !== currentUser.id) return;
+
+    try {
+      const success = await updateStatusPrivacy(status.id, privacyLevel);
+      if (success) {
+        // Update local state
+        setStatuses(prev => prev.map(s => 
+          s.id === status.id ? { ...s, privacy_level: privacyLevel } : s
+        ));
+        Alert.alert('Success', 'Story privacy updated successfully!');
+      } else {
+        Alert.alert('Error', 'Failed to update story privacy. Please try again.');
+      }
+    } catch (error) {
+      console.error('Error updating privacy:', error);
+      Alert.alert('Error', 'Failed to update story privacy. Please try again.');
+    }
+    setShowPrivacyPicker(false);
+    resumeProgress();
+  };
+
+  const handleArchiveStatus = async () => {
+    const status = statuses[currentIndex];
+    if (!status || !currentUser || status.user_id !== currentUser.id) return;
+
+    Alert.alert(
+      'Archive Story',
+      'This story will be removed from your story and saved to your archive. You can view it later in your archive.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Archive',
+          style: 'default',
+          onPress: async () => {
+            try {
+              const success = await archiveStatus(status.id);
+              if (success) {
+                // Remove from current statuses list
+                const remainingStatuses = statuses.filter(s => s.id !== status.id);
+                setStatuses(remainingStatuses);
+                
+                if (remainingStatuses.length === 0) {
+                  router.back();
+                } else if (currentIndex >= remainingStatuses.length) {
+                  setCurrentIndex(remainingStatuses.length - 1);
+                }
+                
+                Alert.alert('Success', 'Story archived successfully!');
+              } else {
+                Alert.alert('Error', 'Failed to archive story. Please try again.');
+              }
+            } catch (error) {
+              console.error('Error archiving status:', error);
+              Alert.alert('Error', 'Failed to archive story. Please try again.');
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleSendInMessenger = async () => {
+    const status = statuses[currentIndex];
+    if (!status || !currentUser || status.user_id !== currentUser.id) return;
+
+    try {
+      // For now, we'll navigate to messages and show a prompt
+      // In a full implementation, you'd create a conversation and send the status as a message
+      Alert.alert(
+        'Send in Messenger',
+        'Would you like to share this story in a message?',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Go to Messages',
+            onPress: () => {
+              router.push('/(tabs)/messages' as any);
+            },
+          },
+        ]
+      );
+    } catch (error) {
+      console.error('Error sending in messenger:', error);
+      Alert.alert('Error', 'Failed to open messenger. Please try again.');
+    }
+  };
+
+  const handleMentionPeople = () => {
+    // For now, show info about mentions
+    // In a full implementation, you'd show a user picker to mention
+    Alert.alert(
+      'Mention People',
+      'To mention people in your story, type @ followed by their name while creating or editing your story text.',
+      [{ text: 'OK' }]
+    );
+  };
+
+  const handleReportIssue = () => {
+    Alert.alert(
+      'Report an Issue',
+      'If you\'re experiencing problems with this story, please contact support.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Contact Support',
+          onPress: () => {
+            // In a full implementation, open support/feedback screen
+            Alert.alert('Support', 'Please email support@yourapp.com with details about the issue.');
+          },
+        },
+      ]
+    );
+  };
+
   const handleDelete = async (e?: any) => {
     // Stop event propagation to prevent triggering navigation
     if (e) {
@@ -1205,7 +1323,7 @@ export default function StatusViewerScreen() {
               <TouchableOpacity
                 style={styles.ownerActionButton}
                 onPress={() => {
-                  Alert.alert('Mention People', 'Mention people feature coming soon!');
+                  handleMentionPeople();
                 }}
                 activeOpacity={0.7}
               >
@@ -1362,7 +1480,7 @@ export default function StatusViewerScreen() {
                   onPress={() => {
                     setShowOwnStatusMenu(false);
                     resumeProgress();
-                    Alert.alert('Mention People', 'Mention people feature coming soon!');
+                    handleMentionPeople();
                   }}
                   activeOpacity={0.7}
                 >
@@ -1377,9 +1495,9 @@ export default function StatusViewerScreen() {
                 <TouchableOpacity
                   style={styles.ownStatusMenuOption}
                   onPress={() => {
+                    pauseProgress();
                     setShowOwnStatusMenu(false);
-                    resumeProgress();
-                    Alert.alert('Edit Story Privacy', 'Edit story privacy feature coming soon!');
+                    setShowPrivacyPicker(true);
                   }}
                   activeOpacity={0.7}
                 >
@@ -1396,7 +1514,7 @@ export default function StatusViewerScreen() {
                   onPress={() => {
                     setShowOwnStatusMenu(false);
                     resumeProgress();
-                    Alert.alert('Send in Messenger', 'Send in Messenger feature coming soon!');
+                    handleSendInMessenger();
                   }}
                   activeOpacity={0.7}
                 >
@@ -1410,9 +1528,43 @@ export default function StatusViewerScreen() {
 
                 <TouchableOpacity
                   style={styles.ownStatusMenuOption}
-                  onPress={() => {
+                  onPress={async () => {
                     setShowOwnStatusMenu(false);
-                    Alert.alert('Save Photo', 'Save photo feature coming soon!');
+                    resumeProgress();
+                    
+                    const status = statuses[currentIndex];
+                    if (!status) return;
+                    
+                    try {
+                      let fileUri = null;
+                      
+                      if (status.content_type === 'image' && mediaUrl) {
+                        fileUri = mediaUrl;
+                      } else if (status.content_type === 'text' && backgroundImageUrl) {
+                        fileUri = backgroundImageUrl;
+                      }
+                      
+                      if (fileUri) {
+                        const permission = await MediaLibrary.requestPermissionsAsync();
+                        if (!permission.granted) {
+                          Alert.alert('Permission Required', 'Please grant photo library access to save images.');
+                          return;
+                        }
+                        
+                        const filename = fileUri.split('/').pop() || `status_${status.id}.jpg`;
+                        const filePath = `${FileSystem.cacheDirectory}${filename}`;
+                        
+                        const downloadResult = await FileSystem.downloadAsync(fileUri, filePath);
+                        await MediaLibrary.createAssetAsync(downloadResult.uri);
+                        
+                        Alert.alert('Success', 'Photo saved to your gallery!');
+                      } else {
+                        Alert.alert('No Media', 'This status doesn\'t contain a photo to save.');
+                      }
+                    } catch (error) {
+                      console.error('Error saving photo:', error);
+                      Alert.alert('Error', 'Failed to save photo. Please try again.');
+                    }
                   }}
                   activeOpacity={0.7}
                 >
@@ -1429,7 +1581,7 @@ export default function StatusViewerScreen() {
                   onPress={() => {
                     setShowOwnStatusMenu(false);
                     resumeProgress();
-                    Alert.alert('Archive Photo', 'Archive photo feature coming soon!');
+                    handleArchiveStatus();
                   }}
                   activeOpacity={0.7}
                 >
@@ -1507,7 +1659,7 @@ export default function StatusViewerScreen() {
                   onPress={() => {
                     setShowOwnStatusMenu(false);
                     resumeProgress();
-                    Alert.alert('Report Issue', 'Something went wrong? Please report this issue.');
+                    handleReportIssue();
                   }}
                   activeOpacity={0.7}
                 >
@@ -1518,6 +1670,63 @@ export default function StatusViewerScreen() {
                     <Text style={styles.ownStatusMenuText}>Something went wrong</Text>
                   </View>
                 </TouchableOpacity>
+              </ScrollView>
+            </View>
+          </View>
+        )}
+
+        {/* Privacy Picker Modal */}
+        {showPrivacyPicker && status && (
+          <View style={styles.ownStatusMenuOverlay}>
+            <TouchableOpacity
+              style={styles.ownStatusMenuBackdrop}
+              onPress={() => {
+                setShowPrivacyPicker(false);
+                resumeProgress();
+              }}
+              activeOpacity={1}
+            />
+            <View style={styles.ownStatusMenu}>
+              <View style={styles.ownStatusMenuHandle} />
+              <ScrollView showsVerticalScrollIndicator={false}>
+                <Text style={[styles.ownStatusMenuText, { padding: 20, paddingBottom: 10, fontSize: 18, fontWeight: '600' as const }]}>
+                  Edit Story Privacy
+                </Text>
+                <Text style={[styles.ownStatusMenuSubtext, { paddingHorizontal: 20, paddingBottom: 16 }]}>
+                  Who can see your story?
+                </Text>
+                
+                {(['public', 'friends', 'followers', 'only_me'] as const).map((level) => (
+                  <TouchableOpacity
+                    key={level}
+                    style={styles.ownStatusMenuOption}
+                    onPress={() => {
+                      handleUpdatePrivacy(level);
+                      setShowPrivacyPicker(false);
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <View style={styles.ownStatusMenuIcon}>
+                      {level === 'public' && <Globe size={24} color="#fff" />}
+                      {(level === 'friends' || level === 'followers' || level === 'only_me') && <Lock size={24} color="#fff" />}
+                    </View>
+                    <View style={styles.ownStatusMenuContent}>
+                      <Text style={styles.ownStatusMenuText}>
+                        {level === 'public' && 'Public'}
+                        {level === 'friends' && 'Friends'}
+                        {level === 'followers' && 'Followers'}
+                        {level === 'only_me' && 'Only Me'}
+                        {status.privacy_level === level && ' ✓'}
+                      </Text>
+                      <Text style={styles.ownStatusMenuSubtext}>
+                        {level === 'public' && 'Anyone can see your story'}
+                        {level === 'friends' && 'Only your friends can see your story'}
+                        {level === 'followers' && 'Only your followers can see your story'}
+                        {level === 'only_me' && 'Only you can see your story'}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                ))}
               </ScrollView>
             </View>
           </View>
