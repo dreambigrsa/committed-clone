@@ -1926,6 +1926,7 @@ function ViewersListModal({
   status: Status;
   onRefresh: () => Promise<void>;
 }) {
+  const router = useRouter();
   const { colors } = useTheme();
   const [activeTab, setActiveTab] = useState<'viewers' | 'insights'>('viewers');
   const [viewers, setViewers] = useState<StatusViewer[]>(initialViewers);
@@ -2056,6 +2057,18 @@ function ViewersListModal({
       fontSize: 14,
       color: '#aaa',
     },
+    viewerReaction: {
+      fontSize: 16,
+    },
+    messageIndicator: {
+      backgroundColor: '#007AFF',
+      borderRadius: 10,
+      width: 20,
+      height: 20,
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: 2,
+    },
     viewerOptions: {
       padding: 8,
     },
@@ -2148,30 +2161,61 @@ function ViewersListModal({
                   <Text style={styles.emptyText}>No viewers yet</Text>
                 </View>
               ) : (
-                viewers.map((viewer) => (
-                  <TouchableOpacity key={viewer.id} style={styles.viewerItem}>
-                    {viewer.user.profile_picture ? (
-                      <Image
-                        source={{ uri: viewer.user.profile_picture }}
-                        style={styles.viewerAvatar}
-                        contentFit="cover"
-                      />
-                    ) : (
-                      <View style={styles.viewerAvatarPlaceholder}>
-                        <Text style={styles.viewerAvatarText}>
-                          {viewer.user.full_name.charAt(0).toUpperCase()}
-                        </Text>
+                viewers.map((viewer) => {
+                  const reactionEmoji = viewer.reaction_type === 'heart' ? '❤️' 
+                    : viewer.reaction_type === 'like' ? '👍' 
+                    : viewer.reaction_type === 'laugh' ? '😂' 
+                    : null;
+                  
+                  return (
+                    <TouchableOpacity 
+                      key={viewer.id} 
+                      style={styles.viewerItem}
+                      onPress={() => {
+                        // Navigate to viewer's profile
+                        router.push(`/profile/${viewer.user.id}` as any);
+                      }}
+                      activeOpacity={0.7}
+                    >
+                      {viewer.user.profile_picture ? (
+                        <Image
+                          source={{ uri: viewer.user.profile_picture }}
+                          style={styles.viewerAvatar}
+                          contentFit="cover"
+                        />
+                      ) : (
+                        <View style={styles.viewerAvatarPlaceholder}>
+                          <Text style={styles.viewerAvatarText}>
+                            {viewer.user.full_name.charAt(0).toUpperCase()}
+                          </Text>
+                        </View>
+                      )}
+                      <View style={styles.viewerInfo}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                          <Text style={styles.viewerName}>{viewer.user.full_name}</Text>
+                          {reactionEmoji && (
+                            <Text style={styles.viewerReaction}>{reactionEmoji}</Text>
+                          )}
+                          {viewer.has_message && (
+                            <View style={styles.messageIndicator}>
+                              <MessageCircle size={14} color="#fff" />
+                            </View>
+                          )}
+                        </View>
+                        <Text style={styles.viewerTime}>{formatViewTime(viewer.viewed_at)}</Text>
                       </View>
-                    )}
-                    <View style={styles.viewerInfo}>
-                      <Text style={styles.viewerName}>{viewer.user.full_name}</Text>
-                      <Text style={styles.viewerTime}>{formatViewTime(viewer.viewed_at)}</Text>
-                    </View>
-                    <TouchableOpacity style={styles.viewerOptions}>
-                      <MoreHorizontal size={20} color="#aaa" />
+                      <TouchableOpacity 
+                        style={styles.viewerOptions}
+                        onPress={(e) => {
+                          e.stopPropagation();
+                          // Could add menu options here later
+                        }}
+                      >
+                        <MoreHorizontal size={20} color="#aaa" />
+                      </TouchableOpacity>
                     </TouchableOpacity>
-                  </TouchableOpacity>
-                ))
+                  );
+                })
               )}
             </>
           ) : (
