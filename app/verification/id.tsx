@@ -16,6 +16,7 @@ import * as ImagePicker from 'expo-image-picker';
 // @ts-ignore - legacy path works at runtime
 import * as FileSystem from 'expo-file-system/legacy';
 import { Image } from 'expo-image';
+import { Platform } from 'react-native';
 import { supabase } from '@/lib/supabase';
 
 export default function IdVerificationScreen() {
@@ -43,17 +44,27 @@ export default function IdVerificationScreen() {
       setIsUploading(true);
       try {
         const fileName = `id_${currentUser?.id}_${Date.now()}.jpg`;
+        let uint8Array: Uint8Array;
         
-        // Convert URI to Uint8Array using legacy API (no deprecation warnings)
-        const base64 = await FileSystem.readAsStringAsync(result.assets[0].uri, {
-          encoding: FileSystem.EncodingType.Base64,
-        });
-        
-        // Convert base64 to Uint8Array
-        const binaryString = atob(base64);
-        const uint8Array = new Uint8Array(binaryString.length);
-        for (let i = 0; i < binaryString.length; i++) {
-          uint8Array[i] = binaryString.charCodeAt(i);
+        // Handle web platform differently
+        if (Platform.OS === 'web') {
+          // For web, fetch the image and convert to blob
+          const response = await fetch(result.assets[0].uri);
+          const blob = await response.blob();
+          const arrayBuffer = await blob.arrayBuffer();
+          uint8Array = new Uint8Array(arrayBuffer);
+        } else {
+          // For native platforms, use FileSystem
+          const base64 = await FileSystem.readAsStringAsync(result.assets[0].uri, {
+            encoding: FileSystem.EncodingType.Base64,
+          });
+          
+          // Convert base64 to Uint8Array
+          const binaryString = atob(base64);
+          uint8Array = new Uint8Array(binaryString.length);
+          for (let i = 0; i < binaryString.length; i++) {
+            uint8Array[i] = binaryString.charCodeAt(i);
+          }
         }
 
         const { error } = await supabase.storage
@@ -70,9 +81,9 @@ export default function IdVerificationScreen() {
           .getPublicUrl(fileName);
 
         setIdImageUrl(publicUrl);
-      } catch (error) {
+      } catch (error: any) {
         console.error('Failed to upload ID:', error);
-        Alert.alert('Error', 'Failed to upload ID document');
+        Alert.alert('Error', error.message || 'Failed to upload ID document');
       } finally {
         setIsUploading(false);
       }
