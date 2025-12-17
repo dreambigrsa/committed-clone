@@ -864,6 +864,8 @@ export interface StatusViewer {
   id: string;
   viewer_id: string;
   viewed_at: string;
+  reaction_type?: 'heart' | 'like' | 'laugh' | null;
+  has_message?: boolean;
   user: {
     id: string;
     full_name: string;
@@ -918,11 +920,41 @@ export async function getStatusViewers(statusId: string): Promise<StatusViewer[]
     });
   }
 
-  // Combine views with user data
+  // Get reactions for all viewers
+  const { data: reactionsData } = await supabase
+    .from('status_reactions')
+    .select('user_id, reaction_type')
+    .eq('status_id', statusId)
+    .in('user_id', viewerIds);
+
+  const reactionsMap = new Map<string, 'heart' | 'like' | 'laugh'>();
+  if (reactionsData) {
+    reactionsData.forEach((r: any) => {
+      reactionsMap.set(r.user_id, r.reaction_type);
+    });
+  }
+
+  // Get messages that reference this status
+  const { data: messagesData } = await supabase
+    .from('messages')
+    .select('sender_id')
+    .eq('status_id', statusId)
+    .in('sender_id', viewerIds);
+
+  const hasMessageSet = new Set<string>();
+  if (messagesData) {
+    messagesData.forEach((m: any) => {
+      hasMessageSet.add(m.sender_id);
+    });
+  }
+
+  // Combine views with user data, reactions, and messages
   return views.map((view: any) => ({
     id: view.id,
     viewer_id: view.viewer_id,
     viewed_at: view.viewed_at,
+    reaction_type: reactionsMap.get(view.viewer_id) || null,
+    has_message: hasMessageSet.has(view.viewer_id),
     user: usersMap.get(view.viewer_id) || {
       id: view.viewer_id,
       full_name: 'Unknown User',
