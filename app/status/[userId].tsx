@@ -2169,13 +2169,53 @@ function ViewersListModal({
                     : null;
                   
                   const handleNavigateToProfile = () => {
-                    const profileUserId = viewer.user.id;
-                    console.log('Navigating to profile:', profileUserId);
+                    // Use viewer_id directly (the person who viewed the status)
+                    // This is the actual ID of the viewer, not the status owner
+                    const profileUserId = viewer.viewer_id || viewer.user.id;
+                    
+                    // Get the status owner ID from the status prop
+                    const statusOwnerId = status?.user_id;
+                    
+                    console.log('Navigating to profile:', {
+                      profileUserId,
+                      viewerId: viewer.viewer_id,
+                      userId: viewer.user.id,
+                      viewerName: viewer.user.full_name,
+                      statusOwnerId: statusOwnerId
+                    });
+                    
+                    if (!profileUserId) {
+                      console.error('No profile user ID available');
+                      Alert.alert('Error', 'Unable to navigate to profile');
+                      return;
+                    }
+                    
+                    // Safety check: Don't navigate if somehow we got the status owner's ID
+                    // (This shouldn't happen, but just in case)
+                    if (profileUserId === statusOwnerId) {
+                      console.error('ERROR: Trying to navigate to status owner instead of viewer!');
+                      console.error('Viewer ID:', viewer.viewer_id);
+                      console.error('Status Owner ID:', statusOwnerId);
+                      Alert.alert('Error', 'Cannot navigate to status owner. This is a bug.');
+                      return;
+                    }
                     
                     // Navigate first (before closing modal) to ensure it works
                     // The navigation will happen even if modal is still visible
                     try {
-                      router.push(`/profile/${profileUserId}` as any);
+                      const profileRoute = `/profile/${profileUserId}`;
+                      console.log('=== NAVIGATION DEBUG ===');
+                      console.log('Profile Route:', profileRoute);
+                      console.log('Profile User ID:', profileUserId);
+                      console.log('Viewer ID:', viewer.viewer_id);
+                      console.log('Viewer Name:', viewer.user.full_name);
+                      console.log('Status Owner ID:', statusOwnerId);
+                      console.log('Are they the same?', profileUserId === statusOwnerId);
+                      console.log('=======================');
+                      
+                      // Use router.push with explicit route
+                      router.push(profileRoute as any);
+                      
                       // Close modal after navigation starts
                       setTimeout(() => {
                         onClose();
@@ -2186,7 +2226,9 @@ function ViewersListModal({
                       onClose();
                       InteractionManager.runAfterInteractions(() => {
                         setTimeout(() => {
-                          router.push(`/profile/${profileUserId}` as any);
+                          const profileRoute = `/profile/${profileUserId}`;
+                          console.log('Fallback navigation to:', profileRoute);
+                          router.push(profileRoute as any);
                         }, 300);
                       });
                     }
@@ -2222,19 +2264,25 @@ function ViewersListModal({
                           </View>
                         )}
                       </TouchableOpacity>
-                      <View style={styles.viewerInfo} pointerEvents="none">
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                          <Text style={styles.viewerName}>{viewer.user.full_name}</Text>
-                          {reactionEmoji && (
-                            <Text style={styles.viewerReaction}>{reactionEmoji}</Text>
-                          )}
-                          {viewer.has_message && (
-                            <View style={styles.messageIndicator}>
-                              <MessageCircle size={14} color="#fff" />
-                            </View>
-                          )}
-                        </View>
-                        <Text style={styles.viewerTime}>{formatViewTime(viewer.viewed_at)}</Text>
+                      <View style={styles.viewerInfo}>
+                        <TouchableOpacity
+                          onPress={handleNavigateToProfile}
+                          activeOpacity={0.7}
+                          style={{ flex: 1 }}
+                        >
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                            <Text style={styles.viewerName}>{viewer.user.full_name}</Text>
+                            {reactionEmoji && (
+                              <Text style={styles.viewerReaction}>{reactionEmoji}</Text>
+                            )}
+                            {viewer.has_message && (
+                              <View style={styles.messageIndicator}>
+                                <MessageCircle size={14} color="#fff" />
+                              </View>
+                            )}
+                          </View>
+                          <Text style={styles.viewerTime}>{formatViewTime(viewer.viewed_at)}</Text>
+                        </TouchableOpacity>
                       </View>
                       <TouchableOpacity 
                         style={styles.viewerOptions}
