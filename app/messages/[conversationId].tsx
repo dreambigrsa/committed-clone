@@ -449,6 +449,8 @@ export default function ConversationDetailScreen() {
             deletedForReceiver: m.deleted_for_receiver || false,
             read: m.read,
             createdAt: m.created_at,
+            statusId: m.status_id,
+            statusPreviewUrl: m.status_preview_url,
           }));
         setLocalMessages(filteredMessages);
       }
@@ -1273,6 +1275,40 @@ export default function ConversationDetailScreen() {
                 contentFit="contain"
               />
             </View>
+          ) : null}
+
+          {/* Status Attachment - Highlighted */}
+          {item.statusId && item.statusPreviewUrl ? (
+            <TouchableOpacity
+              style={[
+                styles.statusAttachment,
+                isMe ? styles.statusAttachmentMe : styles.statusAttachmentThem
+              ]}
+              onPress={() => {
+                // Get status owner from conversation
+                const otherParticipantId = conversation?.participants.find(id => id !== currentUser.id);
+                if (otherParticipantId) {
+                  router.push(`/status/${otherParticipantId}` as any);
+                }
+              }}
+              activeOpacity={0.8}
+            >
+              <View style={styles.statusAttachmentHeader}>
+                <Image
+                  source={require('@/assets/images/icon.png')}
+                  style={styles.statusAttachmentIcon}
+                  contentFit="contain"
+                />
+                <Text style={[styles.statusAttachmentLabel, isMe ? styles.statusAttachmentLabelMe : styles.statusAttachmentLabelThem]}>
+                  Story Reply
+                </Text>
+              </View>
+              <Image
+                source={{ uri: item.statusPreviewUrl }}
+                style={styles.statusAttachmentPreview}
+                contentFit="cover"
+              />
+            </TouchableOpacity>
           ) : null}
 
           {item.content && typeof item.content === 'string' && item.content.trim() && item.messageType !== 'sticker' ? (
@@ -2166,6 +2202,47 @@ const styles = StyleSheet.create({
   stickerImage: {
     width: 120,
     height: 120,
+  },
+  statusAttachment: {
+    borderRadius: 12,
+    overflow: 'hidden',
+    marginBottom: 8,
+    borderWidth: 2,
+  },
+  statusAttachmentMe: {
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  statusAttachmentThem: {
+    borderColor: colors.primary + '40',
+    backgroundColor: colors.background.secondary,
+  },
+  statusAttachmentHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: 'rgba(0, 0, 0, 0.2)',
+  },
+  statusAttachmentIcon: {
+    width: 20,
+    height: 20,
+    borderRadius: 4,
+  },
+  statusAttachmentLabel: {
+    fontSize: 13,
+    fontWeight: '600' as const,
+  },
+  statusAttachmentLabelMe: {
+    color: '#fff',
+  },
+  statusAttachmentLabelThem: {
+    color: colors.primary,
+  },
+  statusAttachmentPreview: {
+    width: '100%',
+    height: 150,
   },
   stickerPreview: {
     position: 'relative',
