@@ -1545,9 +1545,30 @@ export default function StatusViewerScreen() {
                       }
                       
                       if (fileUri) {
-                        const permission = await MediaLibrary.requestPermissionsAsync();
-                        if (!permission.granted) {
-                          Alert.alert('Permission Required', 'Please grant photo library access to save images.');
+                        // Request permission to save photos
+                        // Note: After updating app.json, you must rebuild the app for AndroidManifest changes
+                        try {
+                          // Try requesting with writeOnly first (only write permission, no audio)
+                          const permission = await MediaLibrary.requestPermissionsAsync(true);
+                          if (!permission.granted) {
+                            Alert.alert('Permission Required', 'Please grant photo library access to save images.');
+                            return;
+                          }
+                        } catch (error: any) {
+                          // If the error is about audio permission not being declared,
+                          // it means the app needs to be rebuilt with the updated app.json
+                          if (error?.message?.includes('AUDIO permission') || error?.message?.includes('AndroidManifest')) {
+                            Alert.alert(
+                              'Rebuild Required',
+                              'The app needs to be rebuilt to apply permission changes. Please rebuild your development build or run: npx expo prebuild --clean',
+                              [{ text: 'OK' }]
+                            );
+                            console.error('MediaLibrary permission error - rebuild required:', error);
+                            return;
+                          }
+                          // For other errors, show generic message
+                          Alert.alert('Error', 'Failed to request permission. Please try again.');
+                          console.error('MediaLibrary permission error:', error);
                           return;
                         }
                         
