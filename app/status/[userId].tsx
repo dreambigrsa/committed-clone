@@ -1044,19 +1044,6 @@ export default function StatusViewerScreen() {
         {/* Bottom Interaction Bar - Only show for other people's statuses */}
         {currentUser?.id !== status.user_id && (
           <View style={styles.bottomBar}>
-            {/* Quick Reactions (small emojis) - Only 3 emojis like Facebook */}
-            <View style={styles.quickReactions}>
-              <TouchableOpacity onPress={() => handleReaction('heart')} activeOpacity={0.7}>
-                <Text style={styles.quickReactionEmoji}>❤️</Text>
-              </TouchableOpacity>
-              <TouchableOpacity onPress={() => handleReaction('like')} activeOpacity={0.7}>
-                <Text style={styles.quickReactionEmoji}>👍</Text>
-              </TouchableOpacity>
-              <TouchableOpacity onPress={() => handleReaction('laugh')} activeOpacity={0.7}>
-                <Text style={styles.quickReactionEmoji}>😂</Text>
-              </TouchableOpacity>
-            </View>
-
             {/* Send Message Input */}
             <View style={styles.messageInputContainer}>
               <TextInput
@@ -1070,7 +1057,7 @@ export default function StatusViewerScreen() {
               />
             </View>
 
-            {/* Reaction Buttons */}
+            {/* Reaction Buttons - Only 3 emojis (near plus icon) */}
             <View style={styles.reactionButtons}>
               <TouchableOpacity
                 style={styles.reactionButton}
