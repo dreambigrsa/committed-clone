@@ -1111,19 +1111,34 @@ export async function reactToStatus(
   }
 
   try {
-    // Upsert reaction (insert or update if exists)
-    const { error } = await supabase
+    // First, check if reaction already exists
+    const { data: existingReaction } = await supabase
       .from('status_reactions')
-      .upsert(
-        {
+      .select('id, reaction_type')
+      .eq('status_id', statusId)
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    let error;
+    
+    if (existingReaction) {
+      // Update existing reaction
+      const { error: updateError } = await supabase
+        .from('status_reactions')
+        .update({ reaction_type: reactionType })
+        .eq('id', existingReaction.id);
+      error = updateError;
+    } else {
+      // Insert new reaction
+      const { error: insertError } = await supabase
+        .from('status_reactions')
+        .insert({
           status_id: statusId,
           user_id: user.id,
           reaction_type: reactionType,
-        },
-        {
-          onConflict: 'status_id,user_id',
-        }
-      );
+        });
+      error = insertError;
+    }
 
     if (error) {
       console.error('❌ [reactToStatus] Database error:', error);
