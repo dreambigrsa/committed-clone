@@ -336,12 +336,25 @@ export default function MessagesStatusStoriesBar({}: MessagesStatusStoriesBarPro
     if (!item.latestStatus) return;
 
     try {
-      // Get media URL from storage
+      // Get media URL from storage (use signed URL for private bucket)
       if (item.latestStatus.mediaPath) {
-        const { data } = supabase.storage
+        const { data: signedUrlData, error: urlError } = await supabase.storage
           .from('status-media')
-          .getPublicUrl(item.latestStatus.mediaPath);
-        setStatusMediaUrl(data.publicUrl);
+          .createSignedUrl(item.latestStatus.mediaPath, 3600); // 1 hour expiry
+
+        if (urlError) {
+          console.error('Error creating signed URL:', urlError);
+          Alert.alert('Error', 'Failed to load status media. Please try again.');
+          return;
+        }
+
+        if (signedUrlData?.signedUrl) {
+          setStatusMediaUrl(signedUrlData.signedUrl);
+        } else {
+          console.error('No signed URL returned');
+          Alert.alert('Error', 'Failed to load status media. Please try again.');
+          return;
+        }
       }
 
       setViewingStatus(item);
@@ -475,18 +488,31 @@ export default function MessagesStatusStoriesBar({}: MessagesStatusStoriesBarPro
             <X size={28} color={colors.text.white} />
           </TouchableOpacity>
 
-          {viewingStatus && statusMediaUrl && (
+          {viewingStatus && (
             <View style={styles.statusViewerContent}>
-              <Image
-                source={{ uri: statusMediaUrl }}
-                style={styles.statusViewerImage}
-                contentFit="contain"
-              />
-              <View style={styles.statusViewerInfo}>
-                <Text style={styles.statusViewerName}>
-                  {viewingStatus.userId === currentUser?.id ? 'Your story' : viewingStatus.userName}
-                </Text>
-              </View>
+              {statusMediaUrl ? (
+                <>
+                  {viewingStatus.latestStatus?.contentType === 'video' ? (
+                    <Text style={styles.statusViewerName}>Video status (not yet implemented)</Text>
+                  ) : (
+                    <Image
+                      source={{ uri: statusMediaUrl }}
+                      style={styles.statusViewerImage}
+                      contentFit="contain"
+                    />
+                  )}
+                  <View style={styles.statusViewerInfo}>
+                    <Text style={styles.statusViewerName}>
+                      {viewingStatus.userId === currentUser?.id ? 'Your story' : viewingStatus.userName}
+                    </Text>
+                  </View>
+                </>
+              ) : (
+                <View style={styles.statusViewerLoading}>
+                  <ActivityIndicator size="large" color={colors.text.white} />
+                  <Text style={styles.statusViewerLoadingText}>Loading status...</Text>
+                </View>
+              )}
             </View>
           )}
         </View>
@@ -617,6 +643,16 @@ const createStyles = (colors: any) => StyleSheet.create({
   statusViewerName: {
     fontSize: 18,
     fontWeight: '700' as const,
+    color: colors.text.white,
+  },
+  statusViewerLoading: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  statusViewerLoadingText: {
+    marginTop: 16,
+    fontSize: 16,
     color: colors.text.white,
   },
 });
