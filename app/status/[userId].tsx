@@ -862,10 +862,12 @@ export default function StatusViewerScreen() {
     if (!status) return;
     
     try {
-      // Get status preview URL for attachment
+      // Store the media_path instead of signed URL so it doesn't expire
+      // We'll generate the signed URL when displaying the message
       let statusPreviewUrl: string | null = null;
       if (status.media_path) {
-        statusPreviewUrl = await getSignedUrlForMedia(status.media_path);
+        // Store the media_path, not the signed URL, so it doesn't expire
+        statusPreviewUrl = status.media_path;
       }
       
       // Navigate to conversation with the status owner
@@ -883,7 +885,7 @@ export default function StatusViewerScreen() {
           'text', // messageType
           undefined, // stickerId
           status.id, // statusId - NEW PARAMETER
-          statusPreviewUrl // statusPreviewUrl - NEW PARAMETER
+          statusPreviewUrl // statusPreviewUrl - stores media_path, not signed URL
         );
         
         // Navigate to the conversation screen
