@@ -29,7 +29,7 @@ import * as MediaLibrary from 'expo-media-library';
 import * as FileSystem from 'expo-file-system/legacy';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { X, Trash2, Plus, Music, Type, Image as ImageIcon, RefreshCw, Share2, MoreHorizontal, Globe, Lock, MessageCircle, Download, Archive, Link, AlertCircle, AtSign, ChevronUp, Camera } from 'lucide-react-native';
-import { getUserStatuses, markStatusAsViewed, getSignedUrlForMedia, deleteStatus, getStatusViewers, getStatusViewCount, updateStatusPrivacy, archiveStatus, type StatusViewer, type Status } from '@/lib/status-queries';
+import { getUserStatuses, markStatusAsViewed, getSignedUrlForMedia, deleteStatus, getStatusViewers, getStatusViewCount, updateStatusPrivacy, archiveStatus, reactToStatus, removeStatusReaction, getUserReaction, getStatusReactionCounts, type StatusViewer, type Status } from '@/lib/status-queries';
 import { useApp } from '@/contexts/AppContext';
 import { useTheme } from '@/contexts/ThemeContext';
 
@@ -40,7 +40,7 @@ export default function StatusViewerScreen() {
   const { userId } = useLocalSearchParams<{ userId: string }>();
   const router = useRouter();
   const { colors } = useTheme();
-  const { currentUser, createOrGetConversation } = useApp();
+  const { currentUser, createOrGetConversation, createNotification, sendMessage } = useApp();
   const [statuses, setStatuses] = useState<Status[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [mediaUrl, setMediaUrl] = useState<string | null>(null);
@@ -57,6 +57,8 @@ export default function StatusViewerScreen() {
   const [viewers, setViewers] = useState<StatusViewer[]>([]);
   const [loadingViewers, setLoadingViewers] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
+  const [userReactions, setUserReactions] = useState<Record<string, 'heart' | 'like' | 'laugh' | null>>({});
+  const [reactionCounts, setReactionCounts] = useState<Record<string, { heart: number; like: number; laugh: number }>>({});
   const [pausedProgress, setPausedProgress] = useState(0);
   const progressAnim = useRef(new Animated.Value(0)).current;
   const progressInterval = useRef<NodeJS.Timeout | null>(null);
@@ -288,6 +290,11 @@ export default function StatusViewerScreen() {
     reactionEmoji: {
       fontSize: 22,
     },
+    reactionButtonActive: {
+      backgroundColor: 'rgba(255, 255, 255, 0.3)',
+      borderWidth: 2,
+      borderColor: '#fff',
+    },
     plusButton: {
       width: 40,
       height: 40,
@@ -465,6 +472,9 @@ export default function StatusViewerScreen() {
       setTimeout(() => {
         loadViewCount();
       }, 100);
+      // Load user's reaction and reaction counts
+      loadUserReaction();
+      loadReactionCounts();
     }
 
     return () => {
@@ -473,6 +483,22 @@ export default function StatusViewerScreen() {
       }
     };
   }, [currentIndex, statuses]);
+
+  const loadUserReaction = async () => {
+    const status = statuses[currentIndex];
+    if (!status) return;
+    
+    const reaction = await getUserReaction(status.id);
+    setUserReactions(prev => ({ ...prev, [status.id]: reaction }));
+  };
+
+  const loadReactionCounts = async () => {
+    const status = statuses[currentIndex];
+    if (!status) return;
+    
+    const counts = await getStatusReactionCounts(status.id);
+    setReactionCounts(prev => ({ ...prev, [status.id]: counts }));
+  };
 
   // Pause when viewers modal opens, resume when it closes
   useEffect(() => {
@@ -835,10 +861,30 @@ export default function StatusViewerScreen() {
     if (!status) return;
     
     try {
+      // Get status preview URL for attachment
+      let statusPreviewUrl: string | null = null;
+      if (status.media_path) {
+        statusPreviewUrl = await getSignedUrlForMedia(status.media_path);
+      }
+      
       // Navigate to conversation with the status owner
       const conversation = await createOrGetConversation(status.user_id);
       
       if (conversation) {
+        // Send message with status attachment
+        await sendMessage(
+          conversation.id,
+          status.user_id,
+          messageText.trim(),
+          undefined, // mediaUrl
+          undefined, // documentUrl
+          undefined, // documentName
+          'text', // messageType
+          undefined, // stickerId
+          status.id, // statusId - NEW PARAMETER
+          statusPreviewUrl // statusPreviewUrl - NEW PARAMETER
+        );
+        
         // Navigate to the conversation screen
         router.push(`/messages/${conversation.id}` as any);
         // Clear the input
@@ -852,11 +898,46 @@ export default function StatusViewerScreen() {
     }
   };
 
-  const handleReaction = (reaction: string) => {
-    // Show visual feedback
-    Alert.alert('Reaction', `You reacted with ${reaction}!`, [{ text: 'OK' }], { cancelable: true });
-    console.log('Reaction:', reaction, 'to status:', statuses[currentIndex]?.id);
-    // TODO: Save reaction to database if you have a reactions system
+  const handleReaction = async (reactionType: 'heart' | 'like' | 'laugh') => {
+    const status = statuses[currentIndex];
+    if (!status || !currentUser) return;
+
+    try {
+      const currentReaction = userReactions[status.id];
+      
+      // If clicking the same reaction, remove it; otherwise, update it
+      if (currentReaction === reactionType) {
+        const success = await removeStatusReaction(status.id);
+        if (success) {
+          setUserReactions(prev => ({ ...prev, [status.id]: null }));
+          // Update counts
+          const counts = await getStatusReactionCounts(status.id);
+          setReactionCounts(prev => ({ ...prev, [status.id]: counts }));
+        }
+      } else {
+        const success = await reactToStatus(status.id, reactionType);
+        if (success) {
+          setUserReactions(prev => ({ ...prev, [status.id]: reactionType }));
+          // Update counts
+          const counts = await getStatusReactionCounts(status.id);
+          setReactionCounts(prev => ({ ...prev, [status.id]: counts }));
+          
+          // Send notification to status owner (if not own status)
+          if (status.user_id !== currentUser.id) {
+            const reactionEmoji = reactionType === 'heart' ? '❤️' : reactionType === 'like' ? '👍' : '😂';
+            await createNotification(
+              status.user_id,
+              'status_reaction',
+              'Status Reaction',
+              `${currentUser.fullName} reacted ${reactionEmoji} to your story`,
+              { statusId: status.id, reactionType, userId: currentUser.id }
+            );
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error handling reaction:', error);
+    }
   };
 
   const handleUpdatePrivacy = async (privacyLevel: 'public' | 'friends' | 'followers' | 'only_me' | 'custom') => {
@@ -1380,19 +1461,28 @@ export default function StatusViewerScreen() {
             {/* Reaction Buttons - Only 3 emojis (near plus icon) */}
             <View style={styles.reactionButtons}>
               <TouchableOpacity
-                style={styles.reactionButton}
+                style={[
+                  styles.reactionButton,
+                  userReactions[statuses[currentIndex]?.id] === 'heart' && styles.reactionButtonActive
+                ]}
                 onPress={() => handleReaction('heart')}
               >
                 <Text style={styles.reactionEmoji}>❤️</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={styles.reactionButton}
+                style={[
+                  styles.reactionButton,
+                  userReactions[statuses[currentIndex]?.id] === 'like' && styles.reactionButtonActive
+                ]}
                 onPress={() => handleReaction('like')}
               >
                 <Text style={styles.reactionEmoji}>👍</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={styles.reactionButton}
+                style={[
+                  styles.reactionButton,
+                  userReactions[statuses[currentIndex]?.id] === 'laugh' && styles.reactionButtonActive
+                ]}
                 onPress={() => handleReaction('laugh')}
               >
                 <Text style={styles.reactionEmoji}>😂</Text>
