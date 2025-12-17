@@ -91,7 +91,8 @@
         {
           "photosPermission": "Allow $(PRODUCT_NAME) to access your photos to save images.",
           "savePhotosPermission": "Allow $(PRODUCT_NAME) to save photos to your gallery.",
-          "isAccessMediaLocationEnabled": true
+          "isAccessMediaLocationEnabled": true,
+          "audioPermission": "Allow $(PRODUCT_NAME) to access your audio files for music features."
         }
       ]
     ],
