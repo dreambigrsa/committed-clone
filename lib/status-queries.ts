@@ -1127,11 +1127,19 @@ export async function reactToStatus(
 
     if (error) {
       console.error('❌ [reactToStatus] Database error:', error);
+      console.error('❌ [reactToStatus] Error details:', {
+        code: error.code,
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+      });
       // Check if it's a table not found error
       if (error.code === '42P01' || error.message?.includes('does not exist')) {
         console.error('❌ [reactToStatus] Table "status_reactions" does not exist. Please run status-reactions-setup.sql');
-      } else if (error.code === '42501' || error.message?.includes('permission denied')) {
+      } else if (error.code === '42501' || error.message?.includes('permission denied') || error.code === 'PGRST301') {
         console.error('❌ [reactToStatus] Permission denied. Check RLS policies for status_reactions table.');
+        console.error('❌ [reactToStatus] Status ID:', statusId);
+        console.error('❌ [reactToStatus] User ID:', user.id);
       }
       throw error;
     }
