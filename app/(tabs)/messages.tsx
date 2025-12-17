@@ -36,27 +36,9 @@ export default function MessagesScreen() {
     }).start();
   }, [fadeAnim]);
 
-  // Return empty view instead of null to maintain hook count consistency
-  if (!currentUser) {
-    return <SafeAreaView style={[styles.container, { backgroundColor: colors.background.secondary }]} />;
-  }
-
-  const formatTimeAgo = (dateString: string) => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMins / 60);
-    const diffDays = Math.floor(diffHours / 24);
-
-    if (diffMins < 1) return 'Just now';
-    if (diffMins < 60) return `${diffMins}m`;
-    if (diffHours < 24) return `${diffHours}h`;
-    if (diffDays < 7) return `${diffDays}d`;
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-  };
-
+  // Helper function to get other participant - defined before early return
   const getOtherParticipant = (conversation: any) => {
+    if (!currentUser) return { id: null, name: 'Unknown', avatar: null };
     const otherParticipantId = conversation.participants.find((id: string) => id !== currentUser.id);
     if (!otherParticipantId) return { id: null, name: 'Unknown', avatar: null };
     
@@ -91,6 +73,7 @@ export default function MessagesScreen() {
   };
 
   // Load statuses for all participants and refresh periodically
+  // This hook MUST be called before any early return to maintain hook consistency
   useEffect(() => {
     if (!currentUser || !getUserStatus || conversations.length === 0) return;
 
@@ -128,6 +111,27 @@ export default function MessagesScreen() {
       clearInterval(refreshInterval);
     };
   }, [conversations, currentUser, getUserStatus]);
+
+  // Return empty view instead of null to maintain hook count consistency
+  // This early return happens AFTER all hooks are called
+  if (!currentUser) {
+    return <SafeAreaView style={[styles.container, { backgroundColor: colors.background.secondary }]} />;
+  }
+
+  const formatTimeAgo = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMins / 60);
+    const diffDays = Math.floor(diffHours / 24);
+
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins}m`;
+    if (diffHours < 24) return `${diffHours}h`;
+    if (diffDays < 7) return `${diffDays}d`;
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  };
 
   const handleDeleteConversation = async (conversationId: string) => {
     Alert.alert(
@@ -212,7 +216,7 @@ export default function MessagesScreen() {
             </Text>
           </Animated.View>
         ) : (
-          conversations.map((conversation) => {
+          conversations.map((conversation: any) => {
             const otherParticipant = getOtherParticipant(conversation);
             const isDeleting = deletingId === conversation.id;
             
