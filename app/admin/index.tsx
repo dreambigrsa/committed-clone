@@ -58,7 +58,7 @@ export default function AdminDashboardScreen() {
     ]).start();
   }, []);
 
-  if (!currentUser || (currentUser.role !== 'admin' && currentUser.role !== 'super_admin')) {
+  if (!currentUser || (currentUser.role !== 'admin' && currentUser.role !== 'super_admin' && currentUser.role !== 'moderator')) {
     return (
       <SafeAreaView style={styles.container}>
         <Stack.Screen options={{ title: 'Admin Dashboard', headerShown: true }} />
