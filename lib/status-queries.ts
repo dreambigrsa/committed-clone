@@ -1105,7 +1105,10 @@ export async function reactToStatus(
   reactionType: 'heart' | 'like' | 'laugh'
 ): Promise<boolean> {
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return false;
+  if (!user) {
+    console.error('❌ [reactToStatus] No authenticated user');
+    return false;
+  }
 
   try {
     // Upsert reaction (insert or update if exists)
@@ -1122,11 +1125,22 @@ export async function reactToStatus(
         }
       );
 
-    if (error) throw error;
+    if (error) {
+      console.error('❌ [reactToStatus] Database error:', error);
+      // Check if it's a table not found error
+      if (error.code === '42P01' || error.message?.includes('does not exist')) {
+        console.error('❌ [reactToStatus] Table "status_reactions" does not exist. Please run status-reactions-setup.sql');
+      } else if (error.code === '42501' || error.message?.includes('permission denied')) {
+        console.error('❌ [reactToStatus] Permission denied. Check RLS policies for status_reactions table.');
+      }
+      throw error;
+    }
+    console.log('✅ [reactToStatus] Reaction saved successfully');
     return true;
   } catch (error) {
-    console.error('Error reacting to status:', error);
-    return false;
+    console.error('❌ [reactToStatus] Error reacting to status:', error);
+    // Re-throw to let caller handle it
+    throw error;
   }
 }
 
