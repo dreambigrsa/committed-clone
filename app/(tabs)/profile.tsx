@@ -129,7 +129,8 @@ export default function ProfileScreen() {
   const handleLogout = async () => {
     await logout();
     // Navigate to landing page (root index)
-    router.replace('/');
+    // Use replace to navigate to root, which will show the index screen
+    router.replace('/' as any);
   };
 
   return (
