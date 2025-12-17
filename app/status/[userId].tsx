@@ -2173,24 +2173,35 @@ function ViewersListModal({
                       style={styles.viewerItem}
                       onPress={() => {
                         // Navigate to viewer's profile
+                        console.log('Navigating to profile:', viewer.user.id);
                         router.push(`/profile/${viewer.user.id}` as any);
                       }}
                       activeOpacity={0.7}
                     >
-                      {viewer.user.profile_picture ? (
-                        <Image
-                          source={{ uri: viewer.user.profile_picture }}
-                          style={styles.viewerAvatar}
-                          contentFit="cover"
-                        />
-                      ) : (
-                        <View style={styles.viewerAvatarPlaceholder}>
-                          <Text style={styles.viewerAvatarText}>
-                            {viewer.user.full_name.charAt(0).toUpperCase()}
-                          </Text>
-                        </View>
-                      )}
-                      <View style={styles.viewerInfo}>
+                      <TouchableOpacity
+                        onPress={() => {
+                          // Navigate to viewer's profile when clicking avatar
+                          console.log('Navigating to profile from avatar:', viewer.user.id);
+                          router.push(`/profile/${viewer.user.id}` as any);
+                        }}
+                        activeOpacity={0.8}
+                        style={{ marginRight: 12 }}
+                      >
+                        {viewer.user.profile_picture ? (
+                          <Image
+                            source={{ uri: viewer.user.profile_picture }}
+                            style={styles.viewerAvatar}
+                            contentFit="cover"
+                          />
+                        ) : (
+                          <View style={styles.viewerAvatarPlaceholder}>
+                            <Text style={styles.viewerAvatarText}>
+                              {viewer.user.full_name.charAt(0).toUpperCase()}
+                            </Text>
+                          </View>
+                        )}
+                      </TouchableOpacity>
+                      <View style={styles.viewerInfo} pointerEvents="none">
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                           <Text style={styles.viewerName}>{viewer.user.full_name}</Text>
                           {reactionEmoji && (
