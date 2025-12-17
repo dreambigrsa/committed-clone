@@ -915,8 +915,8 @@ export default function StatusViewerScreen() {
           setReactionCounts(prev => ({ ...prev, [status.id]: counts }));
         }
       } else {
-        const success = await reactToStatus(status.id, reactionType);
-        if (success) {
+        try {
+          await reactToStatus(status.id, reactionType);
           setUserReactions(prev => ({ ...prev, [status.id]: reactionType }));
           // Update counts
           const counts = await getStatusReactionCounts(status.id);
@@ -933,10 +933,25 @@ export default function StatusViewerScreen() {
               { statusId: status.id, reactionType, userId: currentUser.id }
             );
           }
+        } catch (reactionError: any) {
+          console.error('Error reacting to status:', reactionError);
+          let errorMessage = 'Failed to react to status.';
+          
+          if (reactionError?.code === '42P01' || reactionError?.message?.includes('does not exist')) {
+            errorMessage = 'Status reactions table not found. Please run the status-reactions-setup.sql script in Supabase.';
+          } else if (reactionError?.code === '42501' || reactionError?.message?.includes('permission denied') || reactionError?.code === 'PGRST301') {
+            errorMessage = 'Permission denied. Please check that the status_reactions table exists and RLS policies are set up correctly.';
+          } else if (reactionError?.message) {
+            errorMessage = `Failed to react: ${reactionError.message}`;
+          }
+          
+          Alert.alert('Error', errorMessage);
         }
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error handling reaction:', error);
+      const errorMessage = error instanceof Error ? error.message : JSON.stringify(error);
+      Alert.alert('Error', `Failed to react to status: ${errorMessage}`);
     }
   };
 
