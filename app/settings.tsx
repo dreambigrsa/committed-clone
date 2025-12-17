@@ -947,7 +947,23 @@ export default function SettingsScreen() {
 
               <TouchableOpacity
                 style={styles.verificationItem}
-                onPress={() => relationship && router.push('/verification/couple-selfie' as any)}
+                onPress={() => {
+                  if (relationship) {
+                    router.push('/verification/couple-selfie' as any);
+                  } else {
+                    Alert.alert(
+                      'No Relationship',
+                      'You need to register a relationship before you can verify it. Would you like to register one now?',
+                      [
+                        { text: 'Cancel', style: 'cancel' },
+                        { 
+                          text: 'Register', 
+                          onPress: () => router.push('/relationship/register' as any)
+                        }
+                      ]
+                    );
+                  }
+                }}
               >
                 <View style={styles.verificationLeft}>
                   <Heart size={20} color={colors.text.secondary} />
