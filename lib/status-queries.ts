@@ -960,6 +960,114 @@ export async function getStatusViewCount(statusId: string): Promise<number> {
 }
 
 /**
+ * Update status privacy level
+ */
+export async function updateStatusPrivacy(
+  statusId: string,
+  privacyLevel: 'public' | 'friends' | 'followers' | 'only_me' | 'custom',
+  allowedUserIds?: string[]
+): Promise<boolean> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    console.error('❌ [updateStatusPrivacy] No user found');
+    return false;
+  }
+
+  // Verify ownership
+  const { data: status } = await supabase
+    .from('statuses')
+    .select('user_id')
+    .eq('id', statusId)
+    .single();
+
+  if (!status || status.user_id !== user.id) {
+    console.error('❌ [updateStatusPrivacy] Can only update own statuses');
+    return false;
+  }
+
+  // Update privacy level
+  const { error: updateError } = await supabase
+    .from('statuses')
+    .update({ privacy_level: privacyLevel })
+    .eq('id', statusId);
+
+  if (updateError) {
+    console.error('❌ [updateStatusPrivacy] Error updating privacy:', updateError);
+    return false;
+  }
+
+  // Handle custom privacy
+  if (privacyLevel === 'custom' && allowedUserIds && allowedUserIds.length > 0) {
+    // Delete existing visibility records
+    await supabase
+      .from('status_visibility')
+      .delete()
+      .eq('status_id', statusId);
+
+    // Insert new visibility records
+    const visibilityRecords = allowedUserIds.map((userId) => ({
+      status_id: statusId,
+      allowed_user_id: userId,
+    }));
+
+    const { error: visibilityError } = await supabase
+      .from('status_visibility')
+      .insert(visibilityRecords);
+
+    if (visibilityError) {
+      console.error('❌ [updateStatusPrivacy] Error setting custom visibility:', visibilityError);
+      return false;
+    }
+  } else {
+    // Delete custom visibility if switching from custom to another privacy level
+    await supabase
+      .from('status_visibility')
+      .delete()
+      .eq('status_id', statusId);
+  }
+
+  return true;
+}
+
+/**
+ * Archive a status
+ */
+export async function archiveStatus(statusId: string): Promise<boolean> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    console.error('❌ [archiveStatus] No user found');
+    return false;
+  }
+
+  // Verify ownership
+  const { data: status } = await supabase
+    .from('statuses')
+    .select('user_id')
+    .eq('id', statusId)
+    .single();
+
+  if (!status || status.user_id !== user.id) {
+    console.error('❌ [archiveStatus] Can only archive own statuses');
+    return false;
+  }
+
+  const { error } = await supabase
+    .from('statuses')
+    .update({
+      archived: true,
+      archived_at: new Date().toISOString(),
+    })
+    .eq('id', statusId);
+
+  if (error) {
+    console.error('❌ [archiveStatus] Error archiving status:', error);
+    return false;
+  }
+
+  return true;
+}
+
+/**
  * Get signed URL for status media
  */
 export async function getSignedUrlForMedia(mediaPath: string): Promise<string | null> {
