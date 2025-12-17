@@ -18,7 +18,7 @@ import {
 import { Image } from 'expo-image';
 import { Video, ResizeMode } from 'expo-av';
 import { useRouter } from 'expo-router';
-import { Heart, MessageCircle, Share2, Plus, X, ExternalLink, MoreVertical, Edit2, Trash2, Image as ImageIcon, Flag, Smile } from 'lucide-react-native';
+import { Heart, MessageCircle, Share2, Plus, X, ExternalLink, MoreVertical, Edit2, Trash2, Image as ImageIcon, Flag, Smile, Camera, FileText, Video as VideoIcon } from 'lucide-react-native';
 import { useApp } from '@/contexts/AppContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { Post, Advertisement, Sticker } from '@/types';
@@ -55,6 +55,7 @@ export default function FeedScreen() {
   const [reportingPost, setReportingPost] = useState<{ id: string; userId: string } | null>(null);
   const [postStatuses, setPostStatuses] = useState<Record<string, any>>({});
   const recordedImpressions = useRef<Set<string>>(new Set());
+  const [showCreateModal, setShowCreateModal] = useState<boolean>(false);
 
   useEffect(() => {
     Animated.timing(fadeAnim, {
@@ -912,6 +913,63 @@ export default function FeedScreen() {
       fontSize: 14,
       fontWeight: '600' as const,
     },
+    modalOverlay: {
+      flex: 1,
+      backgroundColor: 'rgba(0, 0, 0, 0.5)',
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    createModalContent: {
+      backgroundColor: colors.background.primary,
+      borderRadius: 20,
+      padding: 20,
+      width: '85%',
+      maxWidth: 400,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.3,
+      shadowRadius: 8,
+      elevation: 10,
+    },
+    createOption: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      padding: 16,
+      borderRadius: 12,
+      marginBottom: 12,
+      backgroundColor: colors.background.secondary,
+    },
+    createOptionIcon: {
+      width: 48,
+      height: 48,
+      borderRadius: 24,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginRight: 16,
+    },
+    createOptionText: {
+      flex: 1,
+    },
+    createOptionTitle: {
+      fontSize: 16,
+      fontWeight: '700' as const,
+      color: colors.text.primary,
+      marginBottom: 4,
+    },
+    createOptionSubtitle: {
+      fontSize: 13,
+      color: colors.text.secondary,
+    },
+    createModalCancel: {
+      marginTop: 8,
+      padding: 16,
+      alignItems: 'center',
+    },
+    createModalCancelText: {
+      fontSize: 16,
+      fontWeight: '600' as const,
+      color: colors.text.secondary,
+    },
   }), [colors]);
 
   if (!currentUser) {
@@ -1597,7 +1655,7 @@ export default function FeedScreen() {
         <View style={styles.headerIcons}>
           <TouchableOpacity
             style={styles.headerIconButton}
-            onPress={() => router.push('/post/create' as any)}
+            onPress={() => setShowCreateModal(true)}
           >
             <Plus size={24} color={colors.text.primary} />
           </TouchableOpacity>
@@ -1607,13 +1665,79 @@ export default function FeedScreen() {
           >
             <MessageCircle size={24} color={colors.text.primary} />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.headerIconButton}>
-            <View style={styles.notificationBadge}>
-              <Text style={styles.notificationBadgeText}>8</Text>
-            </View>
-          </TouchableOpacity>
         </View>
       </View>
+
+      {/* Create Content Modal */}
+      <Modal
+        visible={showCreateModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowCreateModal(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setShowCreateModal(false)}
+        >
+          <View style={styles.createModalContent}>
+            <TouchableOpacity
+              style={styles.createOption}
+              onPress={() => {
+                setShowCreateModal(false);
+                router.push('/status/create' as any);
+              }}
+            >
+              <View style={[styles.createOptionIcon, { backgroundColor: colors.primary + '20' }]}>
+                <Camera size={24} color={colors.primary} />
+              </View>
+              <View style={styles.createOptionText}>
+                <Text style={styles.createOptionTitle}>Create Status</Text>
+                <Text style={styles.createOptionSubtitle}>Share a photo or video story</Text>
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.createOption}
+              onPress={() => {
+                setShowCreateModal(false);
+                router.push('/post/create' as any);
+              }}
+            >
+              <View style={[styles.createOptionIcon, { backgroundColor: colors.secondary + '20' }]}>
+                <FileText size={24} color={colors.secondary} />
+              </View>
+              <View style={styles.createOptionText}>
+                <Text style={styles.createOptionTitle}>Create Post</Text>
+                <Text style={styles.createOptionSubtitle}>Share a post with text and media</Text>
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.createOption}
+              onPress={() => {
+                setShowCreateModal(false);
+                router.push('/reel/create' as any);
+              }}
+            >
+              <View style={[styles.createOptionIcon, { backgroundColor: '#E41E3F' + '20' }]}>
+                <VideoIcon size={24} color="#E41E3F" />
+              </View>
+              <View style={styles.createOptionText}>
+                <Text style={styles.createOptionTitle}>Create Reel</Text>
+                <Text style={styles.createOptionSubtitle}>Share a short video reel</Text>
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.createModalCancel}
+              onPress={() => setShowCreateModal(false)}
+            >
+              <Text style={styles.createModalCancelText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
 
       <ScrollView
         contentContainerStyle={styles.scrollContent}
