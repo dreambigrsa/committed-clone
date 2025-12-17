@@ -35,6 +35,11 @@ export default function ReelsScreen() {
   const insets = useSafeAreaInsets();
   const { currentUser, reels, toggleReelLike, editReel, deleteReel, shareReel, adminDeleteReel, adminRejectReel, followUser, unfollowUser, isFollowing: checkIsFollowing, addReelComment, getReelComments, editReelComment, deleteReelComment, toggleReelCommentLike, reportContent, getActiveAds, getSmartAds, recordAdImpression, recordAdClick, getUserStatus, userStatuses } = useApp();
   const { colors } = useTheme();
+  
+  // Early return check - must be before all hooks
+  if (!currentUser) {
+    return null;
+  }
   const [currentIndex, setCurrentIndex] = useState<number>(0);
   const [currentReelId, setCurrentReelId] = useState<string | null>(null);
   const [isMuted, setIsMuted] = useState<boolean>(false);
@@ -319,10 +324,6 @@ export default function ReelsScreen() {
       }
     });
   }, [currentReelId, isScreenFocused]);
-
-  if (!currentUser) {
-    return null;
-  }
 
   const formatCount = (count: number): string => {
     if (count >= 1000000) {
