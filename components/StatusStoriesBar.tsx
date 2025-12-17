@@ -958,7 +958,11 @@ export default function StatusStoriesBar({ context, onStatusPress }: StatusStori
     },
     unreadRing: {
       borderWidth: 3,
-      borderColor: colors.primary, // Highlighted ring for unviewed
+      borderColor: '#31A24C', // Green ring for unviewed status (Messenger style)
+    },
+    viewedRing: {
+      borderWidth: 3,
+      borderColor: '#8E8E93', // Gray ring for viewed status (Messenger style)
     },
     avatar: {
       width: '100%',
@@ -1190,47 +1194,136 @@ export default function StatusStoriesBar({ context, onStatusPress }: StatusStori
         contentContainerStyle={styles.scrollView}
         bounces={false}
       >
-        {/* Create Story Card - Facebook-style card with preview */}
-        <TouchableOpacity
-          style={styles.cardContainer}
-          onPress={() => router.push('/status/create' as any)}
-          activeOpacity={0.8}
-        >
-          <View style={styles.createCard}>
-            {/* Background thumbnail - use profile picture or gradient */}
-            {currentUser?.profilePicture ? (
-              <Image
-                source={{ uri: currentUser.profilePicture }}
-                style={styles.createCardImage}
-                contentFit="cover"
-              />
-            ) : (
-              <LinearGradient
-                colors={[colors.primary, colors.primary + 'DD']}
-                style={styles.createCardImage}
-              />
-            )}
-            
-            {/* Dark overlay for better text readability */}
-            <View style={styles.createCardOverlay} />
-            
-            {/* Large Plus Sign - Centered */}
-            <View style={styles.createCardPlus}>
-              <Text style={styles.createCardPlusText}>+</Text>
+        {/* Create Story - Card in feed, circular bubble in messenger */}
+        {context === 'feed' ? (
+          <TouchableOpacity
+            style={styles.cardContainer}
+            onPress={() => router.push('/status/create' as any)}
+            activeOpacity={0.8}
+          >
+            <View style={styles.createCard}>
+              {/* Background thumbnail - use profile picture or gradient */}
+              {currentUser?.profilePicture ? (
+                <Image
+                  source={{ uri: currentUser.profilePicture }}
+                  style={styles.createCardImage}
+                  contentFit="cover"
+                />
+              ) : (
+                <LinearGradient
+                  colors={[colors.primary, colors.primary + 'DD']}
+                  style={styles.createCardImage}
+                />
+              )}
+              
+              {/* Dark overlay for better text readability */}
+              <View style={styles.createCardOverlay} />
+              
+              {/* Large Plus Sign - Centered */}
+              <View style={styles.createCardPlus}>
+                <Text style={styles.createCardPlusText}>+</Text>
+              </View>
+              
+              {/* "Create story" label at bottom */}
+              <Text style={styles.createCardLabel}>Create story</Text>
             </View>
-            
-            {/* "Create story" label at bottom */}
-            <Text style={styles.createCardLabel}>Create story</Text>
-          </View>
-        </TouchableOpacity>
+          </TouchableOpacity>
+        ) : (
+          // Messenger: Circular bubble with plus icon
+          <TouchableOpacity
+            style={styles.bubbleContainer}
+            onPress={() => router.push('/status/create' as any)}
+            activeOpacity={0.7}
+          >
+            <View style={[styles.avatarContainer, { borderWidth: 2, borderColor: colors.border.light }]}>
+              {currentUser?.profilePicture ? (
+                <Image
+                  source={{ uri: currentUser.profilePicture }}
+                  style={styles.avatar}
+                  contentFit="cover"
+                />
+              ) : (
+                <View style={styles.avatarPlaceholder}>
+                  <Text style={styles.avatarPlaceholderText}>
+                    {currentUser?.fullName?.charAt(0)?.toUpperCase() || 'U'}
+                  </Text>
+                </View>
+              )}
+              {/* Plus icon overlay */}
+              <View style={styles.plusIcon}>
+                <Text style={styles.plusIconText}>+</Text>
+              </View>
+            </View>
+            <Text style={styles.name} numberOfLines={1}>
+              Your story
+            </Text>
+          </TouchableOpacity>
+        )}
 
-        {/* Your Story Card - Shows preview of your actual status if you have one */}
+        {/* Your Story - Shows as card in feed, circular bubble in messenger */}
         {ownStatusInFeed && (
-          <YourStoryCard
-            statusItem={ownStatusInFeed}
-            currentUser={currentUser}
-            onPress={() => router.push(`/status/${currentUser?.id}` as any)}
-          />
+          context === 'feed' ? (
+            <YourStoryCard
+              statusItem={ownStatusInFeed}
+              currentUser={currentUser}
+              onPress={() => router.push(`/status/${currentUser?.id}` as any)}
+            />
+          ) : (
+            // Messenger: Show as circular bubble
+            (() => {
+              const status = ownStatusInFeed.latest_status;
+              const hasMedia = status?.media_path && (status.content_type === 'image' || status.content_type === 'video');
+              const hasStatus = !!status;
+              return (
+                <TouchableOpacity
+                  key={ownStatusInFeed.user_id}
+                  style={styles.bubbleContainer}
+                  onPress={() => router.push(`/status/${currentUser?.id}` as any)}
+                  activeOpacity={0.7}
+                >
+                  <View
+                    style={[
+                      styles.avatarContainer,
+                      // Your own status is always considered viewed, so gray ring
+                      hasStatus && styles.viewedRing,
+                      !hasStatus && { borderWidth: 0 },
+                    ]}
+                  >
+                    {hasMedia ? (
+                      <StoryPreviewBubble
+                        mediaPath={status.media_path!}
+                        contentType={status.content_type as 'image' | 'video'}
+                        profilePicture={ownStatusInFeed.user_avatar || currentUser?.profilePicture || null}
+                        userName={ownStatusInFeed.user_name || currentUser?.fullName || ''}
+                      />
+                    ) : (
+                      <>
+                        {ownStatusInFeed.user_avatar || currentUser?.profilePicture ? (
+                          <Image
+                            source={{ uri: ownStatusInFeed.user_avatar || currentUser?.profilePicture }}
+                            style={styles.avatar}
+                            contentFit="cover"
+                          />
+                        ) : (
+                          <View style={styles.avatarPlaceholder}>
+                            <Text style={styles.avatarPlaceholderText}>
+                              {currentUser?.fullName?.charAt(0)?.toUpperCase() || 'U'}
+                            </Text>
+                          </View>
+                        )}
+                      </>
+                    )}
+                  </View>
+                  <Text
+                    style={styles.name}
+                    numberOfLines={1}
+                  >
+                    Your story
+                  </Text>
+                </TouchableOpacity>
+              );
+            })()
+          )
         )}
 
         {/* Other Users' Statuses */}
@@ -1252,6 +1345,7 @@ export default function StatusStoriesBar({ context, onStatusPress }: StatusStori
           } else {
             // Messenger: Use circular bubbles
             const hasMedia = status?.media_path && (status.content_type === 'image' || status.content_type === 'video');
+            const hasStatus = !!status; // Check if user has a status
             return (
               <TouchableOpacity
                 key={item.user_id}
@@ -1262,7 +1356,9 @@ export default function StatusStoriesBar({ context, onStatusPress }: StatusStori
                 <View
                   style={[
                     styles.avatarContainer,
-                    hasUnviewed && styles.unreadRing,
+                    hasStatus && hasUnviewed && styles.unreadRing, // Green ring for unviewed
+                    hasStatus && !hasUnviewed && styles.viewedRing, // Gray ring for viewed
+                    !hasStatus && { borderWidth: 0 }, // No ring if no status
                   ]}
                 >
                   {/* Show story preview (media) if available, otherwise show profile picture */}
