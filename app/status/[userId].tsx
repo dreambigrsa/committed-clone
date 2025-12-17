@@ -22,6 +22,7 @@ import {
   Platform,
   Clipboard,
   Share,
+  InteractionManager,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { Video, ResizeMode } from 'expo-av';
@@ -2168,12 +2169,27 @@ function ViewersListModal({
                     : null;
                   
                   const handleNavigateToProfile = () => {
-                    // Close modal first, then navigate
-                    onClose();
-                    // Use setTimeout to ensure modal closes before navigation
-                    setTimeout(() => {
-                      router.push(`/profile/${viewer.user.id}` as any);
-                    }, 100);
+                    const profileUserId = viewer.user.id;
+                    console.log('Navigating to profile:', profileUserId);
+                    
+                    // Navigate first (before closing modal) to ensure it works
+                    // The navigation will happen even if modal is still visible
+                    try {
+                      router.push(`/profile/${profileUserId}` as any);
+                      // Close modal after navigation starts
+                      setTimeout(() => {
+                        onClose();
+                      }, 50);
+                    } catch (error) {
+                      console.error('Navigation error:', error);
+                      // Fallback: close modal first, then navigate
+                      onClose();
+                      InteractionManager.runAfterInteractions(() => {
+                        setTimeout(() => {
+                          router.push(`/profile/${profileUserId}` as any);
+                        }, 300);
+                      });
+                    }
                   };
 
                   return (
@@ -2184,8 +2200,12 @@ function ViewersListModal({
                       activeOpacity={0.7}
                     >
                       <TouchableOpacity
-                        onPress={handleNavigateToProfile}
+                        onPress={(e) => {
+                          e.stopPropagation();
+                          handleNavigateToProfile();
+                        }}
                         activeOpacity={0.8}
+                        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                         style={{ marginRight: 12 }}
                       >
                         {viewer.user.profile_picture ? (
