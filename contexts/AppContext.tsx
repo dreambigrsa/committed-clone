@@ -418,6 +418,8 @@ export const [AppContext, useApp] = createContextHook(() => {
               deletedForReceiver: m.deleted_for_receiver || false,
               read: m.read,
               createdAt: m.created_at,
+              statusId: m.status_id,
+              statusPreviewUrl: m.status_preview_url,
             };
             if (!messagesByConversation[m.conversation_id]) {
               messagesByConversation[m.conversation_id] = [];
@@ -2062,7 +2064,9 @@ export const [AppContext, useApp] = createContextHook(() => {
     documentUrl?: string,
     documentName?: string,
     messageType: 'text' | 'image' | 'document' | 'sticker' = 'text',
-    stickerId?: string
+    stickerId?: string,
+    statusId?: string,
+    statusPreviewUrl?: string
   ) => {
     if (!currentUser) return null;
     
@@ -2090,6 +2094,12 @@ export const [AppContext, useApp] = createContextHook(() => {
       }
       if (stickerId) {
         insertData.sticker_id = stickerId;
+      }
+      if (statusId) {
+        insertData.status_id = statusId;
+      }
+      if (statusPreviewUrl) {
+        insertData.status_preview_url = statusPreviewUrl;
       }
 
       const { data, error } = await supabase
@@ -2123,6 +2133,8 @@ export const [AppContext, useApp] = createContextHook(() => {
         messageType: messageData.message_type || 'text',
         read: false,
         createdAt: messageData.created_at,
+        statusId: messageData.status_id,
+        statusPreviewUrl: messageData.status_preview_url,
       };
       
       const updatedMessages = {
@@ -2969,6 +2981,8 @@ export const [AppContext, useApp] = createContextHook(() => {
             deletedForReceiver: payload.new.deleted_for_receiver || false,
             read: payload.new.read,
             createdAt: payload.new.created_at,
+            statusId: payload.new.status_id,
+            statusPreviewUrl: payload.new.status_preview_url,
           };
           setMessages(prev => ({
             ...prev,
