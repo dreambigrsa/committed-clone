@@ -1335,12 +1335,13 @@ export default function StatusStoriesBar({ context, onStatusPress }: StatusStori
           // In Messenger: Use circular bubbles
           if (context === 'feed') {
             return (
-              <OtherUserStoryCard
-                key={item.user_id}
-                statusItem={item}
-                hasUnviewed={hasUnviewed}
-                onPress={() => handleStatusPress(item)}
-              />
+              <React.Fragment key={item.user_id}>
+                <OtherUserStoryCard
+                  statusItem={item}
+                  hasUnviewed={hasUnviewed}
+                  onPress={() => handleStatusPress(item)}
+                />
+              </React.Fragment>
             );
           } else {
             // Messenger: Use circular bubbles
