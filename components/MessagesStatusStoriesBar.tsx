@@ -87,6 +87,7 @@ export default function MessagesStatusStoriesBar({}: MessagesStatusStoriesBarPro
       let error: any = null;
       
       if (participantIds.size > 0) {
+        // First, get the statuses without the join
         const result = await supabase
           .from('statuses')
           .select(`
@@ -94,8 +95,7 @@ export default function MessagesStatusStoriesBar({}: MessagesStatusStoriesBarPro
             user_id,
             content_type,
             media_path,
-            created_at,
-            users!statuses_user_id_fkey(full_name, profile_picture)
+            created_at
           `)
           .eq('archived', false)
           .gt('expires_at', new Date().toISOString())
@@ -104,6 +104,24 @@ export default function MessagesStatusStoriesBar({}: MessagesStatusStoriesBarPro
         
         statuses = result.data || [];
         error = result.error;
+
+        // If we have statuses, fetch user data separately
+        if (statuses.length > 0 && !error) {
+          const userIds = [...new Set(statuses.map((s: any) => s.user_id))];
+          const { data: usersData } = await supabase
+            .from('users')
+            .select('id, full_name, profile_picture')
+            .in('id', userIds);
+
+          // Map user data to statuses
+          if (usersData) {
+            const userMap = new Map(usersData.map((u: any) => [u.id, u]));
+            statuses = statuses.map((status: any) => ({
+              ...status,
+              users: userMap.get(status.user_id) || null,
+            }));
+          }
+        }
       }
 
       if (error) {
