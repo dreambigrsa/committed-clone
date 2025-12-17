@@ -233,6 +233,13 @@ export default function StatusViewerScreen() {
     rightArea: {
       right: 0,
     },
+    centerArea: {
+      position: 'absolute',
+      top: 0,
+      bottom: 0,
+      left: width / 3,
+      right: width / 3,
+    },
     bottomBar: {
       position: 'absolute',
       bottom: 0,
@@ -1283,14 +1290,12 @@ export default function StatusViewerScreen() {
           activeOpacity={1}
         />
         
-        {/* Tap to pause/resume (only for content area) */}
-        <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
-          <TouchableOpacity
-            style={StyleSheet.absoluteFill}
-            onPress={togglePause}
-            activeOpacity={1}
-          />
-        </View>
+        {/* Tap to pause/resume (center area only) */}
+        <TouchableOpacity
+          style={styles.centerArea}
+          onPress={togglePause}
+          activeOpacity={1}
+        />
 
         {/* Owner's Bottom Bar - Only show for own statuses */}
         {currentUser?.id === status.user_id && (
