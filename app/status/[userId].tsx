@@ -2200,38 +2200,40 @@ function ViewersListModal({
                       return;
                     }
                     
-                    // Navigate first (before closing modal) to ensure it works
-                    // The navigation will happen even if modal is still visible
-                    try {
-                      const profileRoute = `/profile/${profileUserId}`;
-                      console.log('=== NAVIGATION DEBUG ===');
-                      console.log('Profile Route:', profileRoute);
-                      console.log('Profile User ID:', profileUserId);
-                      console.log('Viewer ID:', viewer.viewer_id);
-                      console.log('Viewer Name:', viewer.user.full_name);
-                      console.log('Status Owner ID:', statusOwnerId);
-                      console.log('Are they the same?', profileUserId === statusOwnerId);
-                      console.log('=======================');
-                      
-                      // Use router.push with explicit route
-                      router.push(profileRoute as any);
-                      
-                      // Close modal after navigation starts
+                    // Close modal first, then navigate after it's fully closed
+                    // This prevents navigation conflicts
+                    const profileRoute = `/profile/${profileUserId}`;
+                    console.log('=== NAVIGATION DEBUG ===');
+                    console.log('Profile Route:', profileRoute);
+                    console.log('Profile User ID:', profileUserId);
+                    console.log('Viewer ID:', viewer.viewer_id);
+                    console.log('Viewer Name:', viewer.user.full_name);
+                    console.log('Status Owner ID:', statusOwnerId);
+                    console.log('Are they the same?', profileUserId === statusOwnerId);
+                    console.log('=======================');
+                    
+                    // Close modal first
+                    onClose();
+                    
+                    // Wait for modal to fully close, then navigate
+                    // Use replace instead of push to replace the status viewer in the stack
+                    InteractionManager.runAfterInteractions(() => {
                       setTimeout(() => {
-                        onClose();
-                      }, 50);
-                    } catch (error) {
-                      console.error('Navigation error:', error);
-                      // Fallback: close modal first, then navigate
-                      onClose();
-                      InteractionManager.runAfterInteractions(() => {
-                        setTimeout(() => {
-                          const profileRoute = `/profile/${profileUserId}`;
-                          console.log('Fallback navigation to:', profileRoute);
-                          router.push(profileRoute as any);
-                        }, 300);
-                      });
-                    }
+                        try {
+                          console.log('Navigating to profile after modal closed (using replace):', profileRoute);
+                          // Use replace to prevent going back to status viewer
+                          router.replace(profileRoute as any);
+                        } catch (error) {
+                          console.error('Navigation error after modal close:', error);
+                          // Fallback: try push
+                          try {
+                            router.push(profileRoute as any);
+                          } catch (pushError) {
+                            console.error('Push also failed:', pushError);
+                          }
+                        }
+                      }, 300); // Increased delay to ensure modal is fully closed
+                    });
                   };
 
                   return (
