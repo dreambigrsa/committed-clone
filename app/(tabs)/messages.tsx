@@ -36,8 +36,9 @@ export default function MessagesScreen() {
     }).start();
   }, [fadeAnim]);
 
+  // Return empty view instead of null to maintain hook count consistency
   if (!currentUser) {
-    return null;
+    return <SafeAreaView style={[styles.container, { backgroundColor: colors.background.secondary }]} />;
   }
 
   const formatTimeAgo = (dateString: string) => {
