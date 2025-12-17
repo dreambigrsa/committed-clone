@@ -73,7 +73,7 @@ export interface SearchResult {
   };
 }
 
-export type NotificationType = 'relationship_request' | 'cheating_alert' | 'relationship_verified' | 'relationship_ended' | 'relationship_end_request' | 'post_like' | 'post_comment' | 'message' | 'follow' | 'anniversary_reminder' | 'verification_attempt';
+export type NotificationType = 'relationship_request' | 'cheating_alert' | 'relationship_verified' | 'relationship_ended' | 'relationship_end_request' | 'post_like' | 'post_comment' | 'message' | 'follow' | 'anniversary_reminder' | 'verification_attempt' | 'status_reaction';
 
 export interface Notification {
   id: string;
@@ -146,6 +146,8 @@ export interface Message {
   deletedForReceiver?: boolean;
   read: boolean;
   createdAt: string;
+  statusId?: string;
+  statusPreviewUrl?: string;
 }
 
 export interface Conversation {
